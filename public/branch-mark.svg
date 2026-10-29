@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="branch-mark-title branch-mark-desc">
+  <title id="branch-mark-title">Branch</title>
+  <desc id="branch-mark-desc">One architecture component branching into two connected components.</desc>
+
+  <defs>
+    <linearGradient id="background" x1="18" y1="14" x2="110" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="connection" x1="48" y1="64" x2="90" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c7d2fe"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="30" fill="url(#background)"/>
+
+  <g fill="none" stroke="url(#connection)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M49 64h9c10 0 10-28 22-28h5"/>
+    <path d="M58 64c10 0 10 28 22 28h5"/>
+  </g>
+
+  <g stroke="#ffffff" stroke-width="4">
+    <rect x="20" y="47" width="32" height="34" rx="10" fill="#ffffff"/>
+    <rect x="82" y="20" width="26" height="32" rx="9" fill="#dbeafe"/>
+    <rect x="82" y="76" width="26" height="32" rx="9" fill="#ffffff"/>
+  </g>
+
+  <g fill="#4f46e5">
+    <circle cx="36" cy="64" r="5"/>
+    <circle cx="95" cy="36" r="4"/>
+    <circle cx="95" cy="92" r="4"/>
+  </g>
+</svg>

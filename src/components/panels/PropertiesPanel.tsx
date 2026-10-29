@@ -1,0 +1,1428 @@
+import { useState, useMemo } from "react";
+import { Icon as IconifyIcon } from "@iconify/react";
+import { useDiagramStore } from "@/store/diagramStore";
+import { useAnimationStore } from "@/store/animationStore";
+import { useOnboardingStore } from "@/store/onboardingStore";
+import {
+  NODE_TYPES_CONFIG,
+  GROUP_TYPES_CONFIG,
+  DATA_FORMATS,
+  COMMENT_CONFIG,
+  HEALTH_STATUS_STYLES,
+  PROTOCOL_CONFIG,
+} from "@/constants";
+import {
+  ArchitectureNodeType,
+  ArchitectureNodeData,
+  ArchitectureEdgeData,
+  GroupNodeType,
+  DataFormat,
+} from "@/types";
+import { cn } from "@/lib/utils";
+import { applyValidatedInput } from "@/lib/validatedInput";
+import {
+  architectureNodeTypeSchema,
+  groupNodeTypeSchema,
+  nodeStatusSchema,
+  edgeProtocolSchema,
+  httpMethodSchema,
+  dataFormatSchema,
+  commentNodeDataSchema,
+  groupNodeDataSchema,
+  architectureNodeDataSchema,
+  architectureEdgeDataSchema,
+} from "@/schemas/diagram";
+import {
+  XMarkIcon,
+  TrashIcon,
+  CursorArrowRippleIcon,
+  ChevronDownIcon,
+  Squares2X2Icon,
+  HeartIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationCircleIcon,
+  ArrowPathIcon,
+  InformationCircleIcon,
+} from "@heroicons/react/24/outline";
+
+import { CodeEditor } from "@/components/ui/CodeEditor";
+import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
+import { TagInput } from "@/components/ui/TagInput";
+
+export function PropertiesPanel() {
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+
+  const {
+    nodes,
+    edges,
+    selectedNodeId,
+    selectedEdgeId,
+    setSelectedNode,
+    setSelectedEdge,
+    updateNodeData,
+    updateGroupData,
+    toggleGroupCollapse,
+    updateEdgeData,
+    deleteEdge,
+    addNodeToGroup,
+    removeNodeFromGroup,
+    runNodeHealthCheck,
+    getNodeHealthResult,
+  } = useDiagramStore();
+
+  const requestDelete = useAnimationStore((s) => s.requestDelete);
+  const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
+
+  const [isTestingHealth, setIsTestingHealth] = useState(false);
+
+  // Associate the selected contract side with its edge so changing selection
+  // naturally falls back to the request side without an effect-driven reset.
+  const [contractSelection, setContractSelection] = useState<{
+    edgeId: string | null;
+    side: "request" | "response";
+  }>({ edgeId: null, side: "request" });
+  const contractSide =
+    contractSelection.edgeId === selectedEdgeId ? contractSelection.side : "request";
+
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
+
+  // Tag suggestions: union of every tag in use across nodes + edges.
+  const tagSuggestions = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of nodes) {
+      if (n.type === "architecture") {
+        const t = (n.data as ArchitectureNodeData).tags;
+        if (Array.isArray(t)) {
+          for (const tag of t) {
+            set.add(tag);
+          }
+        }
+      }
+    }
+    for (const e of edges) {
+      const t = (e.data as ArchitectureEdgeData | undefined)?.tags;
+      if (Array.isArray(t)) {
+        for (const tag of t) {
+          if (typeof tag === "string") {
+            set.add(tag);
+          }
+        }
+      }
+    }
+    return Array.from(set).sort();
+  }, [nodes, edges]);
+
+  if (!selectedNode && !selectedEdge) {
+    return (
+      <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Properties</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="text-center mt-20 opacity-40">
+            <CursorArrowRippleIcon className="w-8 h-8 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
+            <p className="text-xs text-zinc-500 dark:text-zinc-500">
+              Select a node to view properties
+            </p>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  if (selectedNode) {
+    // Check if it's a comment node
+    if (selectedNode.type === "comment") {
+      const commentData = commentNodeDataSchema.parse(selectedNode.data);
+      const Icon = COMMENT_CONFIG.icon;
+      const color = commentData.color || "yellow";
+      const colorConfig = COMMENT_CONFIG.colors[color];
+
+      return (
+        <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+          {/* Header */}
+          <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Comment Properties
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedNode(null)}
+              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+            {/* Header Section */}
+            <div className="flex items-start gap-4">
+              <div className={cn("p-3 rounded-lg border", colorConfig.border, colorConfig.bg)}>
+                <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
+                  Comment
+                </h2>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-mono">
+                  ID: {selectedNode.id.slice(-8).toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            <hr className="border-zinc-200 dark:border-zinc-800" />
+
+            {/* Fields */}
+            <div className="space-y-4">
+              {/* Text Content */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Text
+                </span>
+                <textarea
+                  value={commentData.text || ""}
+                  onChange={(e) => updateNodeData(selectedNode.id, { text: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Add your note here..."
+                  rows={6}
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-2 text-sm text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                />
+              </div>
+
+              {/* Color */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Color
+                </span>
+                <div className="relative">
+                  <select
+                    value={color}
+                    onChange={(e) => updateNodeData(selectedNode.id, { color: e.target.value })}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  >
+                    <option value="yellow">Yellow</option>
+                    <option value="blue">Blue</option>
+                    <option value="green">Green</option>
+                    <option value="pink">Pink</option>
+                    <option value="purple">Purple</option>
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Author */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Author
+                </span>
+                <input
+                  type="text"
+                  value={commentData.author || ""}
+                  onChange={(e) => updateNodeData(selectedNode.id, { author: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Your name"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Minimized Toggle */}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs text-zinc-700 dark:text-zinc-300">Minimized</span>
+                <ToggleSwitch
+                  checked={commentData.minimized || false}
+                  onChange={(checked) => updateNodeData(selectedNode.id, { minimized: checked })}
+                />
+              </div>
+            </div>
+
+            {/* Metadata Section */}
+            <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Comment ID</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {selectedNode.id.slice(-12)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Created</span>
+                <span className="text-zinc-700 dark:text-zinc-300">
+                  {commentData.createdAt
+                    ? new Date(commentData.createdAt).toLocaleDateString()
+                    : "N/A"}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Position X</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {Math.round(selectedNode.position.x)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Position Y</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {Math.round(selectedNode.position.y)}
+                </span>
+              </div>
+            </div>
+
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={() => requestDelete(selectedNode.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+            >
+              <TrashIcon className="w-3 h-3" />
+              Delete Comment
+            </button>
+          </div>
+        </aside>
+      );
+    }
+
+    // Check if it's a group node
+    if (selectedNode.type === "group") {
+      const groupData = groupNodeDataSchema.parse(selectedNode.data);
+      const config = GROUP_TYPES_CONFIG[groupData.groupType] || GROUP_TYPES_CONFIG.vpc;
+      const Icon = config.icon;
+
+      return (
+        <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+          {/* Header */}
+          <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Group Properties
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedNode(null)}
+              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+            {/* Header Section */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/30 dark:bg-zinc-900/30">
+                <Icon className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
+                  {groupData.label}
+                </h2>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-mono">
+                  ID: {selectedNode.id.slice(-8).toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            <hr className="border-zinc-200 dark:border-zinc-800" />
+
+            {/* Fields */}
+            <div className="space-y-4">
+              {/* Display Name */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Label
+                </span>
+                <input
+                  type="text"
+                  value={groupData.label}
+                  onChange={(e) => updateGroupData(selectedNode.id, { label: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+              {/* Group Type */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Type
+                </span>
+                <div className="relative">
+                  <select
+                    value={groupData.groupType}
+                    onChange={(e) =>
+                      applyValidatedInput(groupNodeTypeSchema, e.target.value, (groupType) =>
+                        updateGroupData(selectedNode.id, { groupType }),
+                      )
+                    }
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  >
+                    {(Object.keys(GROUP_TYPES_CONFIG) as GroupNodeType[]).map((type) => (
+                      <option key={type} value={type}>
+                        {GROUP_TYPES_CONFIG[type].label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Description
+                </span>
+                <textarea
+                  value={groupData.description || ""}
+                  onChange={(e) =>
+                    updateGroupData(selectedNode.id, { description: e.target.value })
+                  }
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Describe this group..."
+                  rows={3}
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                />
+              </div>
+
+              {/* Accent Color */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Accent Color
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={groupData.accentColor || "#a1a1aa"}
+                    onChange={(e) =>
+                      updateGroupData(selectedNode.id, { accentColor: e.target.value })
+                    }
+                    className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
+                  />
+                  {groupData.accentColor && (
+                    <button
+                      type="button"
+                      onClick={() => updateGroupData(selectedNode.id, { accentColor: "" })}
+                      className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Background Color */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Background Color
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={groupData.backgroundColor || "#6366f1"}
+                    onChange={(e) =>
+                      updateGroupData(selectedNode.id, { backgroundColor: e.target.value })
+                    }
+                    className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
+                  />
+                  {groupData.backgroundColor && (
+                    <button
+                      type="button"
+                      onClick={() => updateGroupData(selectedNode.id, { backgroundColor: "" })}
+                      className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Collapsed Toggle */}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs text-zinc-700 dark:text-zinc-300">Collapsed</span>
+                <ToggleSwitch
+                  checked={groupData.collapsed || false}
+                  onChange={() => toggleGroupCollapse(selectedNode.id)}
+                />
+              </div>
+            </div>
+
+            {/* Metadata Section */}
+            <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Group ID</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {selectedNode.id.slice(-12)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Position X</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {Math.round(selectedNode.position.x)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Position Y</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {Math.round(selectedNode.position.y)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Width</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {(selectedNode.style?.width as number) || 300}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Height</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {(selectedNode.style?.height as number) || 250}
+                </span>
+              </div>
+            </div>
+
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={() => requestDelete(selectedNode.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-400 bg-red-950/50 border border-red-900/50 rounded-lg hover:bg-red-900/50 transition-colors"
+            >
+              <TrashIcon className="w-3 h-3" />
+              Delete Group
+            </button>
+          </div>
+        </aside>
+      );
+    }
+
+    // Regular architecture node
+    const nodeData = architectureNodeDataSchema.parse(selectedNode.data);
+    const config = NODE_TYPES_CONFIG[nodeData.type];
+    const Icon = config.icon;
+
+    return (
+      <>
+        <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+          {/* Header */}
+          <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              Properties
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedNode(null)}
+              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+            {/* Header Section */}
+            <div className="flex items-start gap-4">
+              <div className={cn("p-3 rounded-lg border", config.bgClass, config.borderClass)}>
+                {nodeData.iconifyIcon ? (
+                  <IconifyIcon
+                    icon={nodeData.iconifyIcon}
+                    className="w-5 h-5"
+                    style={{ color: nodeData.iconColor || config.iconColor.replace("text-", "") }}
+                  />
+                ) : (
+                  <Icon className={cn("w-5 h-5", config.iconColor)} />
+                )}
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
+                  {nodeData.label}
+                </h2>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-mono">
+                  ID: {selectedNode.id.slice(-8).toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            <hr className="border-zinc-200 dark:border-zinc-800" />
+
+            {/* Fields */}
+            <div className="space-y-4">
+              {/* Display Name */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Display Name
+                </span>
+                <input
+                  type="text"
+                  value={nodeData.label}
+                  onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Type */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Component Type
+                </span>
+                <div className="relative">
+                  <select
+                    value={nodeData.type}
+                    onChange={(e) =>
+                      applyValidatedInput(architectureNodeTypeSchema, e.target.value, (type) =>
+                        updateNodeData(selectedNode.id, { type }),
+                      )
+                    }
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  >
+                    {(Object.keys(NODE_TYPES_CONFIG) as ArchitectureNodeType[]).map((type) => (
+                      <option key={type} value={type}>
+                        {NODE_TYPES_CONFIG[type].label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Custom Icon */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Custom Icon
+                </span>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={nodeData.iconifyIcon || ""}
+                      onChange={(e) =>
+                        updateNodeData(selectedNode.id, { iconifyIcon: e.target.value })
+                      }
+                      onKeyDown={(e) => e.stopPropagation()}
+                      placeholder="e.g., mdi:kubernetes, logos:docker-icon"
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                    />
+                    {nodeData.iconifyIcon && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4">
+                        <IconifyIcon
+                          icon={nodeData.iconifyIcon}
+                          className="w-full h-full"
+                          style={{
+                            color: nodeData.iconColor || config.iconColor.replace("text-", ""),
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsIconPickerOpen(true)}
+                    className="px-3 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded transition-colors text-zinc-700 dark:text-zinc-300"
+                  >
+                    Browse
+                  </button>
+                </div>
+                {nodeData.iconifyIcon && (
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">
+                        Icon Color
+                      </span>
+                      <input
+                        type="color"
+                        value={nodeData.iconColor || "#000000"}
+                        onChange={(e) =>
+                          updateNodeData(selectedNode.id, { iconColor: e.target.value })
+                        }
+                        className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateNodeData(selectedNode.id, {
+                          iconifyIcon: "",
+                          iconColor: "",
+                        })
+                      }
+                      className="mt-4.5 px-2 py-1.5 text-[10px] font-medium bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded transition-colors"
+                      title="Reset to default icon"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Technology */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Technology
+                </span>
+                <input
+                  type="text"
+                  value={nodeData.technology || ""}
+                  onChange={(e) => updateNodeData(selectedNode.id, { technology: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="e.g., Node.js, PostgreSQL"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Status */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Status
+                </span>
+                <div className="relative">
+                  <select
+                    value={nodeData.status || ""}
+                    onChange={(e) =>
+                      applyValidatedInput(
+                        nodeStatusSchema.optional(),
+                        e.target.value || undefined,
+                        (status) => updateNodeData(selectedNode.id, { status }),
+                      )
+                    }
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  >
+                    <option value="">None</option>
+                    <option value="active">Healthy</option>
+                    <option value="warning">Degraded</option>
+                    <option value="inactive">Maintenance</option>
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Accent Color */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Accent Color
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={nodeData.accentColor || "#a1a1aa"}
+                    onChange={(e) =>
+                      updateNodeData(selectedNode.id, { accentColor: e.target.value })
+                    }
+                    className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
+                  />
+                  {nodeData.accentColor && (
+                    <button
+                      type="button"
+                      onClick={() => updateNodeData(selectedNode.id, { accentColor: "" })}
+                      className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Background Color */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Background Color
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={nodeData.backgroundColor || "#6366f1"}
+                    onChange={(e) =>
+                      updateNodeData(selectedNode.id, { backgroundColor: e.target.value })
+                    }
+                    className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
+                  />
+                  {nodeData.backgroundColor && (
+                    <button
+                      type="button"
+                      onClick={() => updateNodeData(selectedNode.id, { backgroundColor: "" })}
+                      className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Port */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Port
+                </span>
+                <input
+                  type="text"
+                  value={nodeData.port || ""}
+                  onChange={(e) => updateNodeData(selectedNode.id, { port: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="e.g., 3000, 5432"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Description
+                </span>
+                <textarea
+                  value={nodeData.description || ""}
+                  onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Describe this component..."
+                  rows={3}
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                />
+              </div>
+
+              {/* Health Check */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide flex items-center gap-1">
+                  <HeartIcon className="w-3 h-3" />
+                  Health Check URL
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={nodeData.healthCheckUrl || ""}
+                    onChange={(e) =>
+                      updateNodeData(selectedNode.id, { healthCheckUrl: e.target.value })
+                    }
+                    onKeyDown={(e) => e.stopPropagation()}
+                    placeholder="https://api.example.com/health"
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!nodeData.healthCheckUrl) {
+                        return;
+                      }
+                      setIsTestingHealth(true);
+                      void runNodeHealthCheck(selectedNode.id).finally(() =>
+                        setIsTestingHealth(false),
+                      );
+                    }}
+                    disabled={!nodeData.healthCheckUrl || isTestingHealth}
+                    className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {isTestingHealth ? (
+                      <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <HeartIcon className="w-3 h-3" />
+                    )}
+                    Test
+                  </button>
+                </div>
+
+                {/* Health Check Result */}
+                {(() => {
+                  const healthResult = getNodeHealthResult(selectedNode.id);
+                  if (!healthResult) {
+                    return null;
+                  }
+
+                  const statusStyle =
+                    HEALTH_STATUS_STYLES[healthResult.loading ? "loading" : healthResult.status];
+                  const StatusIcon = healthResult.loading
+                    ? ArrowPathIcon
+                    : healthResult.status === "healthy"
+                      ? CheckCircleIcon
+                      : healthResult.status === "unhealthy"
+                        ? XCircleIcon
+                        : ExclamationCircleIcon;
+
+                  return (
+                    <div
+                      className={cn("mt-2 p-2 rounded border", statusStyle.bg, statusStyle.border)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <StatusIcon
+                          className={cn(
+                            "w-4 h-4",
+                            statusStyle.icon,
+                            healthResult.loading && "animate-spin",
+                          )}
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className={cn("text-xs font-medium", statusStyle.text)}>
+                              {healthResult.loading
+                                ? "Testing..."
+                                : healthResult.status === "healthy"
+                                  ? "Healthy"
+                                  : healthResult.status === "unhealthy"
+                                    ? "Unhealthy"
+                                    : "Error"}
+                            </span>
+                            {!healthResult.loading && (
+                              <span className="text-[10px] text-zinc-500 dark:text-zinc-500">
+                                {healthResult.latency}ms
+                              </span>
+                            )}
+                          </div>
+                          {healthResult.message && !healthResult.loading && (
+                            <p className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-0.5">
+                              {healthResult.message}
+                            </p>
+                          )}
+                          {!healthResult.loading && (
+                            <p className="text-[9px] text-zinc-500 dark:text-zinc-500 mt-0.5">
+                              {new Date(healthResult.timestamp).toLocaleTimeString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* CORS Info */}
+                {nodeData.healthCheckUrl && (
+                  <div className="mt-2 flex gap-2 p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded">
+                    <InformationCircleIcon className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                      Health checks may fail for services without CORS headers. Best for localhost
+                      or CORS-enabled services.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Tags */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Tags
+                </span>
+                <TagInput
+                  value={nodeData.tags || []}
+                  onChange={(next) => updateNodeData(selectedNode.id, { tags: next })}
+                  suggestions={tagSuggestions}
+                  placeholder="e.g. pci, team:payments"
+                />
+                <span className="text-[9px] text-zinc-400 dark:text-zinc-600">
+                  Filter the canvas by tag from the top-right overlay
+                </span>
+              </div>
+
+              {/* Parent Group */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Parent Group
+                </span>
+                <div className="relative">
+                  <select
+                    value={selectedNode.parentId || nodeData.parentId || ""}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addNodeToGroup(selectedNode.id, e.target.value);
+                      } else {
+                        removeNodeFromGroup(selectedNode.id);
+                      }
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  >
+                    <option value="">None (Drag to assign)</option>
+                    {nodes
+                      .filter((n) => n.type === "group")
+                      .map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {groupNodeDataSchema.parse(group.data).label || "Unnamed Group"}
+                        </option>
+                      ))}
+                  </select>
+                  <Squares2X2Icon className="absolute right-2 top-2 w-3 h-3 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
+                </div>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-0.5">
+                  Tip: Drag node inside a group to auto-assign
+                </p>
+              </div>
+            </div>
+
+            {/* Metadata Section */}
+            <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Node ID</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {selectedNode.id.slice(-12)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Position X</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {Math.round(selectedNode.position.x)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 dark:text-zinc-500">Position Y</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                  {Math.round(selectedNode.position.y)}
+                </span>
+              </div>
+            </div>
+
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={() => requestDelete(selectedNode.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+            >
+              <TrashIcon className="w-3 h-3" />
+              Delete Node
+            </button>
+          </div>
+        </aside>
+        <IconPickerDialog
+          isOpen={isIconPickerOpen}
+          onClose={() => setIsIconPickerOpen(false)}
+          onSelect={(iconId) => {
+            updateNodeData(selectedNode.id, { iconifyIcon: iconId });
+            setIsIconPickerOpen(false);
+          }}
+          {...(nodeData.iconifyIcon ? { currentIcon: nodeData.iconifyIcon } : {})}
+        />
+      </>
+    );
+  }
+
+  if (selectedEdge) {
+    const edgeData = architectureEdgeDataSchema.parse(selectedEdge.data ?? {});
+
+    return (
+      <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        {/* Header */}
+        <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Connection</span>
+          <button
+            type="button"
+            onClick={() => setSelectedEdge(null)}
+            className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-6 animate-slide-in">
+          {/* Fields */}
+          <div className="space-y-4">
+            {/* Label */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                Label
+              </span>
+              <input
+                type="text"
+                value={edgeData.label || ""}
+                onChange={(e) => updateEdgeData(selectedEdge.id, { label: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+                placeholder="e.g., /api/users"
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Protocol */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                Protocol
+              </span>
+              <div className="relative">
+                <select
+                  aria-label="Protocol"
+                  value={edgeData.protocol || "http"}
+                  onChange={(e) =>
+                    applyValidatedInput(edgeProtocolSchema, e.target.value, (protocol) =>
+                      updateEdgeData(selectedEdge.id, { protocol }),
+                    )
+                  }
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                >
+                  <optgroup label="Standard">
+                    <option value="http">HTTP/REST</option>
+                    <option value="grpc">gRPC</option>
+                    <option value="graphql">GraphQL</option>
+                    <option value="websocket">WebSocket</option>
+                    <option value="tcp">TCP</option>
+                  </optgroup>
+                  <optgroup label="Messaging">
+                    <option value="amqp">AMQP</option>
+                    <option value="rabbitmq">RabbitMQ</option>
+                    <option value="kafka">Kafka</option>
+                    <option value="eventbridge">EventBridge</option>
+                    <option value="sns">SNS/Push</option>
+                  </optgroup>
+                  <optgroup label="Data">
+                    <option value="sql">SQL/Database</option>
+                    <option value="redis">Redis</option>
+                    <option value="s3">S3/Blob</option>
+                    <option value="vector">Vector Search</option>
+                    <option value="search">Search</option>
+                  </optgroup>
+                  <optgroup label="Auth &amp; DNS">
+                    <option value="oauth">OAuth/OIDC</option>
+                    <option value="dns">DNS</option>
+                  </optgroup>
+                  <optgroup label="AI/ML">
+                    <option value="inference">AI Inference</option>
+                  </optgroup>
+                </select>
+                <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* HTTP Method */}
+            {(edgeData.protocol === "http" || !edgeData.protocol) && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                  HTTP Method
+                </span>
+                <div className="relative">
+                  <select
+                    value={edgeData.method || ""}
+                    onChange={(e) =>
+                      applyValidatedInput(
+                        httpMethodSchema.optional(),
+                        e.target.value || undefined,
+                        (method) => updateEdgeData(selectedEdge.id, { method }),
+                      )
+                    }
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  >
+                    <option value="">None</option>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="DELETE">DELETE</option>
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+            )}
+
+            {/* Animated Toggle */}
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-700 dark:text-zinc-300">Animated</span>
+              <div className="flex flex-col">
+                <span className="text-xs text-zinc-300">Animated Flow</span>
+                <span className="text-[10px] text-zinc-500">Show data passing</span>
+              </div>
+              <ToggleSwitch
+                checked={edgeData.animated || false}
+                onChange={(checked) => updateEdgeData(selectedEdge.id, { animated: checked })}
+              />
+            </div>
+
+            {/* Async Toggle */}
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-700 dark:text-zinc-300">Asynchronous</span>
+              <div className="flex flex-col">
+                <span className="text-xs text-zinc-300">Fire & Forget</span>
+                <span className="text-[10px] text-zinc-500">Non-blocking call</span>
+              </div>
+              <ToggleSwitch
+                checked={edgeData.async || false}
+                onChange={(checked) => updateEdgeData(selectedEdge.id, { async: checked })}
+              />
+            </div>
+
+            {/* Bidirectional Toggle */}
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-700 dark:text-zinc-300">Bidirectional</span>
+              <div className="flex flex-col">
+                <span className="text-xs text-zinc-300">Two-way Flow</span>
+                <span className="text-[10px] text-zinc-500">Request/Response</span>
+              </div>
+              <ToggleSwitch
+                checked={edgeData.bidirectional || false}
+                onChange={(checked) => updateEdgeData(selectedEdge.id, { bidirectional: checked })}
+              />
+            </div>
+
+            {/* Latency */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                Latency (ms)
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={edgeData.latencyMs ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value));
+                  updateEdgeData(selectedEdge.id, { latencyMs: val });
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+                placeholder="e.g. 50"
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+              />
+              <span className="text-[9px] text-zinc-400 dark:text-zinc-600">
+                Used by simulation for packet speed
+              </span>
+            </div>
+
+            {/* Description */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                Description
+              </span>
+              <textarea
+                value={edgeData.description || ""}
+                onChange={(e) => updateEdgeData(selectedEdge.id, { description: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+                placeholder="Describe this connection..."
+                rows={3}
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+              />
+            </div>
+
+            {/* Tags */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                Tags
+              </span>
+              <TagInput
+                value={edgeData.tags || []}
+                onChange={(next) => updateEdgeData(selectedEdge.id, { tags: next })}
+                suggestions={tagSuggestions}
+                placeholder="e.g. critical, public-api"
+              />
+            </div>
+          </div>
+
+          <hr className="border-zinc-200 dark:border-zinc-800" />
+
+          {/* Data Contract Section — segmented Request | Response for request/response protocols. */}
+          {(() => {
+            const supportsResponse =
+              edgeData.protocol !== null &&
+              edgeData.protocol !== undefined &&
+              PROTOCOL_CONFIG[edgeData.protocol]?.requestResponse;
+            const activeSide: "request" | "response" = supportsResponse ? contractSide : "request";
+            const fieldKey = activeSide === "response" ? "responseContract" : "dataContract";
+            const activeContract = edgeData[fieldKey];
+            const updateContract = (patch: Partial<NonNullable<typeof activeContract>>) =>
+              updateEdgeData(selectedEdge.id, {
+                [fieldKey]: {
+                  format: "json" as DataFormat,
+                  ...activeContract,
+                  ...patch,
+                },
+              });
+            const hasResponseContract =
+              edgeData.responseContract !== null && edgeData.responseContract !== undefined;
+
+            return (
+              <div
+                className={cn(
+                  "space-y-4 rounded-lg",
+                  onboardingActiveStep === "set-contract" && "onboarding-pulse p-2 -m-2",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                    Data Contract
+                  </span>
+                  <span className="text-[9px] text-zinc-400 dark:text-zinc-600">Optional</span>
+                </div>
+
+                {/* Segmented control — only for request/response protocols. */}
+                {supportsResponse && (
+                  <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setContractSelection({ edgeId: selectedEdge.id, side: "request" })
+                      }
+                      className={cn(
+                        "text-[10px] font-medium uppercase tracking-wide py-1 rounded transition-colors",
+                        activeSide === "request"
+                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300",
+                      )}
+                    >
+                      Request
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setContractSelection({ edgeId: selectedEdge.id, side: "response" })
+                      }
+                      className={cn(
+                        "text-[10px] font-medium uppercase tracking-wide py-1 rounded transition-colors flex items-center justify-center gap-1",
+                        activeSide === "response"
+                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300",
+                      )}
+                    >
+                      Response
+                      {hasResponseContract && (
+                        <span
+                          className="w-1 h-1 rounded-full bg-emerald-500"
+                          aria-label="Response contract defined"
+                        />
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Format */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Format
+                  </span>
+                  <div className="relative">
+                    <select
+                      value={activeContract?.format || "json"}
+                      onChange={(e) =>
+                        applyValidatedInput(dataFormatSchema, e.target.value, (format) =>
+                          updateContract({ format }),
+                        )
+                      }
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                    >
+                      {Object.entries(DATA_FORMATS).map(([key, config]) => (
+                        <option key={key} value={key}>
+                          {config.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Schema Name */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Schema Name
+                  </span>
+                  <input
+                    type="text"
+                    value={activeContract?.schemaName || ""}
+                    onChange={(e) => updateContract({ schemaName: e.target.value })}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    placeholder={
+                      activeSide === "response"
+                        ? "e.g., TaskCreatedResponse"
+                        : "e.g., TaskCreatedEvent"
+                    }
+                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Schema Definition */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Schema Definition
+                  </span>
+                  <CodeEditor
+                    value={activeContract?.schema || ""}
+                    onChange={(value) => updateContract({ schema: value })}
+                    format={activeContract?.format || "json"}
+                    placeholder={DATA_FORMATS[activeContract?.format || "json"].placeholder}
+                    height="180px"
+                  />
+                  <span className="text-[9px] text-zinc-400 dark:text-zinc-600">
+                    {DATA_FORMATS[activeContract?.format || "json"].description}
+                  </span>
+                </div>
+
+                {/* Contract Description */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Contract Notes
+                  </span>
+                  <textarea
+                    value={activeContract?.description || ""}
+                    onChange={(e) => updateContract({ description: e.target.value })}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    placeholder={
+                      activeSide === "response"
+                        ? "Additional notes about the response contract..."
+                        : "Additional notes about this data contract..."
+                    }
+                    rows={2}
+                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Metadata Section */}
+          <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-zinc-500 dark:text-zinc-500">Edge ID</span>
+              <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                {selectedEdge.id.slice(-12)}
+              </span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-zinc-500 dark:text-zinc-500">Source</span>
+              <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                {selectedEdge.source.slice(-8)}
+              </span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-zinc-500 dark:text-zinc-500">Target</span>
+              <span className="text-zinc-700 dark:text-zinc-300 font-mono">
+                {selectedEdge.target.slice(-8)}
+              </span>
+            </div>
+          </div>
+
+          {/* Delete Button */}
+          <button
+            type="button"
+            onClick={() => deleteEdge(selectedEdge.id)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+          >
+            <TrashIcon className="w-3 h-3" />
+            Delete Connection
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
+  return null;
+}
+
+// Custom Toggle Switch Component
+function ToggleSwitch({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={checked ? "Disable setting" : "Enable setting"}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "w-9 h-5 rounded-full border relative transition-colors",
+        checked
+          ? "bg-zinc-900 dark:bg-zinc-100 border-zinc-700 dark:border-zinc-300"
+          : "bg-zinc-200 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all",
+          checked
+            ? "left-4.5 bg-zinc-100 dark:bg-zinc-900"
+            : "left-0.5 bg-zinc-600 dark:bg-zinc-400",
+        )}
+      />
+    </button>
+  );
+}
