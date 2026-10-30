@@ -28,16 +28,18 @@ Object.defineProperty(globalThis, "ResizeObserver", {
 });
 
 // Mock matchMedia
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: vi.fn<typeof window.matchMedia>().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn<MediaQueryList["addListener"]>(),
-    removeListener: vi.fn<MediaQueryList["removeListener"]>(),
-    addEventListener: vi.fn<MediaQueryList["addEventListener"]>(),
-    removeEventListener: vi.fn<MediaQueryList["removeEventListener"]>(),
-    dispatchEvent: vi.fn<MediaQueryList["dispatchEvent"]>().mockReturnValue(false),
-  })),
-});
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn<typeof window.matchMedia>().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn<MediaQueryList["addListener"]>(),
+      removeListener: vi.fn<MediaQueryList["removeListener"]>(),
+      addEventListener: vi.fn<MediaQueryList["addEventListener"]>(),
+      removeEventListener: vi.fn<MediaQueryList["removeEventListener"]>(),
+      dispatchEvent: vi.fn<MediaQueryList["dispatchEvent"]>().mockReturnValue(false),
+    })),
+  });
+}

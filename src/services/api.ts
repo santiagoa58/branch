@@ -1,5 +1,4 @@
-// API service for architecture-diagram-api backend
-import { API_BASE_URL } from "@/config/runtime";
+// Same-origin, authenticated cloud API.
 import {
   apiDiagramSchema,
   apiDiagramSummaryListSchema,
@@ -16,6 +15,7 @@ import {
   updateProjectRequestSchema,
   updateThumbnailRequestSchema,
   voidResponseSchema,
+  revisionRequestSchema,
   type CreateDiagramRequest,
   type CreateProjectRequest,
   type UpdateDiagramRequest,
@@ -39,7 +39,11 @@ export type {
   UpdateThumbnailRequest,
 } from "@/schemas/api";
 
-const API_BASE = API_BASE_URL;
+const API_BASE = "/api";
+let getToken: (() => Promise<string | null>) | null = null;
+export function setApiTokenProvider(provider: (() => Promise<string | null>) | null) {
+  getToken = provider;
+}
 
 type RequestOptions<TRequest> = Omit<RequestInit, "body"> &
   (
@@ -101,6 +105,11 @@ async function request<TResponse, TRequest = never>(
   const { requestSchema, data, ...requestInit } = init ?? {};
   const method = requestInit.method ?? "GET";
   const headers = new Headers(requestInit.headers);
+  const token = await getToken?.();
+  if (!token) {
+    throw new ApiError(401, "Sign in to access this workspace.");
+  }
+  headers.set("Authorization", `Bearer ${token}`);
   let body: string | undefined;
 
   if (requestSchema) {
@@ -214,11 +223,11 @@ export const diagramsApi = {
   delete: (id: string) =>
     request(`/diagrams/${encodeURIComponent(id)}`, voidResponseSchema, { method: "DELETE" }),
 
-  updateThumbnail: (id: string, thumbnail: string) =>
+  updateThumbnail: (id: string, thumbnail: string, expectedRevision: number) =>
     request(`/diagrams/${encodeURIComponent(id)}/thumbnail`, apiDiagramSchema, {
       method: "PUT",
       requestSchema: updateThumbnailRequestSchema,
-      data: { thumbnail },
+      data: { thumbnail, expectedRevision },
     }),
 };
 
@@ -234,18 +243,18 @@ export const versionsApi = {
       apiDiagramVersionFullSchema,
     ),
 
-  create: (diagramId: string, label?: string) =>
+  create: (diagramId: string, expectedRevision: number, label?: string) =>
     request(`/diagrams/${encodeURIComponent(diagramId)}/versions`, apiDiagramVersionSchema, {
       method: "POST",
       requestSchema: createDiagramVersionRequestSchema,
-      data: label === undefined ? {} : { label },
+      data: { expectedRevision, ...(label === undefined ? {} : { label }) },
     }),
 
-  restore: (diagramId: string, versionId: string) =>
+  restore: (diagramId: string, versionId: string, expectedRevision: number) =>
     request(
       `/diagrams/${encodeURIComponent(diagramId)}/versions/${encodeURIComponent(versionId)}/restore`,
-      voidResponseSchema,
-      { method: "POST" },
+      apiDiagramSchema,
+      { method: "POST", requestSchema: revisionRequestSchema, data: { expectedRevision } },
     ),
 
   delete: (diagramId: string, versionId: string) =>

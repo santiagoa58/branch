@@ -72,3 +72,10 @@ coverage/
 # Cursor AI
 .cursor/
 .vitest/
+
+# Local package manager cache
+.pnpm-store/
+
+.clerk/
+
+.neon

@@ -76,25 +76,36 @@ describe("external response contracts", () => {
         data: invalid,
         thumbnail: null,
         version: 1,
+        revision: 1,
         createdAt: "today",
         updatedAt: "today",
       }).success,
     ).toBe(false);
   });
 
-  it("normalizes only the backend's exact empty diagram placeholder", () => {
+  it("requires complete cloud diagram data and revision-checked requests", () => {
     const base = {
       id: "d",
       projectId: "p",
       name: "Diagram",
       description: null,
       thumbnail: null,
-      version: 1,
+      version: 0,
+      revision: 1,
       createdAt: "today",
       updatedAt: "today",
     };
-    expect(apiDiagramSchema.parse({ ...base, data: {} }).data).toEqual({ nodes: [], edges: [] });
-    expect(apiDiagramSchema.safeParse({ ...base, data: { nodes: [] } }).success).toBe(false);
+    expect(apiDiagramSchema.safeParse({ ...base, data: {} }).success).toBe(false);
+    expect(apiDiagramSchema.safeParse({ ...base, data: { nodes: [], edges: [] } }).success).toBe(
+      true,
+    );
+    expect(updateDiagramRequestSchema.safeParse({ data: { nodes: [], edges: [] } }).success).toBe(
+      false,
+    );
+    expect(
+      updateDiagramRequestSchema.safeParse({ data: { nodes: [], edges: [] }, expectedRevision: 1 })
+        .success,
+    ).toBe(true);
   });
 
   it.each([null, true, 123])("rejects invalid persisted analysis timestamps: %j", (analyzedAt) => {

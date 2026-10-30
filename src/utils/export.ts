@@ -1,13 +1,8 @@
 import { toPng, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
 import type { DiagramData } from "@/types";
-import {
-  architectureNodeDataSchema,
-  diagramDataSchema,
-  groupNodeDataSchema,
-} from "@/schemas/diagram";
+import { architectureNodeDataSchema, groupNodeDataSchema } from "@/schemas/diagram";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
-import { deflate, inflate } from "pako";
 import { Node } from "@xyflow/react";
 import { SCHEMA_VERSION } from "./import";
 
@@ -480,55 +475,17 @@ export function exportAsJson(data: DiagramData, options: ExportOptions = {}): vo
   URL.revokeObjectURL(url);
 }
 
-// Generate shareable link (compressed data in URL)
-export function generateShareableLink(data: DiagramData): string {
-  try {
-    const jsonString = JSON.stringify(data);
-    const compressed = deflate(jsonString);
-    const base64 = btoa(String.fromCharCode.apply(null, Array.from(compressed)));
-    const encoded = encodeURIComponent(base64);
-
-    // Create URL with the compressed data
-    const url = new URL(window.location.href);
-    url.searchParams.set("diagram", encoded);
-
-    return url.toString();
-  } catch (error) {
-    console.error("Failed to generate shareable link:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to generate shareable link: ${message}`);
+// A private cloud URL never contains a document snapshot or grants access.
+export function generateShareableLink(): string {
+  const url = new URL(window.location.href);
+  if (!/^\/projects\/[^/]+\/diagrams\/[^/]+\/?$/.test(url.pathname)) {
+    throw new Error("Open a cloud diagram before copying its private link.");
   }
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }
 
-// Load diagram from URL parameter
-export function loadFromShareableLink(): DiagramData | null {
-  try {
-    const url = new URL(window.location.href);
-    const encoded = url.searchParams.get("diagram");
-
-    if (!encoded) {
-      return null;
-    }
-
-    const base64 = decodeURIComponent(encoded);
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-
-    const decompressed = inflate(bytes, { to: "string" });
-    const data: unknown = JSON.parse(decompressed);
-    const result = diagramDataSchema.safeParse(data);
-    return result.success ? result.data : null;
-  } catch (error) {
-    console.error("Failed to load diagram from link:", error);
-    return null;
-  }
-}
-
-// Copy shareable link to clipboard
-export async function copyShareableLink(data: DiagramData): Promise<void> {
-  const link = generateShareableLink(data);
-  await navigator.clipboard.writeText(link);
+export async function copyShareableLink(): Promise<void> {
+  await navigator.clipboard.writeText(generateShareableLink());
 }

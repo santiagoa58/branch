@@ -54,11 +54,9 @@ export default defineConfig({
       {
         files: [
           "src/schemas/**",
-          "src/hooks/useCollaboration.ts",
           "src/services/api.ts",
           "src/services/iconify.ts",
           "src/services/ai/providers/openai.ts",
-          "src/services/collaborationIdentity.ts",
           "src/utils/import.ts",
         ],
         rules: {
@@ -100,7 +98,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}", "server/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

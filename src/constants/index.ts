@@ -890,7 +890,6 @@ export const getDefaultProtocolForNode = (nodeType: string): EdgeProtocol => {
 };
 
 // Local storage key for diagram persistence
-export const STORAGE_KEY = "architecture-diagram-data";
 
 // Debounce time for auto-save (ms)
 export const AUTO_SAVE_DEBOUNCE = 1000;

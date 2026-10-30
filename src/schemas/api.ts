@@ -1,13 +1,6 @@
 import { z } from "zod";
 import { diagramDataSchema } from "./diagram";
 
-// The backend initializes newly created diagrams with exactly {}.
-// Normalize that legacy empty value; all nonempty payloads must validate fully.
-const apiDiagramDataSchema = z.union([
-  diagramDataSchema,
-  z.strictObject({}).transform(() => ({ nodes: [], edges: [] })),
-]);
-
 export const apiProjectSchema = z.strictObject({
   id: z.string(),
   name: z.string(),
@@ -24,9 +17,10 @@ export const apiDiagramSchema = z.strictObject({
   projectId: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  data: apiDiagramDataSchema,
+  data: diagramDataSchema,
   thumbnail: z.string().nullable(),
-  version: z.number().int(),
+  version: z.number().int().nonnegative(),
+  revision: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -43,39 +37,43 @@ export const apiDiagramVersionSchema = z.strictObject({
 });
 
 export const apiDiagramVersionFullSchema = apiDiagramVersionSchema.extend({
-  data: apiDiagramDataSchema,
+  data: diagramDataSchema,
 });
 
 export const createProjectRequestSchema = z.strictObject({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  color: z.string().optional(),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(10000).optional(),
+  color: z.string().max(100).optional(),
 });
 
 export const updateProjectRequestSchema = z.strictObject({
-  name: z.string().min(1).optional(),
-  description: z.string().optional(),
-  color: z.string().optional(),
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(10000).optional(),
+  color: z.string().max(100).optional(),
 });
 
 export const createDiagramRequestSchema = z.strictObject({
-  name: z.string().min(1),
-  description: z.string().optional(),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(10000).optional(),
   data: diagramDataSchema.optional(),
 });
 
-export const updateDiagramRequestSchema = z.strictObject({
-  name: z.string().min(1).optional(),
-  description: z.string().optional(),
+export const revisionRequestSchema = z.strictObject({
+  expectedRevision: z.number().int().positive(),
+});
+
+export const updateDiagramRequestSchema = revisionRequestSchema.extend({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(10000).optional(),
   data: diagramDataSchema.optional(),
 });
 
-export const updateThumbnailRequestSchema = z.strictObject({
-  thumbnail: z.string(),
+export const updateThumbnailRequestSchema = revisionRequestSchema.extend({
+  thumbnail: z.string().max(500000),
 });
 
-export const createDiagramVersionRequestSchema = z.strictObject({
-  label: z.string().optional(),
+export const createDiagramVersionRequestSchema = revisionRequestSchema.extend({
+  label: z.string().max(200).optional(),
 });
 
 export const apiErrorBodySchema = z.strictObject({

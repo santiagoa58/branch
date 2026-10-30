@@ -1,0 +1,158 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-library/react";
+import { createMemoryRouter, RouterProvider, useNavigate } from "react-router-dom";
+import { CloudNavigationGuard, CloudSaveError } from "./CloudSaveStatus";
+import { useAnimationStore } from "@/store/animationStore";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
+import {
+  diagramsApi,
+  versionsApi,
+  ApiError,
+  type ApiDiagram,
+  type ApiDiagramVersion,
+} from "@/services/api";
+import { diagramDataSchema } from "@/schemas/diagram";
+const empty = { nodes: [], edges: [], flows: [] };
+const diagram: ApiDiagram = {
+  id: "a",
+  projectId: "p",
+  name: "A",
+  data: diagramDataSchema.parse(empty),
+  revision: 1,
+  version: 0,
+  thumbnail: null,
+  description: null,
+  createdAt: "today",
+  updatedAt: "today",
+};
+function Editor() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <CloudNavigationGuard />
+      <CloudSaveError />
+      <button
+        type="button"
+        onClick={() => {
+          void navigate("/other");
+        }}
+      >
+        Leave editor
+      </button>
+    </>
+  );
+}
+function mount() {
+  const router = createMemoryRouter([
+    { path: "/", element: <Editor /> },
+    { path: "/other", element: <p>Other page</p> },
+  ]);
+  render(<RouterProvider router={router} />);
+  return router;
+}
+beforeEach(async () => {
+  vi.spyOn(diagramsApi, "get").mockResolvedValue(diagram);
+  await cloudWorkspace.load("a");
+});
+afterEach(() => {
+  cleanup();
+  cloudWorkspace.reset();
+  vi.restoreAllMocks();
+});
+describe("cloud navigation and save recovery", () => {
+  it("saves pending edits before navigating", async () => {
+    const save = vi.spyOn(diagramsApi, "update").mockResolvedValue({ ...diagram, revision: 2 });
+    cloudWorkspace.schedule(empty);
+    mount();
+    fireEvent.click(screen.getByText("Leave editor"));
+    await screen.findByText("Other page");
+    expect(save).toHaveBeenCalledWith("a", { expectedRevision: 1, data: empty });
+  });
+  it("keeps the route and pending edits when save fails, then retries", async () => {
+    vi.spyOn(diagramsApi, "update")
+      .mockRejectedValueOnce(new Error("Network unavailable"))
+      .mockResolvedValue({ ...diagram, revision: 2 });
+    cloudWorkspace.schedule(empty);
+    const router = mount();
+    fireEvent.click(screen.getByText("Leave editor"));
+    await screen.findByText("Your edits have not been saved");
+    expect(screen.getByText("Network unavailable")).toHaveClass("text-muted-foreground");
+    expect(router.state.location.pathname).toBe("/");
+    expect(cloudWorkspace.getState().dirty).toBe(true);
+    fireEvent.click(screen.getByText("Stay in editor"));
+    fireEvent.click(screen.getByText("Retry save"));
+    await waitFor(() => expect(cloudWorkspace.getState().dirty).toBe(false));
+    fireEvent.click(screen.getByText("Leave editor"));
+    await screen.findByText("Other page");
+  });
+  it("waits for requested animated deletions before leaving the document", async () => {
+    act(() => {
+      useAnimationStore.getState().requestDelete("s");
+    });
+    const router = mount();
+    fireEvent.click(screen.getByText("Leave editor"));
+    expect(router.state.location.pathname).toBe("/");
+    await act(async () => {
+      useAnimationStore.getState().confirmDelete("s");
+    });
+    await screen.findByText("Other page");
+  });
+  it("does not automatically retry a deferred navigation save failure", async () => {
+    let rejectSave!: (reason: Error) => void;
+    const pending = new Promise<ApiDiagram>((_resolve, reject) => {
+      rejectSave = reject;
+    });
+    const save = vi.spyOn(diagramsApi, "update").mockReturnValue(pending);
+    cloudWorkspace.schedule(empty);
+    mount();
+    fireEvent.click(screen.getByText("Leave editor"));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      rejectSave(new Error("Still offline"));
+    });
+    await screen.findByText("Your edits have not been saved");
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+  it("blocks global keyboard mutations throughout a version operation", async () => {
+    mount();
+    let resolveVersion!: (version: ApiDiagramVersion) => void;
+    vi.spyOn(versionsApi, "create").mockReturnValue(
+      new Promise<ApiDiagramVersion>((resolve) => {
+        resolveVersion = resolve;
+      }),
+    );
+    let operation!: Promise<ApiDiagramVersion>;
+    await act(async () => {
+      operation = cloudWorkspace.createVersion();
+      await Promise.resolve();
+    });
+    const shortcut = vi.fn<(event: KeyboardEvent) => void>();
+    window.addEventListener("keydown", shortcut);
+    fireEvent.keyDown(window, { key: "s" });
+    expect(shortcut).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", shortcut);
+    await act(async () => {
+      resolveVersion({
+        id: "v",
+        diagramId: "a",
+        versionNumber: 1,
+        label: null,
+        thumbnail: null,
+        createdAt: "today",
+      });
+      await operation;
+    });
+  });
+  it("shows a conflict without silently overwriting and supports explicit discard", async () => {
+    vi.spyOn(diagramsApi, "update").mockRejectedValue(new ApiError(409, "Changed elsewhere"));
+    cloudWorkspace.schedule(empty);
+    await expect(cloudWorkspace.flush()).rejects.toThrow("Changed elsewhere");
+    const router = mount();
+    expect(screen.queryByText("Retry save")).toBeNull();
+    fireEvent.click(screen.getByText("Leave editor"));
+    await screen.findByText("Your edits have not been saved");
+    expect(router.state.location.pathname).toBe("/");
+    fireEvent.click(screen.getByText("Discard edits and leave"));
+    await screen.findByText("Other page");
+  });
+});

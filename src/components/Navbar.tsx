@@ -21,28 +21,25 @@ import {
   ClockIcon,
   BookmarkIcon,
 } from "@heroicons/react/24/outline";
+import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useThemeStore } from "@/store/themeStore";
 import { useUIStore } from "@/store/uiStore";
-import { projectsApi, diagramsApi, versionsApi } from "@/services/api";
+import { projectsApi } from "@/services/api";
 import { copyShareableLink } from "@/utils/export";
+import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
+import { AccountControls } from "@/components/CloudAuth";
 import { notify } from "@/services/notify";
 import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { VersionsPanel } from "@/components/panels/VersionsPanel";
 import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { CollaboratorBadges } from "@/components/ui/CollaboratorBadges";
 import { ArchitectureNodeData } from "@/types";
-import { IS_SERVER_MODE } from "@/config/runtime";
-import type { CollaboratorUser } from "@/hooks/useCollaboration";
 
-interface NavbarProps {
-  collabUsers?: CollaboratorUser[];
-  collabConnected?: boolean;
-}
-
-export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProps) {
+export function Navbar() {
+  const cloud = useCloudWorkspace();
+  const diagram = cloud.diagram;
   const { projectId, diagramId } = useParams<{ projectId: string; diagramId: string }>();
   const navigate = useNavigate();
 
@@ -52,18 +49,11 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
     enabled: !!projectId,
   });
 
-  const { data: diagram } = useQuery({
-    queryKey: ["diagrams", diagramId],
-    queryFn: () => diagramsApi.get(diagramId!),
-    enabled: !!diagramId,
-  });
-
   const {
     undo,
     redo,
     canUndo,
     canRedo,
-    exportDiagram,
     applyAutoLayout,
     nodes,
     runAllHealthChecks,
@@ -95,7 +85,12 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
   const layoutDropdownRef = useRef<HTMLDivElement>(null);
 
   const saveVersionMutation = useMutation({
-    mutationFn: (label: string) => versionsApi.create(diagramId!, label || undefined),
+    mutationFn: (label: string) => {
+      if (useAnimationStore.getState().pendingDeletions.size) {
+        throw new Error("Wait for deletions to finish before saving a version.");
+      }
+      return cloudWorkspace.createVersion(label || undefined);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["versions", diagramId] });
       setSaveVersionOpen(false);
@@ -128,7 +123,7 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
 
   const handleShareLink = async () => {
     try {
-      await copyShareableLink(exportDiagram());
+      await copyShareableLink();
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     } catch (error) {
@@ -245,7 +240,7 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
                 onClick={() => {
                   void navigate(`/projects/${projectId}`);
                 }}
-                className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors truncate max-w-[120px]"
+                className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors truncate max-w-30"
               >
                 {project.name}
               </button>
@@ -254,7 +249,7 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
           {diagram && (
             <>
               <ChevronRightIcon className="w-3 h-3 text-zinc-400" />
-              <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-[120px]">
+              <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-30">
                 {diagram.name}
               </span>
             </>
@@ -416,8 +411,8 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
           )}
         </div>
 
-        {/* Version History (server mode only) */}
-        {IS_SERVER_MODE && diagramId && (
+        {/* Version History */}
+        {diagramId && (
           <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
             <Tooltip content="Save version snapshot">
               <button
@@ -511,15 +506,23 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
           </button>
         </Tooltip>
 
-        {/* Collaborators */}
-        {collabUsers.length > 0 && (
-          <div className="flex items-center gap-2 px-2 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md">
-            <div
-              className={`w-1.5 h-1.5 rounded-full ${collabConnected ? "bg-emerald-500" : "bg-zinc-400"}`}
-            />
-            <CollaboratorBadges users={collabUsers} />
-          </div>
-        )}
+        <output
+          className="text-xs text-zinc-500 dark:text-zinc-400"
+          title={cloud.message ?? undefined}
+        >
+          {cloud.status === "saved"
+            ? "Saved"
+            : cloud.status === "saving"
+              ? "Saving…"
+              : cloud.status === "pending"
+                ? "Unsaved edits"
+                : cloud.status === "conflict"
+                  ? "Save conflict"
+                  : cloud.status === "error"
+                    ? "Save failed"
+                    : "Loading…"}
+        </output>
+        <AccountControls />
 
         {/* Theme Toggle */}
         <Tooltip content={`Theme: ${theme} — click to cycle`}>
@@ -533,7 +536,11 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
         </Tooltip>
 
         {/* Share Button */}
-        <Tooltip content={copiedLink ? "Link copied!" : "Copy shareable link"}>
+        <Tooltip
+          content={
+            copiedLink ? "Link copied!" : "Copy private link (only your account can open it)"
+          }
+        >
           <button
             type="button"
             onClick={() => {
@@ -564,7 +571,7 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
       />
 
       {/* Version History Modal */}
-      {IS_SERVER_MODE && diagramId && (
+      {diagramId && (
         <VersionsPanel
           isOpen={versionsOpen}
           onClose={() => setVersionsOpen(false)}
@@ -573,7 +580,7 @@ export function Navbar({ collabUsers = [], collabConnected = false }: NavbarProp
       )}
 
       {/* Save Version Dialog */}
-      {IS_SERVER_MODE && diagramId && (
+      {diagramId && (
         <SaveVersionDialog
           isOpen={saveVersionOpen}
           isSaving={saveVersionMutation.isPending}

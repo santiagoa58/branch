@@ -11,19 +11,13 @@ import {
 } from "@xyflow/react";
 import { ArchitectureNodeData, ArchitectureEdgeData, GroupNodeData, DiagramData } from "@/types";
 import type { NamedFlow } from "@/types/simulation";
+import { useAnimationStore } from "@/store/animationStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { traceFlowPath } from "@/utils/graphTraversal";
-import {
-  STORAGE_KEY,
-  AUTO_SAVE_DEBOUNCE,
-  getDefaultProtocolForNode,
-  MAX_HISTORY_LENGTH,
-} from "@/constants";
+import { getDefaultProtocolForNode, MAX_HISTORY_LENGTH } from "@/constants";
 import { applyDagreLayout, LayoutDirection } from "@/utils/layout";
 import { checkHealth, HealthCheckResult } from "@/services/healthCheck";
-import { diagramsApi } from "@/services/api";
-import { useWorkspaceStore } from "@/store/workspaceStore";
-import { IS_SERVER_MODE } from "@/config/runtime";
+import { cloudWorkspace, setDiagramHydrator } from "@/services/cloudWorkspace";
 import { diagramDataSchema } from "@/schemas/diagram";
 
 // Undefined explicitly removes a field; persisted schemas still require core fields.
@@ -123,7 +117,7 @@ interface DiagramStore {
 
   // Persistence
   saveDiagram: () => void;
-  loadDiagram: () => void;
+  hydrateDiagram: (data: unknown) => void;
   exportDiagram: () => DiagramData;
   importDiagram: (data: unknown) => void;
   clearDiagram: () => void;
@@ -138,15 +132,8 @@ interface DiagramStore {
   playFlow: (id: string) => boolean;
 }
 
-// Debounce helper
-let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-
-const debouncedSave = (saveFn: () => void) => {
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-  }
-  saveTimeout = setTimeout(saveFn, AUTO_SAVE_DEBOUNCE);
-};
+// Capture the document contents and identity at the edit, not when a timer fires.
+const debouncedSave = (saveFn: () => void) => saveFn();
 
 export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Initial state
@@ -887,86 +874,24 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     }
   },
 
-  // Save to localStorage (+ API when a diagramId is active)
   saveDiagram: () => {
     const { nodes, edges, flows } = get();
-    const data = diagramDataSchema.parse({ nodes, edges, flows });
-
-    // Use a per-diagram localStorage key so different diagrams never share the same entry
-    const diagramId = useWorkspaceStore.getState().currentDiagramId;
-    const storageKey = diagramId ? `${STORAGE_KEY}:${diagramId}` : STORAGE_KEY;
-    localStorage.setItem(storageKey, JSON.stringify(data));
-
-    // Also persist to backend if we're working on a specific diagram
-    if (IS_SERVER_MODE && diagramId) {
-      diagramsApi.update(diagramId, { data }).catch((err) => {
-        console.warn("Failed to save diagram to API:", err);
-      });
-    }
+    cloudWorkspace.schedule({ nodes, edges, flows });
   },
 
-  // Load from localStorage or URL
-  loadDiagram: () => {
-    try {
-      // First check if there's a diagram in the URL
-      const url = new URL(window.location.href);
-      const encoded = url.searchParams.get("diagram");
-
-      if (encoded) {
-        // Import from pako for decompression
-        import("pako")
-          .then((pako) => {
-            try {
-              const base64 = decodeURIComponent(encoded);
-              const binary = atob(base64);
-              const bytes = new Uint8Array(binary.length);
-              for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-              }
-
-              const decompressed = pako.inflate(bytes, { to: "string" });
-              const rawData: unknown = JSON.parse(decompressed);
-              const data = diagramDataSchema.parse(rawData);
-
-              set({
-                nodes: data.nodes || [],
-                edges: data.edges || [],
-                flows: data.flows || [],
-                history: [{ nodes: data.nodes || [], edges: data.edges || [] }],
-                historyIndex: 0,
-              });
-
-              // Clear the URL parameter after loading
-              url.searchParams.delete("diagram");
-              window.history.replaceState({}, "", url.toString());
-            } catch (error) {
-              console.error("Failed to load diagram from URL:", error);
-            }
-          })
-          .catch((error: unknown) => {
-            console.error("Failed to load diagram decompressor:", error);
-          });
-        return;
-      }
-
-      // Otherwise load from localStorage (use per-diagram key when a diagram is active)
-      const diagramId = useWorkspaceStore.getState().currentDiagramId;
-      const storageKey = diagramId ? `${STORAGE_KEY}:${diagramId}` : STORAGE_KEY;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const rawData: unknown = JSON.parse(saved);
-        const data = diagramDataSchema.parse(rawData);
-        set({
-          nodes: data.nodes || [],
-          edges: data.edges || [],
-          flows: data.flows || [],
-          history: [{ nodes: data.nodes || [], edges: data.edges || [] }],
-          historyIndex: 0,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load diagram:", error);
-    }
+  hydrateDiagram: (input) => {
+    const data = diagramDataSchema.parse(input);
+    set({
+      nodes: data.nodes,
+      edges: data.edges,
+      flows: data.flows ?? [],
+      selectedNodeId: null,
+      selectedEdgeId: null,
+      healthCheckResults: {},
+      history: [{ nodes: data.nodes, edges: data.edges }],
+      historyIndex: 0,
+    });
+    useSimulationStore.getState().setMode("idle");
   },
 
   // Export diagram data
@@ -1004,14 +929,14 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Reset in-memory state without persisting — safe to call when switching diagrams
   resetDiagramState: () => {
-    if (saveTimeout) {
-      clearTimeout(saveTimeout);
-      saveTimeout = null;
-    }
+    useSimulationStore.getState().setMode("idle");
+    useAnimationStore.setState({ pendingDeletions: new Set() });
     set({
       nodes: [],
       edges: [],
       flows: [],
+      clipboard: { nodes: [], edges: [] },
+      healthCheckResults: {},
       selectedNodeId: null,
       selectedEdgeId: null,
       history: [],
@@ -1152,3 +1077,5 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     return get().healthCheckResults[nodeId] || null;
   },
 }));
+
+setDiagramHydrator((data) => useDiagramStore.getState().hydrateDiagram(data));

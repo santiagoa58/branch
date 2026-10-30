@@ -9,11 +9,12 @@ import {
   TagIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { versionsApi, diagramsApi, type ApiDiagramVersion } from "@/services/api";
+import { versionsApi, type ApiDiagramVersion } from "@/services/api";
+import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { notify } from "@/services/notify";
 import { VersionPreviewModal } from "@/components/ui/VersionPreviewModal";
-import { diagramDataSchema } from "@/schemas/diagram";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 
 interface VersionsPanelProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ function formatDate(iso: string): string {
 
 export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps) {
   const queryClient = useQueryClient();
-  const { importDiagram, nodes: currentNodes, edges: currentEdges } = useDiagramStore();
+  const { nodes: currentNodes, edges: currentEdges } = useDiagramStore();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null);
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
@@ -46,7 +47,12 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
     enabled: !!previewVersionId,
   });
 
-  const { data: versions = [], isLoading } = useQuery({
+  const {
+    data: versions = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["versions", diagramId],
     queryFn: () => versionsApi.list(diagramId),
     enabled: isOpen && !!diagramId,
@@ -65,17 +71,14 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
   });
 
   const restoreMutation = useMutation({
-    mutationFn: async (versionId: string) => {
-      await versionsApi.restore(diagramId, versionId);
-      return diagramsApi.get(diagramId);
-    },
-    onSuccess: (diagram) => {
-      const result = diagramDataSchema.safeParse(diagram.data);
-      if (!result.success) {
-        notify.error({ title: "Restored version contains invalid diagram data" });
-        return;
+    mutationFn: (versionId: string) => {
+      if (useAnimationStore.getState().pendingDeletions.size) {
+        throw new Error("Wait for deletions to finish before restoring.");
       }
-      importDiagram(result.data);
+      return cloudWorkspace.restoreVersion(versionId);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["diagrams", diagramId] });
       setConfirmRestoreId(null);
       notify.success({
         title: "Version restored",
@@ -130,14 +133,27 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
-                <div className="flex items-center justify-center py-12 text-zinc-400 text-sm">
+                <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
                   Loading versions…
+                </div>
+              ) : isError ? (
+                <div role="alert" className="p-6 text-sm text-zinc-600 dark:text-zinc-400">
+                  Could not load version history.
+                  <button
+                    type="button"
+                    className="ml-2 underline"
+                    onClick={() => {
+                      void refetch();
+                    }}
+                  >
+                    Retry
+                  </button>
                 </div>
               ) : versions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-3">
                   <ClockIcon className="w-8 h-8 text-zinc-300 dark:text-zinc-700" />
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">No versions saved yet</p>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-600">
+                  <p className="text-xs text-muted-foreground">
                     Click <strong>Save Version</strong> in the toolbar to capture the current state
                     of your diagram.
                   </p>
@@ -223,20 +239,18 @@ function VersionRow({
               v{version.versionNumber}
             </span>
             {version.label && (
-              <span className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.5 rounded-full truncate max-w-[160px]">
-                <TagIcon className="w-2.5 h-2.5 flex-shrink-0" />
+              <span className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.5 rounded-full truncate max-w-40">
+                <TagIcon className="w-2.5 h-2.5 shrink-0" />
                 {version.label}
               </span>
             )}
           </div>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            {formatDate(version.createdAt)}
-          </p>
+          <p className="text-xs text-muted-foreground">{formatDate(version.createdAt)}</p>
         </div>
 
         {/* Actions */}
         {!isConfirmingDelete && !isConfirmingRestore && (
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={onPreviewClick}
@@ -269,7 +283,7 @@ function VersionRow({
 
         {/* Restore confirm */}
         {isConfirmingRestore && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-xs text-amber-600 dark:text-amber-400">Restore?</span>
             <button
               type="button"
@@ -282,7 +296,7 @@ function VersionRow({
             <button
               type="button"
               onClick={onCancelRestore}
-              className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 px-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground px-1 transition-colors"
             >
               Cancel
             </button>
@@ -291,7 +305,7 @@ function VersionRow({
 
         {/* Delete confirm */}
         {isConfirmingDelete && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-xs text-red-600 dark:text-red-400">Delete?</span>
             <button
               type="button"
@@ -304,7 +318,7 @@ function VersionRow({
             <button
               type="button"
               onClick={onCancelDelete}
-              className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 px-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground px-1 transition-colors"
             >
               Cancel
             </button>
