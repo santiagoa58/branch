@@ -110,6 +110,15 @@ export const simulationSpeedSchema = z.union([
   z.literal(4),
 ]);
 
+export const designDecisionSchema = z
+  .object({
+    reason: z.string().exactOptional(),
+    alternatives: z.string().exactOptional(),
+    tradeoffs: z.string().exactOptional(),
+    assumptions: z.string().exactOptional(),
+  })
+  .strict();
+
 export const architectureNodeDataSchema = z
   .object({
     label: z.string(),
@@ -119,6 +128,7 @@ export const architectureNodeDataSchema = z
     port: z.string().exactOptional(),
     status: nodeStatusSchema.exactOptional(),
     metadata: z.record(z.string(), z.string()).exactOptional(),
+    decision: designDecisionSchema.exactOptional(),
     parentId: z.string().exactOptional(),
     healthCheckUrl: z.string().exactOptional(),
     tags: z.array(z.string()).exactOptional(),
@@ -139,6 +149,7 @@ export const groupNodeDataSchema = z
     accentColor: z.string().exactOptional(),
     backgroundColor: z.string().exactOptional(),
     description: z.string().exactOptional(),
+    decision: designDecisionSchema.exactOptional(),
   })
   .strict();
 
@@ -174,6 +185,7 @@ export const architectureEdgeDataSchema = z
     description: z.string().exactOptional(),
     dataContract: dataContractSchema.exactOptional(),
     responseContract: dataContractSchema.exactOptional(),
+    decision: designDecisionSchema.exactOptional(),
     tags: z.array(z.string()).exactOptional(),
   })
   .strict();
