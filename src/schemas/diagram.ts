@@ -74,7 +74,14 @@ export const architectureNodeTypeSchema = z.enum([
   "iot",
 ]);
 
-export const groupNodeTypeSchema = z.enum(["vpc", "cluster", "region", "subnet", "boundary", "view"]);
+export const groupNodeTypeSchema = z.enum([
+  "vpc",
+  "cluster",
+  "region",
+  "subnet",
+  "boundary",
+  "view",
+]);
 export const commentColorSchema = z.enum(["yellow", "blue", "green", "pink", "purple"]);
 export const nodeStatusSchema = z.enum(["active", "inactive", "warning"]);
 export const groupColorSchema = z.enum(["zinc", "blue", "emerald", "purple", "amber"]);
