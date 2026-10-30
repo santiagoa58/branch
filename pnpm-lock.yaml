@@ -107,8 +107,8 @@ importers:
         specifier: ^6.49.0
         version: 6.49.0(ws@8.22.0)(zod@4.6.7)
       pako:
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^3.0.3
+        version: 3.0.3
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -156,8 +156,8 @@ importers:
         specifier: ^22.20.5
         version: 22.20.5
       '@types/pako':
-        specifier: ^2.0.4
-        version: 2.0.4
+        specifier: ^3.0.0
+        version: 3.0.0
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
@@ -1288,6 +1288,10 @@ packages:
 
   '@types/pako@2.0.4':
     resolution: {integrity: sha512-VWDCbrLeVXJM9fihYodcLiIv0ku+AlOa/TQ1SvYOaBuyrSKgEcro95LJyIsJ4vSo6BXIxOKxiJAat04CmST9Fw==}
+
+  '@types/pako@3.0.0':
+    resolution: {integrity: sha512-MtIzg1Ul1GxhHZLq6oSKvWQENKqmfK1fdaW+SDcPJe7+YcJVo6AbmkW0BvGFH6+559+hEuCwdXZZe8F85lBPkA==}
+    deprecated: This is a stub types definition. pako provides its own type definitions, so you do not need this installed.
 
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
@@ -2460,6 +2464,9 @@ packages:
 
   pako@2.2.0:
     resolution: {integrity: sha512-zJq6RP/5q+TO2OpFV3FHzlPnFjmkb7Nc99a5SNjJE+uu/PkpChs+NIZSSzbBoD+6kjiISXjfYdwj1ZRQ81dz/w==}
+
+  pako@3.0.3:
+    resolution: {integrity: sha512-tmrebBBYI5FOw8QICGwJNqE8fotC8R+gwcxOvoFNv+GKehOI6Lc6YBolNcQNnC4v96l1wt7rh102ifD4kVeZAQ==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -3949,6 +3956,10 @@ snapshots:
 
   '@types/pako@2.0.4': {}
 
+  '@types/pako@3.0.0':
+    dependencies:
+      pako: 2.2.0
+
   '@types/parse-json@4.0.2': {}
 
   '@types/pg@8.23.1':
@@ -5011,6 +5022,8 @@ snapshots:
       vite-plus: 1.4.0(@types/node@22.20.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@24.1.0(supports-color@7.2.0))(typescript@5.9.3)
 
   pako@2.2.0: {}
+
+  pako@3.0.3: {}
 
   parent-module@1.0.1:
     dependencies:
