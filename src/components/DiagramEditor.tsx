@@ -44,64 +44,24 @@ import { FlowsPanel } from "@/components/panels/FlowsPanel";
 import { ImportDialog } from "@/components/ui/ImportDialog";
 import { TemplateGalleryDialog } from "@/components/ui/TemplateGalleryDialog";
 import { LaserPointer } from "@/components/ui/LaserPointer";
-import { CollaboratorCursors } from "@/components/ui/CollaboratorCursors";
 import { useSimulationAnimation } from "@/hooks/useSimulationAnimation";
 import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
 import { useChaosSimulation } from "@/hooks/useChaosSimulation";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { useOnboardingStore } from "@/store/onboardingStore";
-import type { RemoteCursor } from "@/hooks/useCollaboration";
 
-// MiniMap node colors — Tailwind-500 palette per node type. Kept here (not
-// in NODE_TYPES_CONFIG) because NODE_TYPES_CONFIG uses Tailwind class names,
-// while the MiniMap needs raw hex values.
-const MINIMAP_NODE_COLORS: Record<string, string> = {
-  service: "#3b82f6",
-  database: "#10b981",
-  queue: "#f59e0b",
-  cache: "#ef4444",
-  gateway: "#a855f7",
-  external: "#64748b",
-  storage: "#06b6d4",
-  client: "#ec4899",
-  lambda: "#f97316",
-  loadbalancer: "#6366f1",
-  cdn: "#0ea5e9",
-  auth: "#8b5cf6",
-  container: "#64748b",
-  dns: "#84cc16",
-  llm: "#d946ef",
-  vectordb: "#14b8a6",
-  mlpipeline: "#ec4899",
-  embedding: "#f43f5e",
-  secrets: "#eab308",
-  eventbus: "#f97316",
-  datalake: "#06b6d4",
-  search: "#f59e0b",
-  notification: "#ef4444",
-};
+// Resolve the catalog's Tailwind colors through theme variables so new node
+// types automatically receive matching minimap colors.
+const MINIMAP_NODE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(NODE_TYPES_CONFIG).map(([type, config]) => [
+    type,
+    `var(${config.iconColor.replace("text-", "--color-")})`,
+  ]),
+);
 
-interface DiagramEditorProps {
-  remoteCursors?: RemoteCursor[];
-  sendCursorUpdate?: (cursor: { x: number; y: number } | null) => void;
-  myColor?: string;
-}
-
-export function DiagramEditor({ remoteCursors = [], sendCursorUpdate }: DiagramEditorProps) {
+export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
-  // rAF throttling for collab cursor broadcasts — without this, mousemove
-  // (which fires constantly during a drag) triggers a websocket emit per
-  // event and re-renders downstream cursor components, causing drag lag.
-  const cursorRafRef = useRef<number | null>(null);
-  const latestCursorScreenPosRef = useRef<{ x: number; y: number } | null>(null);
-  const {
-    screenToFlowPosition,
-    flowToScreenPosition,
-    zoomIn,
-    zoomOut,
-    getZoom,
-    getIntersectingNodes,
-  } = useReactFlow();
+  const { screenToFlowPosition, zoomIn, zoomOut, getZoom, getIntersectingNodes } = useReactFlow();
   const rfStore = useStoreApi();
   const [zoom, setZoom] = useState(100);
   const [panMode, setPanMode] = useState(false);
@@ -1007,7 +967,7 @@ export function DiagramEditor({ remoteCursors = [], sendCursorUpdate }: DiagramE
         >
           <MinusIcon className="w-4 h-4" />
         </button>
-        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-500 flex items-center px-2">
+        <span className="text-xs font-medium text-muted-foreground flex items-center px-2">
           {zoom}%
         </span>
         <button
@@ -1107,43 +1067,8 @@ export function DiagramEditor({ remoteCursors = [], sendCursorUpdate }: DiagramE
       )}
 
       {/* React Flow Canvas */}
-      <div
-        ref={reactFlowWrapper}
-        className={cn("w-full h-full", laserMode && "cursor-none")}
-        onMouseMove={(e) => {
-          if (!sendCursorUpdate) {
-            return;
-          }
-          latestCursorScreenPosRef.current = { x: e.clientX, y: e.clientY };
-          if (cursorRafRef.current !== null) {
-            return;
-          }
-          cursorRafRef.current = requestAnimationFrame(() => {
-            cursorRafRef.current = null;
-            const pos = latestCursorScreenPosRef.current;
-            if (!pos) {
-              return;
-            }
-            // Send in flow (world) coordinates so it's viewport-independent
-            const flowPos = screenToFlowPosition(pos);
-            sendCursorUpdate(flowPos);
-          });
-        }}
-        onMouseLeave={() => {
-          if (cursorRafRef.current !== null) {
-            cancelAnimationFrame(cursorRafRef.current);
-            cursorRafRef.current = null;
-          }
-          latestCursorScreenPosRef.current = null;
-          sendCursorUpdate?.(null);
-        }}
-      >
+      <div ref={reactFlowWrapper} className={cn("w-full h-full", laserMode && "cursor-none")}>
         <LaserPointer active={laserMode} containerRef={reactFlowWrapper} />
-        <CollaboratorCursors
-          cursors={remoteCursors}
-          flowToScreenPosition={flowToScreenPosition}
-          containerRef={reactFlowWrapper}
-        />
         <ReactFlow
           nodes={displayNodes}
           edges={displayEdges}

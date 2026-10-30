@@ -50,7 +50,7 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
   client-side only (localStorage via `aiStore`); never send keys to the backend, and
   always check for a key before making a call.
 - **Validation:** all untrusted data (API requests/responses, imports, share URLs,
-  collaboration messages, AI/provider responses, and browser persistence) must cross
+  AI/provider responses, and browser preferences) must cross
   a Zod schema in `src/schemas/`. Do not use handwritten structural validators or
   type assertions at trust boundaries.
 - **Styling:** Tailwind v4. Use `zinc-*`, never `gray-*`. Use the `cn()` helper from
@@ -61,5 +61,21 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
 - `components/nodes|edges|panels|ui/` — `ArchitectureNode`, GSAP-animated
   `ArchitectureEdge`, palette/properties/simulation panels.
 - `hooks/` — `useSimulationAnimation`, `useChaosSimulation`, `useEdgeAnimation`,
-  `useDestroyAnimation`, `useCollaboration`.
+  `useDestroyAnimation`.
 - `services/api.ts` + `services/ai/providers/` — backend client and AI integrations.
+
+## Cloud persistence and deployment
+
+- One Vite frontend + same-repository Vercel Function in `api/`; server modules in
+  `server/` must never be imported by browser code.
+- Clerk supplies verified owner IDs. Every project, diagram, and version query must
+  be scoped to that owner. Secrets belong only in server environment variables.
+- `cloudWorkspace` owns the active document identity, revision, serialized save queue,
+  load cancellation, and save status. Store edits call `saveDiagram()` to schedule a
+  captured snapshot; hydrate using `hydrateDiagram()` without saving or adding edits.
+- Navigation must flush pending edits or stay in the editor on failure. Never add
+  localStorage document fallback. Simulation state remains ephemeral.
+- Diagram PATCH, thumbnail PUT, version creation and restore require `expectedRevision`.
+- Add append-only SQL migrations under `migrations/`; run `pnpm db:migrate` against
+  a direct Neon connection, explicitly outside application builds.
+- `pnpm dev` serves frontend only; `pnpm dev:cloud` runs Vercel frontend + API locally.

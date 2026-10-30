@@ -47,12 +47,7 @@ vi.mock("jspdf", () => ({
 }));
 
 // Import after mocking
-import {
-  exportAsMarkdown,
-  exportAsJson,
-  generateShareableLink,
-  loadFromShareableLink,
-} from "@/utils/export";
+import { exportAsMarkdown, exportAsJson, generateShareableLink } from "@/utils/export";
 
 describe("export utilities", () => {
   let mockLink: HTMLAnchorElement;
@@ -363,70 +358,21 @@ describe("export utilities", () => {
   });
 
   describe("generateShareableLink", () => {
-    it("should generate a URL with diagram parameter", () => {
-      const data: DiagramData = {
-        nodes: [
-          {
-            id: "node-1",
-            type: "architecture",
-            position: { x: 0, y: 0 },
-            data: { label: "Test", type: "service" },
-          },
-        ],
-        edges: [],
-      };
-
-      const link = generateShareableLink(data);
-
-      expect(link).toContain("diagram=");
-      expect(link).toContain("localhost");
-    });
-
-    it("should compress diagram data", () => {
-      const data: DiagramData = {
-        nodes: [
-          {
-            id: "node-1",
-            type: "architecture",
-            position: { x: 0, y: 0 },
-            data: { label: "Test", type: "service" },
-          },
-        ],
-        edges: [],
-      };
-
-      const link = generateShareableLink(data);
-
-      // The encoded data should be present
-      const url = new URL(link);
-      const diagramParam = url.searchParams.get("diagram");
-      expect(diagramParam).toBeTruthy();
-      expectDefined(diagramParam, "Expected diagram query parameter");
-      expect(diagramParam.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe("loadFromShareableLink", () => {
-    it("should return null when no diagram parameter in URL", () => {
+    it("copies a private document URL without embedding a document snapshot", () => {
       Object.defineProperty(window, "location", {
-        value: { href: "http://localhost:3000" },
+        value: { href: "http://localhost/projects/p/diagrams/d?diagram=legacy#old" },
         writable: true,
         configurable: true,
       });
-
-      const result = loadFromShareableLink();
-      expect(result).toBeNull();
+      expect(generateShareableLink()).toBe("http://localhost/projects/p/diagrams/d");
     });
-
-    it("should return null on invalid data", () => {
+    it("rejects links that are not cloud document routes", () => {
       Object.defineProperty(window, "location", {
-        value: { href: "http://localhost:3000?diagram=invaliddata" },
+        value: { href: "http://localhost/" },
         writable: true,
         configurable: true,
       });
-
-      const result = loadFromShareableLink();
-      expect(result).toBeNull();
+      expect(() => generateShareableLink()).toThrow(/cloud diagram/);
     });
   });
 

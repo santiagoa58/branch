@@ -8,6 +8,7 @@
  * 4. Shatters the clone into fragments that fly outward
  * 5. Removes the overlay when animation completes
  */
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { useEffect, useCallback, useRef } from "react";
 import { gsap } from "@/lib/gsap";
 import { useAnimationStore } from "@/store/animationStore";
@@ -141,7 +142,12 @@ export function useDestroyAnimation() {
     // Process each deletion with a slight stagger
     newDeletions.forEach((nodeId, index) => {
       processedRef.current.add(nodeId);
+      const diagramId = cloudWorkspace.getState().diagram?.id;
       setTimeout(() => {
+        if (cloudWorkspace.getState().diagram?.id !== diagramId) {
+          confirmDelete(nodeId);
+          return;
+        }
         performShatter(nodeId);
       }, index * 80); // 80ms stagger between nodes
     });
@@ -150,7 +156,7 @@ export function useDestroyAnimation() {
     if (pendingDeletions.size === 0) {
       processedRef.current.clear();
     }
-  }, [pendingDeletions, performShatter]);
+  }, [pendingDeletions, performShatter, confirmDelete]);
 
   // Clear processed ref when all deletions complete
   useEffect(() => {

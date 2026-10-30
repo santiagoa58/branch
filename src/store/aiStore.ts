@@ -7,17 +7,15 @@ import {
   ConnectionSuggestion,
   ChatMessage,
 } from "@/types/ai";
-import { aiSettingsSchema, analysisCacheSchema } from "@/schemas/persistence";
+import { aiSettingsSchema } from "@/schemas/persistence";
 
 const STORAGE_KEY = "ai-settings";
-const ANALYSIS_CACHE_KEY = "ai-analysis-cache";
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-interface AnalysisCache {
+const CACHE_DURATION = 5 * 60 * 1000;
+let analysisCache: {
   diagramHash: string;
   analysis: ArchitectureAnalysis;
   expiresAt: number;
-}
+} | null = null;
 
 interface AIStore extends AISettings {
   // State
@@ -37,6 +35,7 @@ interface AIStore extends AISettings {
   setSuggestions: (suggestions: ConnectionSuggestion[]) => void;
   addChatMessage: (message: ChatMessage) => void;
   clearChatHistory: () => void;
+  clearSessionAnalysis: () => void;
   setError: (error: string | null) => void;
   acceptSuggestion: (id: string) => void;
   dismissSuggestion: (id: string) => void;
@@ -91,6 +90,10 @@ export const useAIStore = create<AIStore>((set, get) => ({
     })),
 
   clearChatHistory: () => set({ chatHistory: [] }),
+  clearSessionAnalysis: () => {
+    analysisCache = null;
+    set({ lastAnalysis: null, suggestions: [], chatHistory: [], error: null });
+  },
 
   setError: (error) => set({ error }),
 
@@ -104,46 +107,13 @@ export const useAIStore = create<AIStore>((set, get) => ({
       suggestions: state.suggestions.filter((s) => s.id !== id),
     })),
 
-  // Cache management
-  getCachedAnalysis: (diagramHash) => {
-    try {
-      const cached = localStorage.getItem(ANALYSIS_CACHE_KEY);
-      if (!cached) {
-        return null;
-      }
-
-      const rawData: unknown = JSON.parse(cached);
-      const result = analysisCacheSchema.safeParse(rawData);
-      if (!result.success) {
-        localStorage.removeItem(ANALYSIS_CACHE_KEY);
-        return null;
-      }
-      const data = result.data;
-
-      // Check if cache is valid
-      if (data.diagramHash !== diagramHash || Date.now() > data.expiresAt) {
-        localStorage.removeItem(ANALYSIS_CACHE_KEY);
-        return null;
-      }
-
-      return data.analysis;
-    } catch (error) {
-      console.error("Failed to load cached analysis:", error);
-      return null;
-    }
-  },
-
+  // Diagram-derived analysis stays in memory; only provider preferences/keys persist.
+  getCachedAnalysis: (diagramHash) =>
+    analysisCache?.diagramHash === diagramHash && Date.now() < analysisCache.expiresAt
+      ? analysisCache.analysis
+      : null,
   cacheAnalysis: (diagramHash, analysis) => {
-    try {
-      const cache: AnalysisCache = {
-        diagramHash,
-        analysis,
-        expiresAt: Date.now() + CACHE_DURATION,
-      };
-      localStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(cache));
-    } catch (error) {
-      console.error("Failed to cache analysis:", error);
-    }
+    analysisCache = { diagramHash, analysis, expiresAt: Date.now() + CACHE_DURATION };
   },
 
   // Persistence
@@ -193,7 +163,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
       error: null,
     });
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(ANALYSIS_CACHE_KEY);
+    analysisCache = null;
   },
 }));
 

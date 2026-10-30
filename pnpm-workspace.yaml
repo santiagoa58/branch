@@ -1,4 +1,5 @@
 allowBuilds:
+  "@clerk/shared": set this to true or false
   core-js: true
   esbuild: true
 catalog:
@@ -7,6 +8,7 @@ catalog:
   vite-plus: 1.4.0
   "@vitest/coverage-v8": 5.0.5
 overrides:
+  "@vercel/cli-config>zod": "^4.6.7"
   vite@*: "catalog:"
   vitest@*: "catalog:"
 peerDependencyRules:

@@ -1,3 +1,4 @@
+import { AccountControls } from "@/components/CloudAuth";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -37,7 +38,12 @@ export function ProjectsPage() {
     }
   };
 
-  const { data: projects = [], isLoading } = useQuery({
+  const {
+    data: projects = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["projects"],
     queryFn: projectsApi.list,
   });
@@ -76,6 +82,7 @@ export function ProjectsPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <AccountControls />
           <button
             type="button"
             onClick={cycleTheme}
@@ -97,9 +104,27 @@ export function ProjectsPage() {
 
       {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {(deleteMutation.isError || updateMutation.isError) && (
+          <p role="alert" className="mb-4 text-sm text-muted-foreground">
+            Could not update the project. Please try again.
+          </p>
+        )}
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-5">Projects</h2>
 
-        {projects.length === 0 ? (
+        {isError ? (
+          <div role="alert" className="text-sm text-muted-foreground">
+            Could not load your projects.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : projects.length === 0 ? (
           <div className="text-center py-20">
             <FolderIcon className="w-12 h-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">No projects yet</p>
@@ -163,7 +188,7 @@ export function ProjectsPage() {
                   </p>
                 )}
 
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-3">
+                <p className="text-xs text-muted-foreground mt-3">
                   Updated {new Date(project.updatedAt).toLocaleDateString()}
                 </p>
 

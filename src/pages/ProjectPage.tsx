@@ -1,3 +1,4 @@
+import { AccountControls } from "@/components/CloudAuth";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,13 +38,18 @@ export function ProjectPage() {
     }
   };
 
-  const { data: project } = useQuery({
+  const { data: project, isError: projectError } = useQuery({
     queryKey: ["projects", projectId],
     queryFn: () => projectsApi.get(projectId!),
     enabled: !!projectId,
   });
 
-  const { data: diagrams = [], isLoading } = useQuery({
+  const {
+    data: diagrams = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["projects", projectId, "diagrams"],
     queryFn: () => projectsApi.diagrams(projectId!),
     enabled: !!projectId,
@@ -90,7 +96,7 @@ export function ProjectPage() {
             {project && (
               <>
                 <ChevronRightIcon className="w-3 h-3 text-zinc-400" />
-                <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-[160px]">
+                <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-40">
                   {project.name}
                 </span>
               </>
@@ -98,6 +104,7 @@ export function ProjectPage() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <AccountControls />
           <button
             type="button"
             onClick={cycleTheme}
@@ -117,11 +124,30 @@ export function ProjectPage() {
         </div>
       </header>
 
+      {deleteMutation.isError && (
+        <p role="alert" className="px-6 py-2 text-sm text-muted-foreground">
+          Could not delete the diagram. Please try again.
+        </p>
+      )}
       {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-5">Diagrams</h2>
 
-        {diagrams.length === 0 ? (
+        {isError || projectError ? (
+          <div role="alert" className="text-sm text-muted-foreground">
+            Could not load this project.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => {
+                void queryClient.invalidateQueries({ queryKey: ["projects", projectId] });
+                void refetch();
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : diagrams.length === 0 ? (
           <div className="text-center py-20">
             <DocumentIcon className="w-12 h-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">No diagrams yet</p>
@@ -169,7 +195,7 @@ export function ProjectPage() {
                       {diagram.description}
                     </p>
                   )}
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     v{diagram.version} · Updated {new Date(diagram.updatedAt).toLocaleDateString()}
                   </p>
                 </div>

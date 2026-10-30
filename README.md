@@ -2,9 +2,9 @@
 
 A visual architecture documentation platform for designing, documenting, and communicating microservice systems—capturing not just _what_ components exist, but _how data flows_ between them.
 
-Built with React 19, React Flow, GSAP, and an optional NestJS backend for multi-project workspace management and real-time collaboration. The default local mode works entirely in the browser.
+Built with React 19, React Flow, GSAP, Clerk authentication, and managed PostgreSQL. One repository deploys the Vite frontend and TypeScript Vercel Functions together. Saved projects and diagrams live in the database.
 
-![React](https://img.shields.io/badge/React-19-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![React Flow](https://img.shields.io/badge/React%20Flow-12-green) ![GSAP](https://img.shields.io/badge/GSAP-3.15-green) ![NestJS](https://img.shields.io/badge/NestJS-11-red) ![Socket.IO](https://img.shields.io/badge/Socket.IO-realtime-purple)
+![React](https://img.shields.io/badge/React-19-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![React Flow](https://img.shields.io/badge/React%20Flow-12-green) ![GSAP](https://img.shields.io/badge/GSAP-3.15-green) ![Vercel](https://img.shields.io/badge/Vercel-Functions-black) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-green)
 
 ## 🎯 Use Cases
 
@@ -76,22 +76,14 @@ Built with React 19, React Flow, GSAP, and an optional NestJS backend for multi-
 - **Secure Key Storage** — API keys stored locally, never sent to servers
 - **Settings Panel** — Configure provider, model, and test connections
 
-### Real-time Collaboration
+### Cloud Workspace
 
-- **Live Cursors** — See other users' cursor positions on the canvas in real time
-- **User Presence** — Colored avatar badges in the navbar show who's online
-- **Name Entry** — Users choose a display name when joining (saved to localStorage)
-- **Diagram Sync** — Node and edge changes broadcast instantly to all connected users
-- **Viewport-independent Cursors** — Cursor positions use flow-space coordinates, so they appear at the correct diagram position regardless of each user's pan/zoom
-- **Socket.IO + NestJS Gateway** — WebSocket-based transport with room-per-diagram
-
-### Multi-Project Workspace
-
-- **Projects & Diagrams** — Organize diagrams into projects with color-coded cards
-- **REST API** — Full CRUD backed by NestJS + PostgreSQL
-- **Breadcrumb Navigation** — Projects › Project Name › Diagram Name in the navbar
-- **React Router** — Client-side routing (`/`, `/projects/:id`, `/projects/:id/diagrams/:id`)
-- **TanStack React Query** — Server state management with caching
+- **Private projects and diagrams** — Sign in with Clerk and organize diagrams into projects.
+- **Cloud auto-save** — Loading, unsaved, saving, saved, failure, and conflict states are visible.
+- **Version history** — Capture saved snapshots, preview them, and restore them with revision checks.
+- **Ownership enforcement** — Every project, diagram, thumbnail and version API operation verifies access server-side.
+- **Private links** — Copied links open your cloud document after sign-in. They do not grant another account access.
+- **One deployment** — Vite SPA + Node.js Vercel Function + Neon PostgreSQL; no persistent backend process.
 
 ### Productivity
 
@@ -102,10 +94,12 @@ Built with React 19, React Flow, GSAP, and an optional NestJS backend for multi-
 - **Export Options** — PNG, SVG, JSON, Markdown, PDF + export selected only
 - **Import/Export** — Smart import with validation, supports JSON and Markdown formats
 - **Import Modes** — Replace, merge, or append diagrams with conflict resolution
-- **Auto-Save** — Persists to localStorage automatically
+- **Auto-Save** — Serializes cloud writes with optimistic revision checks
 - **Undo/Redo** — Full history support
 - **Getting-Started Checklist** — A dismissible onboarding card that ticks off your first node, connection, data contract, and flow simulation as you do them (auto-hidden once complete; skipped for diagrams that already have content)
 - **Dark/Light Mode** — Theme toggle with system preference support
+
+The app opens at sign-in and then the projects dashboard. Authentication is required; guest editing is not enabled.
 
 ## 🚀 Quick Start
 
@@ -114,57 +108,69 @@ Built with React 19, React Flow, GSAP, and an optional NestJS backend for multi-
 - Node.js 24.18.1 (see `.node-version`; Vite+ also supports Node.js 22.18+ and 26+)
 - pnpm 11.25.0 (pinned by `packageManager`)
 
-Local mode requires no API server, database, cloud account, or AI key. The [architecture-diagram-api](../architecture-diagram-api) backend and Docker/PostgreSQL are only required for server-mode projects, diagrams, and collaboration.
+### Initial setup
 
-### Backend Setup (server mode only)
+1. Create a [Neon project](https://neon.com/docs/get-started/signing-up). Use the pooled connection string for runtime requests and a direct connection string for migrations. Preserve the SSL parameters Neon supplies. Use an isolated Neon branch for development and each preview environment; production uses its own branch.
+2. Create a [Clerk application](https://clerk.com/docs/react/getting-started/quickstart). Enable the sign-in methods you want in Clerk. Copy its publishable and secret keys. Development uses Clerk test keys; production uses the production instance and its domain/DNS setup. The publishable and secret keys must refer to the same Clerk instance.
+3. Install dependencies and copy the environment template:
+
+   ```bash
+   pnpm install --frozen-lockfile
+   cp .env.example .env.local
+   ```
+
+4. Edit `.env.local` with your actual connection strings, Clerk keys and exact allowed frontend origins. Never commit this file. Only `VITE_CLERK_PUBLISHABLE_KEY` is exposed to the browser; `CLERK_SECRET_KEY`, `DATABASE_URL`, and `DATABASE_URL_UNPOOLED` stay server-side. AI provider keys remain client-side preferences and are never sent to this backend.
+5. Apply migrations to the intended database:
+
+   ```bash
+   pnpm db:migrate
+   ```
+
+   For a fresh database this only creates empty application tables; it does not migrate legacy data. The command reads `.env.local`, requires `DATABASE_URL_UNPOOLED`, rejects Neon pooler hosts, and applies ordered SQL files in a transaction under an advisory lock. It records checksums and refuses edited applied migrations. Add new numbered migrations instead. Test migrations on an isolated Neon branch before applying them to production. Migrations never run during builds or API requests.
+
+### Local development
 
 ```bash
-# From the API repo
-cd architecture-diagram-api
-
-# Start PostgreSQL
-docker compose up -d
-
-# Install dependencies & start
-npm install
-npm run start:dev
-```
-
-The API will be available at `http://localhost:3000`
-
-### Frontend Setup
-
-```bash
-# From this repo
-cd branch
-
-# Install dependencies
-pnpm install --frozen-lockfile
-
-# Start development server
+# Frontend only (UI and styles)
 pnpm dev
+
+# Frontend and API together, using the Vercel runtime
+pnpm dev:cloud
 ```
 
-The landing page will be available at `http://localhost:5173`; the standalone local editor is at `http://localhost:5173/app`.
+`pnpm dev` serves Vite on port 5173. It does not emulate API functions or provide a local document workspace. With no publishable key it displays setup guidance; with a key it can render sign-in. Use `pnpm dev:cloud` on port 3000 for authenticated project and editor flows. The development command loads `.env.local` into the API process and fetches the current Vercel CLI on demand rather than adding its deployment-tool dependency tree to the application. Vercel runs locally without linking an account, using `.env.local`, the configured Vite+ dev command, and the same-repository API functions. There is no standalone NestJS service or local document fallback.
 
-### Environment Variables
+Configure Clerk development origins for `http://localhost:3000`, and set `CLERK_AUTHORIZED_PARTIES=http://localhost:3000`. If testing a frontend at another origin, authorize that exact origin and supply a same-origin API; no cross-origin API URL is built into the app.
 
-Create a `.env` file (optional — defaults work for local development):
+### Production and preview deployment
 
-```env
-VITE_APP_MODE=local
-VITE_API_URL=http://localhost:3000/api
-VITE_ENABLE_COLLAB=true
-```
+1. Import this Git repository as **one Vercel project**. Use the **Vite** preset, repository root, Node.js **24.x**, install command `pnpm install --frozen-lockfile`, build command `pnpm build`, and output directory `dist`.
+2. Set the following variables in Vercel's appropriate Production and Preview environments:
 
-Mode notes:
+   | Variable                     | Purpose                                                  |
+   | ---------------------------- | -------------------------------------------------------- |
+   | `VITE_CLERK_PUBLISHABLE_KEY` | Public browser key; required at build time               |
+   | `CLERK_SECRET_KEY`           | Secret Clerk server key                                  |
+   | `CLERK_AUTHORIZED_PARTIES`   | Comma-separated exact frontend origins, including scheme |
+   | `DATABASE_URL`               | Neon pooled connection string for that environment       |
 
-- `VITE_APP_MODE=local` runs the standalone editor at `/app` and keeps persistence local-first.
-- `VITE_APP_MODE=server` enables workspace routing (`/`, `/projects/:id`, `/projects/:id/diagrams/:id`) with API-backed data.
-- `VITE_ENABLE_COLLAB=false` disables realtime collaboration sockets even in server mode.
-- Runtime interpretation belongs in `src/config/runtime.ts`. API access must be guarded by `IS_SERVER_MODE`; sockets must be guarded by `ENABLE_COLLAB`. Keep safe local persistence enabled in both modes.
+   Keep `DATABASE_URL_UNPOOLED` in your trusted migration environment rather than the frontend or build command. For preview deployments, use Clerk development keys and an isolated Neon branch. Configure Clerk to accept the preview frontend domain, set its exact origin in `CLERK_AUTHORIZED_PARTIES`, and redeploy after changing variables. A stable preview alias avoids maintaining an allowlist of changing deployment URLs. Production uses Clerk production keys and the configured production domain. Do not use wildcard origins or production database credentials for untrusted preview branches.
 
-### Validate and Build
+3. Run `pnpm db:migrate` from a trusted checkout with `.env.local` pointing to the target database's direct URL. Confirm the target first. For CI that already injects secrets, run `node scripts/migrate.mjs` with `DATABASE_URL_UNPOOLED` set.
+4. Deploy with Vercel's Git integration or `pnpm dlx vercel@latest --prod`. `vercel.json` sends `/api/*` to the catch-all Node.js function and rewrites SPA deep links to `index.html`; API errors remain JSON responses.
+5. Smoke-test with two accounts: sign in, create a project and diagram, edit and reload, create/restore a version, and verify a second account cannot open the first account's copied diagram URL. Test a stale save from two tabs and a failed network save before using production data.
+
+Clerk and Neon must be configured before live use. Local setup can use Clerk development keys; public production deployment requires Clerk's production instance, the deployed origin, and server environment variables in Vercel. See the setup steps above before deploying.
+
+### Save behavior and recovery
+
+The database is authoritative. Hydration does not save or add an edit history entry. The editor captures edits with the active diagram ID, debounces them, and runs one save at a time. Every write uses the last known `expectedRevision`; stale writes return HTTP 409. Version creation first flushes edits and snapshots the expected saved revision under a database lock. Restore flushes edits, locks editing for the operation, then hydrates the new cloud revision.
+
+Navigation flushes pending edits. If saving fails, navigation stays blocked and the canvas remains available. Retry the save, or export JSON and explicitly discard before leaving. If a session expires, pending edits remain in memory and are recoverable after signing back into the same account. Account changes clear private clipboard and document state. Browser refresh/close warns while edits are pending; closing anyway loses unsaved memory. Conflicts never retry over newer cloud data: export your edits, explicitly reload, then use Import if you want to apply them. There is no automatic merge or offline synchronization. Requests are bounded to 4 MB (including thumbnail/data JSON); larger documents fail visibly and remain exportable.
+
+Import remains an explicit editor action that edits the active cloud document and schedules a save. URL parameters never implicitly load a document snapshot. Theme, panel preferences, onboarding progress and AI provider settings remain browser preferences; AI analysis caches now stay in memory.
+
+### Validate and build
 
 ```bash
 pnpm audit
@@ -174,6 +180,8 @@ pnpm test:coverage
 pnpm build
 pnpm preview
 ```
+
+The API tests apply the real migration to an embedded PostgreSQL-compatible engine and exercise ownership, CRUD, revision conflicts, and snapshots/restoration. Live Clerk/Neon/Vercel smoke tests require the external setup above. `pnpm preview` serves the built frontend only.
 
 ## ⌨️ Keyboard Shortcuts
 
@@ -295,8 +303,6 @@ Markdown import reconstructs components from `## Components` and connections fro
 - **GSAP 3.15** — Animation engine (MotionPathPlugin for simulation)
 - **React Router 7** — Client-side routing
 - **TanStack React Query 5** — Server state management
-- **Socket.IO Client** — Real-time collaboration transport
-- **Yjs** — CRDT for conflict-free collaborative editing
 - **Vite+** — Project-local unified toolchain for Vite, Vitest, Oxlint, and Oxfmt
 - **Vitest** — Unit testing with V8 coverage
 - **OpenAI SDK** — AI integration (client-side)
@@ -305,62 +311,16 @@ Markdown import reconstructs components from `## Components` and connections fro
 
 ## 📁 Project Structure
 
-```
-src/
-├── components/
-│   ├── nodes/           # Custom node components (ArchitectureNode, GroupNode, CommentNode)
-│   ├── edges/           # Custom edge components (GSAP-animated ArchitectureEdge)
-│   ├── panels/          # Sidebar & overlay panels
-│   │   ├── NodePalette.tsx        # Draggable node palette
-│   │   ├── PropertiesPanel.tsx    # Node/edge property editor
-│   │   ├── SettingsPanel.tsx      # AI configuration
-│   │   ├── SimulationPanel.tsx    # Floating simulation control bar
-│   │   ├── SimulationStats.tsx    # Real-time simulation metrics overlay
-│   │   ├── ChaosEventLog.tsx      # Chaos mode event timeline
-│   │   └── ShortcutsHelp.tsx      # Keyboard shortcuts modal
-│   └── ui/              # Reusable UI components
-│       ├── ImportDialog.tsx       # Diagram import modal
-│       ├── JoinDiagramDialog.tsx  # Collaboration name entry dialog
-│       ├── CollaboratorBadges.tsx # Online user avatar badges
-│       ├── CollaboratorCursors.tsx # Remote cursor SVG overlay
-│       └── ...
-├── hooks/
-│   ├── useCollaboration.ts        # Socket.IO collaboration (cursors, sync, presence)
-│   ├── useEdgeAnimation.ts        # GSAP edge flow animation
-│   ├── useSimulationAnimation.ts  # GSAP simulation orchestration (flow + failure)
-│   ├── useChaosSimulation.ts      # Chaos engineering interval engine
-│   ├── useDestroyAnimation.ts     # GSAP shatter/explode for node deletion
-│   └── useDragEvent.ts            # Palette drag-and-drop handler
-├── pages/
-│   ├── ProjectsPage.tsx     # Project cards grid (/)
-│   └── ProjectPage.tsx      # Diagram cards for a project (/projects/:id)
-├── services/
-│   ├── api.ts           # Typed fetch wrapper for backend API
-│   ├── notify.ts        # App-facing Sileo notification wrapper
-│   └── ai/              # AI provider integrations
-│       └── providers/   # OpenAI provider implementation
-├── store/
-│   ├── diagramStore.ts      # Nodes, edges, clipboard, undo/redo
-│   ├── workspaceStore.ts    # Current project/diagram context
-│   ├── simulationStore.ts   # Simulation state (flow, failure, chaos)
-│   ├── animationStore.ts    # Pending deletion animation orchestration
-│   ├── uiStore.ts           # Panel visibility and UI state
-│   ├── themeStore.ts        # Dark/light/system theme
-│   └── aiStore.ts           # AI provider settings & cache
-├── types/
-│   ├── index.ts         # Core diagram types
-│   ├── simulation.ts    # Simulation & chaos types
-│   └── ai.ts            # AI provider types
-├── schemas/             # Zod contracts for API, persistence, imports, and external data
-├── lib/
-│   ├── gsap.ts          # GSAP initialization & plugin registration
-│   └── utils.ts         # Utility functions (cn helper)
-├── utils/
-│   ├── graphTraversal.ts    # BFS path tracing, blast radius, partition (Union-Find)
-│   ├── export.ts            # Export utilities
-│   ├── import.ts            # Import utilities
-│   └── layout.ts            # Auto-layout algorithms
-└── constants/           # Configuration constants
+```text
+api/[...path].ts          Vercel Function entry point
+server/                  Clerk verification, REST handler, pooled DB and owned queries
+migrations/              Reproducible SQL migrations
+scripts/migrate.mjs       Transactional migration runner
+src/components/          Existing canvas, nodes, edges, panels and UI
+src/services/api.ts      Authenticated same-origin REST client
+src/services/cloudPersistence.ts  Active document and serialized revision-checked saves
+src/store/               Editor and preference stores
+src/schemas/             Shared Zod trust boundaries
 ```
 
 ## 🧭 Development Conventions
@@ -372,7 +332,7 @@ src/
 - Import GSAP only through `src/lib/gsap.ts`, use `useGSAP()` for cleanup, and target React Flow elements through `data-node-id`/`data-edge-id`. Apply simulation speed with `timeline.timeScale(speed)`.
 - Keep graph algorithms in `src/utils/graphTraversal.ts` pure.
 - AI providers implement `AIProvider`. API keys remain client-side and must be checked before requests.
-- Treat API payloads, imported files, share URLs, collaboration messages, AI responses, and browser storage as untrusted. Validate them with Zod schemas in `src/schemas/`; do not rely on type assertions or handwritten structural validators.
+- Treat API payloads, imported files, API routes, AI responses, and browser storage as untrusted. Validate them with Zod schemas in `src/schemas/`; do not rely on type assertions or handwritten structural validators.
 - Use zinc for structural UI and reserve other colors for semantic states. Reuse CSS variables from `src/index.css` and the `cn()` helper from `src/lib/utils.ts`.
 - Use `src/services/notify.ts` for notifications rather than importing Sileo in feature components. Keep one top-right `Toaster` in `src/App.tsx`; do not add notification state to Zustand.
 
