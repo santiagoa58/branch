@@ -5,11 +5,11 @@ import {
   getSmoothStepPath,
   getBezierPath,
 } from "@xyflow/react";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { RollupEdgeData, EdgeProtocol } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
-import { useThemeStore } from "@/store/themeStore";
+
 import { useUIStore } from "@/store/uiStore";
 import { useDiagramStore } from "@/store/diagramStore";
 
@@ -29,20 +29,9 @@ export function RollupEdge({
   data,
 }: EdgeProps) {
   const edgeData = data as RollupEdgeData | undefined;
-  const { theme } = useThemeStore();
+
   const { edgeStyle } = useUIStore();
   const toggleGroupCollapse = useDiagramStore((s) => s.toggleGroupCollapse);
-  const [systemDark, setSystemDark] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
-  );
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
-    media.addEventListener("change", handleChange);
-    return () => media.removeEventListener("change", handleChange);
-  }, []);
-  const isDark = theme === "dark" || (theme === "system" && systemDark);
 
   const getPath = edgeStyle === "bezier" ? getBezierPath : getSmoothStepPath;
   const [edgePath, labelX, labelY] = getPath({
@@ -65,7 +54,7 @@ export function RollupEdge({
   const count = edgeData?.count ?? 0;
   const protocols = edgeData?.protocols ?? [];
   const bidirectional = edgeData?.bidirectional ?? false;
-  const stroke = isDark ? "#52525b" : "#a1a1aa";
+  const stroke = "var(--edge-color)";
   // Thicker line the more edges it stands in for (capped).
   const strokeWidth = Math.min(2 + (count - 1) * 0.5, 4);
 

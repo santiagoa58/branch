@@ -49,7 +49,7 @@ export function NodeDetailPopup() {
   return (
     <div
       className={cn(
-        "absolute bottom-[68px] left-4 z-20 w-[268px] px-3.5 py-3",
+        "absolute bottom-17 left-4 z-20 w-67 px-3.5 py-3",
         "bg-white/95 dark:bg-zinc-950/90 backdrop-blur-md",
         "border border-zinc-200 dark:border-zinc-800 rounded-lg",
         "shadow-lg shadow-black/5 dark:shadow-black/40",
@@ -60,7 +60,7 @@ export function NodeDetailPopup() {
       <div className="flex items-center gap-2.5">
         <div
           className={cn(
-            "flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border",
+            "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border",
             config.bgClass,
             config.borderClass,
           )}
@@ -73,7 +73,7 @@ export function NodeDetailPopup() {
               style={{ color: data.iconColor }}
             />
           ) : (
-            <NodeIcon className={cn("w-[18px] h-[18px]", config.iconColor)} strokeWidth={1.5} />
+            <NodeIcon className={cn("w-4.5 h-4.5", config.iconColor)} strokeWidth={1.5} />
           )}
         </div>
 
@@ -81,7 +81,7 @@ export function NodeDetailPopup() {
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
             {label}
           </div>
-          <div className="mt-0.5 text-[10px] font-mono uppercase tracking-tight text-zinc-500 dark:text-zinc-500">
+          <div className="mt-0.5 text-[10px] font-mono uppercase tracking-tight text-muted-foreground">
             {data.type}
             {technology ? ` · ${technology}` : ""}
           </div>
@@ -90,7 +90,7 @@ export function NodeDetailPopup() {
         <button
           type="button"
           onClick={() => setDismissedNodeId(selectedNodeId)}
-          className="flex-shrink-0 p-1 rounded text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+          className="shrink-0 p-1 rounded text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
           title="Dismiss (Esc)"
         >
           <XMarkIcon className="w-3 h-3" />

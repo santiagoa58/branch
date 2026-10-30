@@ -8,11 +8,11 @@ import {
 } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import type { ArchitectureEdgeData } from "@/types";
-import { useThemeStore } from "@/store/themeStore";
+
 import { useSimulationStore } from "@/store/simulationStore";
 import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
 import { useUIStore } from "@/store/uiStore";
-import { useState, useCallback, useSyncExternalStore } from "react";
+import { useState, useCallback } from "react";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { EdgeDetailsDialog } from "@/components/ui/EdgeDetailsDialog";
 
@@ -28,7 +28,7 @@ export function ArchitectureEdge({
   selected,
 }: EdgeProps<Edge<ArchitectureEdgeData>>) {
   const edgeData = data;
-  const { theme } = useThemeStore();
+
   const { edgeStyle } = useUIStore();
   const isProtocolHidden = useUIStore((s) =>
     edgeData?.protocol ? s.hiddenProtocols.has(edgeData.protocol) : false,
@@ -45,16 +45,7 @@ export function ArchitectureEdge({
     return false;
   });
   const isEdgeDimmed = isProtocolHidden || isTagHidden;
-  const prefersDark = useSyncExternalStore(
-    (onStoreChange) => {
-      const query = window.matchMedia("(prefers-color-scheme: dark)");
-      query.addEventListener("change", onStoreChange);
-      return () => query.removeEventListener("change", onStoreChange);
-    },
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
-    () => false,
-  );
-  const isDark = theme === "system" ? prefersDark : theme === "dark";
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
@@ -97,8 +88,8 @@ export function ArchitectureEdge({
 
   // Theme-aware edge colors
   const edgeColors = {
-    default: isDark ? "#52525b" : "#a1a1aa",
-    selected: isDark ? "#a1a1aa" : "#71717a",
+    default: "var(--edge-color)",
+    selected: "var(--edge-selected)",
   };
 
   const getProtocolColor = () => {

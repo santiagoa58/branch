@@ -176,7 +176,7 @@ export function SpotlightSearch() {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh] animate-slide-in">
+    <div className="fixed inset-0 z-200 flex items-start justify-center pt-[15vh] animate-slide-in">
       <button
         type="button"
         aria-label="Close search"
@@ -193,13 +193,13 @@ export function SpotlightSearch() {
         }}
         className={cn(
           "w-full max-w-lg mx-4",
-          "bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl",
+          "bg-popover text-popover-foreground border border-border rounded-xl",
           "shadow-2xl shadow-black/40 overflow-hidden",
         )}
       >
         {/* Input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-          <MagnifyingGlassIcon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border focus-within:ring-2 focus-within:ring-inset focus-within:ring-ring">
+          <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -223,9 +223,9 @@ export function SpotlightSearch() {
               }
             }}
             placeholder="Find a node by name, type, technology…"
-            className="flex-1 bg-transparent outline-none text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600"
+            className="flex-1 bg-transparent outline-none text-sm text-popover-foreground placeholder:text-muted-foreground"
           />
-          <kbd className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-zinc-400 dark:text-zinc-600 border border-zinc-200 dark:border-zinc-800 rounded px-1.5 py-0.5">
+          <kbd className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-muted-foreground border border-border rounded px-1.5 py-0.5">
             ESC
           </kbd>
         </div>
@@ -233,7 +233,7 @@ export function SpotlightSearch() {
         {/* Results */}
         <div className="max-h-[55vh] overflow-y-auto">
           {results.length === 0 && (
-            <div className="px-4 py-10 text-center text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="px-4 py-10 text-center text-xs text-muted-foreground">
               No matching nodes
             </div>
           )}
@@ -248,15 +248,15 @@ export function SpotlightSearch() {
                 onMouseEnter={() => setActiveIdx(i)}
                 onClick={() => handleSelect(r.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                  "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                   isActive
-                    ? "bg-zinc-100 dark:bg-zinc-900"
-                    : "hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent/60 hover:text-accent-foreground",
                 )}
               >
                 <div
                   className={cn(
-                    "flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center border",
+                    "shrink-0 w-7 h-7 rounded-md flex items-center justify-center border",
                     config?.bgClass,
                     config?.borderClass,
                   )}
@@ -268,16 +268,16 @@ export function SpotlightSearch() {
                   ) : null}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                  <div className="text-xs font-medium text-popover-foreground truncate">
                     {r.label}
                   </div>
                   {r.description && (
-                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
+                    <div className="text-[10px] text-muted-foreground truncate">
                       {r.description}
                     </div>
                   )}
                 </div>
-                <span className="text-[9px] font-mono uppercase tracking-tight text-zinc-400 dark:text-zinc-600 flex-shrink-0">
+                <span className="text-[9px] font-mono uppercase tracking-tight text-muted-foreground shrink-0">
                   {r.type}
                 </span>
               </button>
@@ -286,14 +286,14 @@ export function SpotlightSearch() {
         </div>
 
         {/* Footer hints */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 text-[10px] font-mono text-zinc-500 dark:text-zinc-500">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-border text-[10px] font-mono text-muted-foreground">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <kbd className="border border-zinc-200 dark:border-zinc-800 rounded px-1">↑↓</kbd>
+              <kbd className="border border-border rounded px-1">↑↓</kbd>
               navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="border border-zinc-200 dark:border-zinc-800 rounded px-1">⏎</kbd>
+              <kbd className="border border-border rounded px-1">⏎</kbd>
               jump
             </span>
           </div>

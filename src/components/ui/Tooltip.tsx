@@ -16,7 +16,7 @@ export function Tooltip({ content, children, className, placement = "bottom" }: 
       {children}
       <div
         className={cn(
-          "pointer-events-none absolute left-1/2 -translate-x-1/2 z-[200]",
+          "pointer-events-none absolute left-1/2 -translate-x-1/2 z-200",
           "px-2 py-1 text-[11px] font-medium leading-tight whitespace-nowrap rounded-md shadow-md",
           "bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900",
           "opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-150",

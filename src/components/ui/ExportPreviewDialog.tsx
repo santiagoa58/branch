@@ -518,7 +518,7 @@ export function ExportPreviewDialog({
                           <p className="text-sm text-zinc-600 dark:text-zinc-400">
                             PDF preview not available
                           </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             Click Export to generate PDF
                           </p>
                         </div>

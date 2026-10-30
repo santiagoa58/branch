@@ -27,7 +27,7 @@ export function SimulationStats() {
     <div className="mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg px-4 py-3 min-w-[320px]">
       <div className="flex items-center gap-2 mb-2">
         <SignalIcon className="w-3.5 h-3.5 text-indigo-500" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           Simulation Stats
         </span>
       </div>
@@ -193,7 +193,7 @@ function StatItem({
     <div className="flex flex-col gap-0.5">
       <div className={`flex items-center gap-1 ${color}`}>
         {icon}
-        <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </span>
       </div>

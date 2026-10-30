@@ -60,7 +60,7 @@ export function ProtocolLegend() {
   return (
     <div
       className={cn(
-        "absolute top-4 right-4 z-20 min-w-[180px] px-3.5 py-2.5",
+        "absolute top-4 right-4 z-20 min-w-45 px-3.5 py-2.5",
         "bg-white/95 dark:bg-zinc-950/85 backdrop-blur-md",
         "border border-zinc-200 dark:border-zinc-800 rounded-lg",
         "shadow-lg shadow-black/5 dark:shadow-black/40",
@@ -68,7 +68,7 @@ export function ProtocolLegend() {
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Protocols
         </span>
         <div className="flex items-center gap-0.5">
@@ -88,7 +88,7 @@ export function ProtocolLegend() {
             className="p-1 opacity-50 hover:opacity-100 transition-opacity"
             title="Hide"
           >
-            <XMarkIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-500" />
+            <XMarkIcon className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -113,7 +113,7 @@ export function ProtocolLegend() {
                   : `Click to hide • Double-click to isolate ${label}`
               }
             >
-              <svg width="24" height="8" className="flex-shrink-0 overflow-visible">
+              <svg width="24" height="8" className="shrink-0 overflow-visible">
                 <line
                   x1="0"
                   y1="4"
@@ -132,7 +132,7 @@ export function ProtocolLegend() {
         })}
       </div>
 
-      <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[9px] text-zinc-400 dark:text-zinc-600">
+      <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[9px] text-muted-foreground">
         Click toggle · Dbl-click isolate
       </div>
     </div>

@@ -112,7 +112,7 @@ export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
                 <span className="w-3 h-3 rounded-full bg-amber-400 dark:bg-amber-500 border-2 border-white dark:border-zinc-800"></span>
                 <span>Output handles (Bottom, Right)</span>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500 pt-1">
+              <p className="text-xs text-muted-foreground pt-1">
                 Drag from output to input to create connections. Protocol auto-selects based on
                 target node type.
               </p>

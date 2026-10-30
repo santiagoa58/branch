@@ -84,9 +84,7 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Flows</span>
-            <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-600">
-              {flows.length}
-            </span>
+            <span className="text-[10px] font-mono text-muted-foreground">{flows.length}</span>
           </div>
           <button
             type="button"
@@ -127,7 +125,7 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
               >
                 <div className="flex items-start gap-2">
                   <span
-                    className="mt-1 w-2 h-2 rounded-full flex-shrink-0"
+                    className="mt-1 w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: accent }}
                   />
                   <div className="flex-1 min-w-0">
@@ -155,7 +153,7 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
                       onClick={() => !sourceMissing && setSelectedNode(flow.sourceNodeId)}
                       disabled={sourceMissing}
                       className={cn(
-                        "mt-1 text-[10px] font-mono text-zinc-500 dark:text-zinc-500 truncate hover:underline disabled:no-underline disabled:cursor-not-allowed",
+                        "mt-1 text-[10px] font-mono text-muted-foreground truncate hover:underline disabled:no-underline disabled:cursor-not-allowed",
                         sourceMissing && "line-through",
                       )}
                       title={sourceMissing ? "Source node deleted" : "Select source node"}
@@ -234,7 +232,7 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
             Save current
           </button>
           {!sourceNodeId && (
-            <p className="mt-1.5 text-[10px] text-zinc-400 dark:text-zinc-600 leading-snug text-center">
+            <p className="mt-1.5 text-[10px] text-muted-foreground leading-snug text-center">
               Enable flow mode and click a node to set a source.
             </p>
           )}

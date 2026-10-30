@@ -63,7 +63,7 @@ export function SaveFlowDialog({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center">
+    <div className="fixed inset-0 z-200 flex items-center justify-center">
       <button
         type="button"
         aria-label="Close flow dialog"
@@ -123,7 +123,7 @@ export function SaveFlowDialog({
               htmlFor="flow-desc"
               className="text-xs font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Description <span className="text-zinc-400 font-normal">(optional)</span>
+              Description <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <textarea
               id="flow-desc"

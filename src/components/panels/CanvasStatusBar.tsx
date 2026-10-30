@@ -14,7 +14,7 @@ const HEALTH_COLOR: Record<Health, string> = {
 
 function Separator() {
   return (
-    <span className="inline-block w-[3px] h-[3px] rounded-full bg-zinc-300 dark:bg-zinc-700 flex-shrink-0" />
+    <span className="inline-block w-0.75 h-0.75 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
   );
 }
 
@@ -77,17 +77,17 @@ export function CanvasStatusBar() {
         "font-mono",
       )}
     >
-      <span className="text-[11px] text-zinc-500 dark:text-zinc-500 whitespace-nowrap">
+      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
         <b className="font-semibold text-zinc-700 dark:text-zinc-300">{archNodes}</b> nodes
       </span>
       <Separator />
-      <span className="text-[11px] text-zinc-500 dark:text-zinc-500 whitespace-nowrap">
+      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
         <b className="font-semibold text-zinc-700 dark:text-zinc-300">{edges.length}</b> edges
       </span>
       {services > 0 && (
         <>
           <Separator />
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-500 whitespace-nowrap">
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             <b className="font-semibold text-zinc-700 dark:text-zinc-300">{services}</b> service
           </span>
         </>
@@ -95,7 +95,7 @@ export function CanvasStatusBar() {
       {data > 0 && (
         <>
           <Separator />
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-500 whitespace-nowrap">
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             <b className="font-semibold text-zinc-700 dark:text-zinc-300">{data}</b> data
           </span>
         </>
@@ -103,14 +103,14 @@ export function CanvasStatusBar() {
       {queues > 0 && (
         <>
           <Separator />
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-500 whitespace-nowrap">
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             <b className="font-semibold text-zinc-700 dark:text-zinc-300">{queues}</b> queue
           </span>
         </>
       )}
       <Separator />
-      <span className="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-500">
-        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", HEALTH_COLOR[health])} />
+      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", HEALTH_COLOR[health])} />
         {health}
       </span>
     </div>

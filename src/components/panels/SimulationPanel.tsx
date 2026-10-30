@@ -231,7 +231,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
           <BoltIcon
             className={cn("w-4 h-4", isRunning ? "text-amber-500 animate-pulse" : "text-zinc-400")}
           />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Simulate
           </span>
         </div>
@@ -380,7 +380,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                   "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors",
                   steppingMode
                     ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700"
-                    : "text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                    : "text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800",
                 )}
                 title="Toggle step-by-step debugger"
               >
@@ -438,7 +438,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                   "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
                   roundTripEnabled
                     ? "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700"
-                    : "text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                    : "text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800",
                 )}
                 title="Toggle request-response round trip"
               >
@@ -554,7 +554,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
 
         {/* Speed selector */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-medium">Speed:</span>
+          <span className="text-[10px] text-muted-foreground font-medium">Speed:</span>
           <select
             value={speed}
             onChange={(e) =>
@@ -573,7 +573,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
         <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
 
         {/* Status text */}
-        <span className="text-xs text-zinc-500 dark:text-zinc-400 flex-1 truncate min-w-[10rem] text-center">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 flex-1 truncate min-w-40 text-center">
           {getStatusText()}
         </span>
 
