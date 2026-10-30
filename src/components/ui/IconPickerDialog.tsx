@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, Search, Sparkles, Loader2 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import {
   type IconifyCollection,
 } from "@/services/iconify";
 import { notify } from "@/services/notify";
+import { TECHNOLOGY_ICON_GROUPS } from "@/constants/technologyIcons";
 
 interface IconPickerDialogProps {
   isOpen: boolean;
@@ -33,49 +34,60 @@ export function IconPickerDialog({
   const [error, setError] = useState<string>("");
   const [totalResults, setTotalResults] = useState(0);
 
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      setIcons([]);
-      return;
+  const [previousOpen, setPreviousOpen] = useState(isOpen);
+  if (previousOpen !== isOpen) {
+    setPreviousOpen(isOpen);
+    if (isOpen) {
+      setSelectedIcon(currentIcon || "");
     }
+  }
 
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await searchIcons(searchQuery.trim(), selectedCollection || undefined, 48);
-      setIcons(result.icons);
-      setTotalResults(result.total);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to search icons";
-      setError(errorMessage);
-      setIcons([]);
-      notify.error({
-        title: "Search Failed",
-        message: errorMessage,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, selectedCollection]);
-
-  // Debounced search
+  // Cancel both the debounce and any in-flight request when the query changes.
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    const handler = setTimeout(() => {
-      if (searchQuery.trim()) {
-        void handleSearch();
-      } else {
-        setIcons([]);
-        setTotalResults(0);
+    const controller = new AbortController();
+    const handleSearch = async () => {
+      setIcons([]);
+      setTotalResults(0);
+      setError("");
+      setLoading(!!searchQuery.trim());
+      if (!searchQuery.trim()) {
+        return;
       }
-    }, 300);
+      try {
+        const result = await searchIcons(
+          searchQuery.trim(),
+          selectedCollection || undefined,
+          48,
+          controller.signal,
+        );
+        if (!controller.signal.aborted) {
+          setIcons(result.icons);
+          setTotalResults(result.total);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const errorMessage = err instanceof Error ? err.message : "Failed to search icons";
+        setError(errorMessage);
+        notify.error({ title: "Search failed", message: errorMessage });
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
 
-    return () => clearTimeout(handler);
-  }, [searchQuery, selectedCollection, isOpen, handleSearch]);
+    const handler = setTimeout(() => void handleSearch(), 300);
+    return () => {
+      clearTimeout(handler);
+      controller.abort();
+    };
+  }, [searchQuery, selectedCollection, isOpen]);
 
   // Load collections on mount
   useEffect(() => {
@@ -83,20 +95,28 @@ export function IconPickerDialog({
       return;
     }
 
+    let active = true;
     const loadCollections = async () => {
       setLoadingCollections(true);
       try {
         const cols = await getCollections();
-        setCollections(cols);
+        if (active) {
+          setCollections(cols);
+        }
       } catch (err) {
         console.error("Failed to load collections:", err);
         // Non-critical, continue without collections
       } finally {
-        setLoadingCollections(false);
+        if (active) {
+          setLoadingCollections(false);
+        }
       }
     };
 
     void loadCollections();
+    return () => {
+      active = false;
+    };
   }, [isOpen]);
 
   const handleIconSelect = (iconId: string) => {
@@ -119,6 +139,37 @@ export function IconPickerDialog({
     return collections.filter((col) => featured.includes(col.prefix));
   }, [collections]);
 
+  const browsing = !searchQuery.trim();
+  const browseGroups = TECHNOLOGY_ICON_GROUPS.map((group) => ({
+    ...group,
+    icons: group.icons.filter(
+      (icon) => !selectedCollection || icon.id.startsWith(`${selectedCollection}:`),
+    ),
+  })).filter((group) => group.icons.length > 0);
+
+  const renderIconButton = (iconId: string, name = iconId) => (
+    <button
+      type="button"
+      key={iconId}
+      onClick={() => handleIconSelect(iconId)}
+      aria-label={`Select ${name}${name === iconId ? "" : ` (${iconId})`}`}
+      aria-pressed={selectedIcon === iconId}
+      className={cn(
+        "aspect-square p-3 rounded-lg border-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        selectedIcon === iconId
+          ? "border-primary bg-accent"
+          : "border-zinc-200 dark:border-zinc-700",
+      )}
+      title={name === iconId ? iconId : `${name} (${iconId})`}
+    >
+      <Icon
+        icon={iconId}
+        aria-hidden="true"
+        className="w-full h-full text-zinc-700 dark:text-zinc-300"
+      />
+    </button>
+  );
+
   if (!isOpen) {
     return null;
   }
@@ -135,6 +186,7 @@ export function IconPickerDialog({
           <button
             type="button"
             onClick={handleClose}
+            aria-label="Close icon picker"
             className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
             <X className="w-5 h-5 text-zinc-500" />
@@ -148,6 +200,7 @@ export function IconPickerDialog({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
+              aria-label="Search icons"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search icons (e.g., database, kubernetes, docker)..."
@@ -203,7 +256,29 @@ export function IconPickerDialog({
 
         {/* Icon Grid */}
         <div className="flex-1 overflow-y-auto p-4">
-          {loading ? (
+          {browsing ? (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Featured technology icons. Search for more brands and system symbols.
+              </p>
+              {browseGroups.length === 0 && (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  No featured icons in this collection. Search to explore it, or choose All
+                  Collections.
+                </p>
+              )}
+              {browseGroups.map((group) => (
+                <section key={group.name} aria-label={group.name} className="space-y-2">
+                  <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {group.name}
+                  </h3>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                    {group.icons.map((icon) => renderIconButton(icon.id, icon.name))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : loading ? (
             <div className="flex flex-col items-center justify-center h-64 gap-3">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
               <p className="text-sm text-zinc-500 dark:text-zinc-400">Searching icons...</p>
@@ -226,25 +301,23 @@ export function IconPickerDialog({
             </div>
           ) : (
             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-              {icons.map((iconId) => (
-                <button
-                  type="button"
-                  key={iconId}
-                  onClick={() => handleIconSelect(iconId)}
-                  className={cn(
-                    "aspect-square p-3 rounded-lg border-2 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800",
-                    selectedIcon === iconId
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                      : "border-zinc-200 dark:border-zinc-700",
-                  )}
-                  title={iconId}
-                >
-                  <Icon icon={iconId} className="w-full h-full text-zinc-700 dark:text-zinc-300" />
-                </button>
-              ))}
+              {icons.map((iconId) => renderIconButton(iconId))}
             </div>
           )}
         </div>
+
+        <p className="px-4 pb-3 text-xs text-zinc-500 dark:text-zinc-400">
+          Brand marks are the property of their respective owners. Each{" "}
+          <a
+            href="https://iconify.design/docs/icons/icon-basics.html#licenses"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Iconify collection’s license
+          </a>{" "}
+          applies. Use of a mark does not imply endorsement.
+        </p>
 
         {/* Footer with Preview & Actions */}
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
