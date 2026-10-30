@@ -49,6 +49,7 @@ import { CodeEditor } from "@/components/ui/CodeEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { TagInput } from "@/components/ui/TagInput";
 import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
+import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 import { LoadingIndicator } from "@/components/ui/loading";
 
 export function PropertiesPanel() {
@@ -442,6 +443,11 @@ export function PropertiesPanel() {
               </div>
             </div>
 
+            <DesignDecisionEditor
+              key={`decision-${selectedNode.id}`}
+              value={groupData.decision}
+              onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
+            />
             {/* Metadata Section */}
             <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex justify-between text-[10px]">
@@ -885,6 +891,11 @@ export function PropertiesPanel() {
                 )}
               </div>
 
+              <DesignDecisionEditor
+                key={`decision-${selectedNode.id}`}
+                value={nodeData.decision}
+                onChange={(decision) => updateNodeData(selectedNode.id, { decision })}
+              />
               <ArchitectureFactsEditor
                 key={selectedNode.id}
                 metadata={nodeData.metadata ?? {}}
@@ -1182,6 +1193,11 @@ export function PropertiesPanel() {
               />
             </div>
 
+            <DesignDecisionEditor
+              key={selectedEdge.id}
+              value={edgeData.decision}
+              onChange={(decision) => updateEdgeData(selectedEdge.id, { decision })}
+            />
             {/* Tags */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
