@@ -1,4 +1,5 @@
 import { AccountControls } from "@/components/CloudAuth";
+import { Brand } from "@/components/Brand";
 import { LoadingState } from "@/components/ui/loading";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +8,6 @@ import {
   PlusIcon,
   TrashIcon,
   PencilIcon,
-  CubeIcon,
   SunIcon,
   MoonIcon,
   ComputerDesktopIcon,
@@ -70,14 +70,7 @@ export function ProjectsPage() {
     <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-300">
       {/* Header */}
       <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-zinc-900 dark:bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-100 dark:text-zinc-950">
-            <CubeIcon className="w-4.5 h-4.5" strokeWidth={2} />
-          </div>
-          <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Branch
-          </span>
-        </div>
+        <Brand />
         <div className="flex items-center gap-2">
           <AccountControls />
           <button

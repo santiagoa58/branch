@@ -9,6 +9,7 @@ import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAIStore } from "@/store/aiStore";
 import { LoadingState } from "@/components/ui/loading";
+import { BrandMark, BRANCH_MARK_SRC } from "@/components/Brand";
 
 const clerkTheme = { ...shadcn, cssLayerName: "clerk" };
 let authenticatedOwner: string | null = null;
@@ -36,6 +37,7 @@ export function CloudAuth({ children }: { children: ReactNode }) {
   if (!key) {
     return (
       <div className="min-h-screen grid place-content-center bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 p-8">
+        <BrandMark decorative className="mb-4" />
         <h1 className="text-lg font-semibold">Configure Branch sign-in</h1>
         <p className="mt-2 text-sm">
           Set VITE_CLERK_PUBLISHABLE_KEY in .env.local, then restart the dev server. See README.md
@@ -48,7 +50,8 @@ export function CloudAuth({ children }: { children: ReactNode }) {
     <ClerkProvider
       publishableKey={key}
       afterSignOutUrl="/"
-      appearance={{ theme: clerkTheme }}
+      telemetry={false}
+      appearance={{ theme: clerkTheme, options: { logoImageUrl: BRANCH_MARK_SRC } }}
       routerPush={(url) => navigateWithinApp(url, false)}
       routerReplace={(url) => navigateWithinApp(url, true)}
     >

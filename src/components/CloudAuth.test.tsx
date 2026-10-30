@@ -14,6 +14,9 @@ const clerk = vi.hoisted(() => ({
   routerPush: (_url: string) => {},
   routerReplace: (_url: string) => {},
 }));
+const providerConfig = vi.hoisted(() =>
+  vi.fn<(config: { telemetry: unknown; appearance: unknown }) => void>(),
+);
 vi.mock("@clerk/react", () => ({
   useAuth: () => auth,
   useClerk: () => clerk,
@@ -21,11 +24,16 @@ vi.mock("@clerk/react", () => ({
     children,
     routerPush,
     routerReplace,
+    telemetry,
+    appearance,
   }: {
     children: import("react").ReactNode;
     routerPush: (url: string) => void;
     routerReplace: (url: string) => void;
+    telemetry: unknown;
+    appearance: unknown;
   }) => {
+    providerConfig({ telemetry, appearance });
     clerk.routerPush = routerPush;
     clerk.routerReplace = routerReplace;
     return children;
@@ -58,6 +66,7 @@ beforeEach(() => {
   auth.isSignedIn = true;
   clerk.signOut.mockReset().mockResolvedValue(undefined);
   clerk.openUserProfile.mockReset();
+  providerConfig.mockClear();
   auth.userId = "alice";
   auth.getToken = vi.fn<() => Promise<string | null>>().mockResolvedValue("token");
   vi.spyOn(diagramsApi, "get").mockResolvedValue(diagram);
@@ -106,6 +115,15 @@ const node = {
 };
 
 describe("cloud authentication transitions", () => {
+  it("disables optional telemetry and uses the canonical Branch logo in Clerk UI", () => {
+    render(<CloudAuth>Workspace</CloudAuth>);
+    expect(providerConfig).toHaveBeenCalledOnce();
+    expect(providerConfig.mock.calls[0]?.[0].telemetry).toBe(false);
+    expect(providerConfig.mock.calls[0]?.[0].appearance).toMatchObject({
+      options: { logoImageUrl: "/branch-mark.svg" },
+    });
+  });
+
   it("authenticates child requests when a lazy route reveals under StrictMode", async () => {
     const outcomes: unknown[] = [];
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response("[]"));

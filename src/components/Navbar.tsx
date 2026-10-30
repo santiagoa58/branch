@@ -29,6 +29,7 @@ import { projectsApi } from "@/services/api";
 import { copyShareableLink } from "@/utils/export";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { AccountControls } from "@/components/CloudAuth";
+import { Brand } from "@/components/Brand";
 import { notify } from "@/services/notify";
 import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { VersionsPanel } from "@/components/panels/VersionsPanel";
@@ -205,33 +206,15 @@ export function Navbar() {
   return (
     <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-50">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            void navigate("/");
-          }}
-          className="h-8 w-8 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity overflow-hidden"
-        >
-          <img
-            src="/branch-mark.svg"
-            alt="Branch"
-            className="w-full h-full object-contain block dark:hidden"
-          />
-          <img
-            src="/branch-mark.svg"
-            alt="Branch"
-            className="w-full h-full object-contain hidden dark:block"
-          />
-        </button>
         <nav className="flex items-center gap-1 text-sm">
           <button
             type="button"
             onClick={() => {
               void navigate("/");
             }}
-            className="font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="rounded-lg hover:opacity-80 transition-opacity duration-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            Branch
+            <Brand />
           </button>
           {project && (
             <>

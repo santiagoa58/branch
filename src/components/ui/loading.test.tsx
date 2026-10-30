@@ -31,7 +31,29 @@ describe("shared loading UI", () => {
     expect(status).toHaveClass("flex-1");
     expect(status).not.toHaveClass("min-h-svh");
     expect(screen.queryByText("Branch")).not.toBeInTheDocument();
+
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  it.each(["screen", "panel"] as const)(
+    "preserves the animated branching artwork in the %s loader",
+    (variant) => {
+      const { container } = render(<LoadingState variant={variant} />);
+      const artwork = container.querySelector("svg");
+
+      expect(artwork).toHaveAttribute("viewBox", "0 0 160 96");
+      expect(artwork?.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(artwork?.querySelector("path")).toHaveClass("stroke-border");
+      expect(artwork?.querySelectorAll("rect")).toHaveLength(3);
+      const dots = artwork?.querySelectorAll("circle.branch-loading-dot");
+      expect(dots).toHaveLength(3);
+      dots?.forEach((dot, step) => {
+        expect(dot).toHaveClass("fill-primary");
+        expect(dot).toHaveStyle({ animationDelay: `${step * 160}ms` });
+      });
+      expect(container.querySelector("img")).not.toBeInTheDocument();
+    },
+  );
 
   it("keeps the inline indicator decorative so control labels remain unchanged", () => {
     render(
