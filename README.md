@@ -24,6 +24,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **AI/ML Components** — LLM, Vector DB, ML Pipeline, Embedding
 - **Cloud Services** — Secrets Manager, Event Bus, Data Lake, Search, Notifications
 - **Group Containers** — Organize with VPCs, Clusters, Regions, and Subnets
+- **Starter templates** — 26 searchable architectures modeled on familiar products such as Google Drive, Slack, Uber, Stripe and YouTube. Filter by category, preview a template, then start from it or add it to an existing diagram.
 - **Auto format** — One click arranges components using their actual dimensions, fits nested groups around their contents, respects connections across groups, and packs disconnected sections. The result fits in view and can be undone in one step.
 
 ### Data Flow & Contracts

@@ -1,6 +1,6 @@
 import { DiagramData } from "@/types";
 import { archEdge, archNode, groupNode } from "./builders";
-import type { DiagramTemplate } from "./index";
+import type { DiagramTemplate } from "./types";
 
 const data = {
   nodes: [
@@ -69,7 +69,19 @@ export const threeTierWeb: DiagramTemplate = {
   name: "Three-tier web app",
   description:
     "The classic starting point: browser and CDN in front, load-balanced web and API tiers inside a VPC, backed by Postgres and Redis.",
-  category: "Web",
+  category: "web",
+  inspiredBy: "Basecamp",
+  keywords: [
+    "web app",
+    "monolith",
+    "rails",
+    "django",
+    "crud",
+    "postgres",
+    "redis",
+    "load balancer",
+    "starter",
+  ],
   highlights: ["VPC group", "Data contract", "Saved flow"],
   data,
 };

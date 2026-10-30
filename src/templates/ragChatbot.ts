@@ -1,6 +1,6 @@
 import { DiagramData } from "@/types";
 import { archEdge, archNode, groupNode } from "./builders";
-import type { DiagramTemplate } from "./index";
+import type { DiagramTemplate } from "./types";
 
 const data = {
   nodes: [
@@ -71,7 +71,17 @@ export const ragChatbot: DiagramTemplate = {
   name: "RAG chatbot",
   description:
     "Retrieval-augmented chat: an orchestrator service pulling context from a vector store via embeddings before calling the LLM.",
-  category: "AI",
+  category: "ai",
+  inspiredBy: "Perplexity",
+  keywords: [
+    "rag",
+    "chatbot",
+    "support bot",
+    "knowledge base",
+    "embeddings",
+    "vector search",
+    "llm",
+  ],
   highlights: ["AI/ML node types", "Inference & vector edges", "Response contract"],
   data,
 };

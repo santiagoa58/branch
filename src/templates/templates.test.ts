@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vite-plus/test";
-import { DIAGRAM_TEMPLATES, instantiateTemplate } from "./index";
+import {
+  DIAGRAM_TEMPLATES,
+  TEMPLATE_CATEGORIES,
+  findTemplates,
+  instantiateTemplate,
+} from "./index";
 import { validateDiagramData } from "@/utils/import";
 
 function itemAt<T>(items: readonly T[], index: number): T {
@@ -64,6 +69,33 @@ describe.each(DIAGRAM_TEMPLATES.map((t) => [t.name, t] as const))(
     });
   },
 );
+
+describe("template catalog", () => {
+  it("offers many templates with unique ids in every category", () => {
+    const ids = DIAGRAM_TEMPLATES.map((template) => template.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(DIAGRAM_TEMPLATES.length).toBeGreaterThanOrEqual(24);
+    const empty = TEMPLATE_CATEGORIES.filter((c) => findTemplates("", c.id).length === 0);
+    expect(empty).toEqual([]);
+  });
+
+  it.each([
+    ["Google Drive", "cloud-file-storage"],
+    ["dropbox", "cloud-file-storage"],
+    ["slack", "chat-messaging"],
+    ["Uber", "ride-hailing"],
+    ["netflix", "recommendation-system"],
+    ["stripe webhooks", "payments-platform"],
+    ["Elasticsearch", "cloud-file-storage"],
+  ])("finds %s", (query, id) => {
+    expect(findTemplates(query).map((template) => template.id)).toContain(id);
+  });
+
+  it("combines words and categories and returns nothing for unknown products", () => {
+    expect(findTemplates("video", "media").every((t) => t.category === "media")).toBe(true);
+    expect(findTemplates("zzzz-no-such-product")).toEqual([]);
+  });
+});
 
 describe("instantiateTemplate", () => {
   const template = itemAt(DIAGRAM_TEMPLATES, 0);

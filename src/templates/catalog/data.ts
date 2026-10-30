@@ -1,0 +1,118 @@
+import { defineTemplate } from "../define";
+
+export const webSearch = defineTemplate({
+  id: "web-search-engine",
+  name: "Web search engine",
+  category: "data",
+  inspiredBy: "Google Search",
+  description:
+    "Crawl, index and rank the web: a crawl frontier, fetchers, a document store, an indexing pipeline and a low-latency query service.",
+  keywords: [
+    "google",
+    "bing",
+    "duckduckgo",
+    "search engine",
+    "crawler",
+    "inverted index",
+    "ranking",
+    "autocomplete",
+  ],
+  highlights: ["Crawl frontier", "Index pipeline", "Query serving"],
+  groups: [
+    { id: "offline", type: "vpc", label: "Crawl and index" },
+    { id: "online", type: "vpc", label: "Query serving" },
+  ],
+  nodes: [
+    { id: "frontier", type: "queue", label: "URL frontier", in: "offline" },
+    { id: "crawler", type: "worker", label: "Crawlers", in: "offline" },
+    { id: "web", type: "external", label: "Public web" },
+    { id: "pages", type: "storage", label: "Raw pages", in: "offline" },
+    { id: "indexer", type: "etl", label: "Indexer", technology: "Spark", in: "offline" },
+    { id: "index", type: "search", label: "Inverted index shards", in: "online" },
+    { id: "query", type: "service", label: "Query service", in: "online" },
+    { id: "ranker", type: "inference", label: "Ranking model", in: "online" },
+    { id: "results", type: "cache", label: "Results cache", in: "online" },
+    { id: "user", type: "client", label: "Searcher" },
+  ],
+  edges: [
+    { from: "frontier", to: "crawler", protocol: "amqp", async: true },
+    { from: "crawler", to: "web", protocol: "http", method: "GET" },
+    { from: "crawler", to: "pages", protocol: "s3" },
+    { from: "crawler", to: "frontier", protocol: "amqp", async: true, label: "discovered links" },
+    { from: "pages", to: "indexer", protocol: "s3", async: true },
+    { from: "indexer", to: "index", protocol: "search" },
+    {
+      from: "user",
+      to: "query",
+      protocol: "http",
+      method: "GET",
+      request: { name: "SearchQuery", fields: { q: "string", page: "number", locale: "string" } },
+    },
+    { from: "query", to: "results", protocol: "redis" },
+    { from: "query", to: "index", protocol: "search", latencyMs: 30 },
+    { from: "query", to: "ranker", protocol: "inference", latencyMs: 20 },
+  ],
+  flow: {
+    name: "Run a search",
+    description: "Query the index, rank and cache results.",
+    from: "user",
+    color: "#3b82f6",
+  },
+});
+
+export const recommendationSystem = defineTemplate({
+  id: "recommendation-system",
+  name: "Recommendation system",
+  category: "data",
+  inspiredBy: "Netflix",
+  description:
+    "Personalized recommendations: interaction events build features, a training pipeline publishes models, and an online service ranks candidates.",
+  keywords: [
+    "netflix",
+    "amazon",
+    "tiktok",
+    "recommendations",
+    "personalization",
+    "feature store",
+    "ml pipeline",
+    "ranking",
+  ],
+  highlights: ["Feature store", "Model registry", "Online inference"],
+  groups: [{ id: "ml", type: "vpc", label: "ML platform" }],
+  nodes: [
+    { id: "app", type: "client", label: "App" },
+    { id: "events", type: "stream", label: "Interaction events" },
+    { id: "lake", type: "datalake", label: "Event lake" },
+    { id: "features", type: "featurestore", label: "Feature store", in: "ml" },
+    { id: "training", type: "training", label: "Training pipeline", in: "ml" },
+    { id: "registry", type: "modelregistry", label: "Model registry", in: "ml" },
+    { id: "candidates", type: "vectordb", label: "Candidate index", in: "ml" },
+    { id: "ranker", type: "inference", label: "Ranking service", in: "ml" },
+    { id: "api", type: "service", label: "Recommendations API" },
+  ],
+  edges: [
+    { from: "app", to: "events", protocol: "http", async: true },
+    { from: "events", to: "lake", protocol: "kafka", async: true },
+    { from: "events", to: "features", protocol: "kafka", async: true, label: "streaming features" },
+    { from: "lake", to: "training", protocol: "s3" },
+    { from: "training", to: "registry", protocol: "http", label: "publish model" },
+    { from: "registry", to: "ranker", protocol: "http", label: "deploy" },
+    { from: "app", to: "api", protocol: "http", method: "GET" },
+    { from: "api", to: "candidates", protocol: "vector" },
+    {
+      from: "api",
+      to: "ranker",
+      protocol: "inference",
+      response: { name: "RankedItems", fields: { items: "{ id: string, score: number }[]" } },
+    },
+    { from: "ranker", to: "features", protocol: "http" },
+  ],
+  flow: {
+    name: "Get recommendations",
+    description: "Retrieve candidates and rank them with fresh features.",
+    from: "app",
+    color: "#a855f7",
+  },
+});
+
+export const DATA_TEMPLATES = [webSearch, recommendationSystem];

@@ -1,6 +1,6 @@
 import { DiagramData } from "@/types";
 import { archEdge, archNode, groupNode } from "./builders";
-import type { DiagramTemplate } from "./index";
+import type { DiagramTemplate } from "./types";
 
 const data = {
   nodes: [
@@ -79,7 +79,18 @@ export const microservicesEcommerce: DiagramTemplate = {
   name: "Microservices e-commerce",
   description:
     "An order flow across services: gateway with auth, synchronous payment call to an external provider, and async fan-out via RabbitMQ.",
-  category: "Microservices",
+  category: "commerce",
+  inspiredBy: "Amazon",
+  keywords: [
+    "amazon",
+    "ebay",
+    "online store",
+    "orders",
+    "microservices",
+    "rabbitmq",
+    "saga",
+    "inventory",
+  ],
   highlights: ["Async messaging", "External provider", "Data contract"],
   data,
 };

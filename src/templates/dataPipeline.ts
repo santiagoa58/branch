@@ -1,6 +1,6 @@
 import { DiagramData } from "@/types";
 import { archEdge, archNode, groupNode } from "./builders";
-import type { DiagramTemplate } from "./index";
+import type { DiagramTemplate } from "./types";
 
 const data = {
   nodes: [
@@ -49,7 +49,18 @@ export const dataPipeline: DiagramTemplate = {
   name: "Data analytics pipeline",
   description:
     "Streaming ingestion into a data lake: Kinesis feeding S3 and Glue ETL inside a nested subnet, queried by Athena and a BI dashboard.",
-  category: "Data",
+  category: "data",
+  keywords: [
+    "analytics",
+    "data lake",
+    "etl",
+    "streaming",
+    "kinesis",
+    "athena",
+    "bi",
+    "dashboards",
+    "warehouse",
+  ],
   highlights: ["Nested groups", "Streaming/async edges", "Saved flow"],
   data,
 };

@@ -1,21 +1,8 @@
-import { DiagramData } from "@/types";
+import type { DiagramData } from "@/types";
+import type { DiagramTemplate, TemplateCategory } from "./types";
 
-/**
- * Starter templates: pre-designed diagrams users can load from the template
- * gallery (toolbar) or the empty-canvas call-to-action. Each template is a
- * plain DiagramData object authored in its own module via the builders in
- * `./builders.ts`, and ships with groups, protocols, data contracts and a
- * saved flow so it doubles as feature discovery.
- */
-export interface DiagramTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: "Web" | "Microservices" | "Data" | "AI";
-  /** Short chips describing what the template demonstrates. */
-  highlights: string[];
-  data: DiagramData;
-}
+export { TEMPLATE_CATEGORIES } from "./types";
+export type { DiagramTemplate, TemplateCategory } from "./types";
 
 /**
  * Deep-clone a template's data with every id namespaced by a unique suffix.
@@ -62,10 +49,63 @@ import { threeTierWeb } from "./threeTierWeb";
 import { microservicesEcommerce } from "./microservicesEcommerce";
 import { dataPipeline } from "./dataPipeline";
 import { ragChatbot } from "./ragChatbot";
+import { STORAGE_TEMPLATES } from "./catalog/storage";
+import { SOCIAL_TEMPLATES } from "./catalog/social";
+import { MEDIA_TEMPLATES } from "./catalog/media";
+import { COMMERCE_TEMPLATES } from "./catalog/commerce";
+import { MARKETPLACE_TEMPLATES } from "./catalog/marketplace";
+import { WEB_TEMPLATES } from "./catalog/web";
+import { DATA_TEMPLATES } from "./catalog/data";
+import { AI_TEMPLATES } from "./catalog/ai";
+import { PLATFORM_TEMPLATES } from "./catalog/platform";
 
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   threeTierWeb,
+  ...STORAGE_TEMPLATES,
+  ...SOCIAL_TEMPLATES,
+  ...MEDIA_TEMPLATES,
   microservicesEcommerce,
+  ...COMMERCE_TEMPLATES,
+  ...MARKETPLACE_TEMPLATES,
+  ...WEB_TEMPLATES,
   dataPipeline,
+  ...DATA_TEMPLATES,
   ragChatbot,
+  ...AI_TEMPLATES,
+  ...PLATFORM_TEMPLATES,
 ];
+
+function searchableText(template: DiagramTemplate): string {
+  const components = template.data.nodes.flatMap((node) => {
+    const values = [node.data["label"], node.data["technology"], node.data["type"]];
+    return values.filter((value): value is string => typeof value === "string");
+  });
+  return [
+    template.name,
+    template.description,
+    template.inspiredBy ?? "",
+    ...template.keywords,
+    ...template.highlights,
+    ...components,
+  ]
+    .join(" ")
+    .toLocaleLowerCase();
+}
+
+const SEARCH_TEXT = new Map(DIAGRAM_TEMPLATES.map((t) => [t.id, searchableText(t)]));
+
+/** Every search word must match the template's name, product, keywords or components. */
+export function findTemplates(
+  query: string,
+  category: TemplateCategory | "all" = "all",
+  templates: readonly DiagramTemplate[] = DIAGRAM_TEMPLATES,
+): DiagramTemplate[] {
+  const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  return templates.filter((template) => {
+    if (category !== "all" && template.category !== category) {
+      return false;
+    }
+    const text = SEARCH_TEXT.get(template.id) ?? searchableText(template);
+    return words.every((word) => text.includes(word));
+  });
+}
