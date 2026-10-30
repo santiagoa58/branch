@@ -90,6 +90,13 @@ export type CommentColor = "yellow" | "blue" | "green" | "pink" | "purple";
 
 export type NodeStatus = "active" | "inactive" | "warning";
 
+export interface DesignDecision {
+  reason?: string;
+  alternatives?: string;
+  tradeoffs?: string;
+  assumptions?: string;
+}
+
 // Data structure for architecture nodes
 export type ArchitectureNodeData = {
   label: string;
@@ -99,6 +106,7 @@ export type ArchitectureNodeData = {
   port?: string;
   status?: NodeStatus;
   metadata?: Record<string, string>;
+  decision?: DesignDecision;
   parentId?: string; // For grouping - reference to parent group
   healthCheckUrl?: string; // Health check endpoint URL
   /** Free-form user tags. Filterable via the TagFilter overlay. */
@@ -118,6 +126,7 @@ export type GroupNodeData = {
   accentColor?: string; // Optional accent for group border and badge
   backgroundColor?: string; // Optional semi-transparent background tint
   description?: string;
+  decision?: DesignDecision;
 } & Record<string, unknown>;
 
 // Data structure for comment/annotation nodes
@@ -184,6 +193,7 @@ export type ArchitectureEdgeData = {
   responseContract?: DataContract;
   /** Free-form user tags. Filterable via the TagFilter overlay. */
   tags?: string[];
+  decision?: DesignDecision;
 } & Record<string, unknown>;
 
 // Data carried by a synthetic rolled-up edge (derived in utils/groupRollup.ts
