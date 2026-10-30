@@ -134,8 +134,8 @@ export function ArchitectureEdge({
     fullLabel = `${baseLabel} • ${edgeData.dataContract.schemaName}`;
   }
 
-  const hasDecision = !!edgeData?.decision &&
-    Object.values(edgeData.decision).some((value) => value?.trim());
+  const hasDecision =
+    !!edgeData?.decision && Object.values(edgeData.decision).some((value) => value?.trim());
 
   // Determine marker IDs for bidirectional support
   const isBidirectional = edgeData?.bidirectional ?? false;
