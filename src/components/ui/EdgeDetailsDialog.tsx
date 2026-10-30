@@ -98,6 +98,24 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
           </Row>
         </Section>
 
+        {data?.decision &&
+          Object.entries(data.decision).some(([, value]) => value?.trim()) && (
+            <Section title="Design reasoning & tradeoffs">
+              {data.decision.reason && (
+                <Row label="Why">{data.decision.reason}</Row>
+              )}
+              {data.decision.alternatives && (
+                <Row label="Alternatives">{data.decision.alternatives}</Row>
+              )}
+              {data.decision.tradeoffs && (
+                <Row label="Tradeoffs">{data.decision.tradeoffs}</Row>
+              )}
+              {data.decision.assumptions && (
+                <Row label="Assumptions">{data.decision.assumptions}</Row>
+              )}
+            </Section>
+          )}
+
         {/* ── Data Contract — request, plus response when present ── */}
         {data?.dataContract && (
           <Section title={data.responseContract ? "Request Contract" : "Data Contract"}>
