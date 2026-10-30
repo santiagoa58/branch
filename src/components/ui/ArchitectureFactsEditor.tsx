@@ -34,8 +34,8 @@ export function ArchitectureFactsEditor({ metadata, onChange }: ArchitectureFact
           Architecture attributes
         </h3>
         <p className="text-[10px] text-muted-foreground mt-1">
-          TTLs, partitions, consistency, retries, state, capacity, or design decisions.
-          The first three attributes appear on the node.
+          TTLs, partitions, consistency, retries, state, capacity, or design decisions. The first
+          three attributes appear on the node.
         </p>
       </div>
       {Object.entries(metadata).map(([name, current]) => (
@@ -53,7 +53,9 @@ export function ArchitectureFactsEditor({ metadata, onChange }: ArchitectureFact
           <button
             type="button"
             aria-label={`Remove ${name}`}
-            onClick={() => onChange(Object.fromEntries(Object.entries(metadata).filter(([k]) => k !== name)))}
+            onClick={() =>
+              onChange(Object.fromEntries(Object.entries(metadata).filter(([k]) => k !== name)))
+            }
             className="px-1 text-xs text-muted-foreground hover:text-red-600"
           >
             ×
@@ -65,7 +67,10 @@ export function ArchitectureFactsEditor({ metadata, onChange }: ArchitectureFact
           aria-label="Attribute key"
           value={key}
           placeholder="Key"
-          onChange={(event) => { setKey(event.target.value); setError(""); }}
+          onChange={(event) => {
+            setKey(event.target.value);
+            setError("");
+          }}
           onKeyDown={(event) => event.stopPropagation()}
           className="min-w-0 flex-1 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-foreground"
         />
