@@ -135,6 +135,15 @@ interface DiagramStore {
 // Capture the document contents and identity at the edit, not when a timer fires.
 const debouncedSave = (saveFn: () => void) => saveFn();
 
+// UI locks must also cover delayed callbacks and direct store actions.
+function setIfEditable(
+  partial: Partial<DiagramStore> | ((state: DiagramStore) => Partial<DiagramStore>),
+) {
+  if (!cloudWorkspace.getState().locked) {
+    useDiagramStore.setState(partial);
+  }
+}
+
 export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Initial state
   nodes: [],
@@ -149,7 +158,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Node changes (drag, select, etc.)
   onNodesChange: (changes) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: applyNodeChanges(changes, state.nodes),
     }));
 
@@ -165,7 +174,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Edge changes
   onEdgesChange: (changes) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       edges: applyEdgeChanges(changes, state.edges),
     }));
 
@@ -196,7 +205,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       },
     };
 
-    set((state) => ({
+    setIfEditable((state) => ({
       edges: addEdge(newEdge, state.edges),
     }));
 
@@ -206,7 +215,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Add new node
   addNode: (node) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: [...state.nodes, node],
     }));
     get().saveToHistory();
@@ -215,7 +224,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Update node data
   updateNodeData: (id, data) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === id ? { ...node, data: mergeDataPatch(node.data, data) } : node,
       ),
@@ -226,7 +235,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Delete node
   deleteNode: (id) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: state.nodes.filter((node) => node.id !== id),
       edges: state.edges.filter((edge) => edge.source !== id && edge.target !== id),
       selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
@@ -244,7 +253,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       return;
     }
 
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: state.nodes.filter((node) => !selectedNodeIds.includes(node.id)),
       edges: state.edges.filter(
         (edge) => !selectedNodeIds.includes(edge.source) && !selectedNodeIds.includes(edge.target),
@@ -387,7 +396,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
     // Add new nodes and edges, deselect old ones
     // IMPORTANT: React Flow requires parent nodes to come BEFORE child nodes
-    set((state) => {
+    setIfEditable((state) => {
       const existingNodes = state.nodes.map((n) => ({ ...n, selected: false }));
 
       // Separate new nodes by category using tracked IDs
@@ -464,7 +473,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     );
 
     // Deep clone to avoid reference issues
-    set({
+    setIfEditable({
       clipboard: {
         nodes: structuredClone(allNodesToCopy),
         edges: structuredClone(selectedEdges),
@@ -580,7 +589,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     // Add new nodes and edges, deselect old ones and select new ones
     // IMPORTANT: React Flow requires parent nodes to come BEFORE child nodes
     // newNodes is already ordered correctly (roots first, then children)
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: [
         ...state.nodes.map((n) => ({ ...n, selected: false })),
         ...newNodes.map((n) => ({ ...n, selected: true })),
@@ -601,7 +610,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Bring node to front (increase zIndex above all other group nodes)
   bringNodeToFront: (id) => {
-    set((state) => {
+    setIfEditable((state) => {
       const groupNodes = state.nodes.filter((n) => n.type === "group");
       const maxZ = groupNodes.reduce((max, n) => Math.max(max, n.zIndex ?? -1), -1);
       return {
@@ -614,7 +623,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Send node to back (decrease zIndex below all other group nodes)
   sendNodeToBack: (id) => {
-    set((state) => {
+    setIfEditable((state) => {
       const groupNodes = state.nodes.filter((n) => n.type === "group");
       const minZ = groupNodes.reduce((min, n) => Math.min(min, n.zIndex ?? -1), -1);
       return {
@@ -627,7 +636,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Update group data
   updateGroupData: (id, data) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === id ? { ...node, data: mergeDataPatch(node.data, data) } : node,
       ),
@@ -648,7 +657,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
     const isCollapsing = !(groupNode.data as GroupNodeData).collapsed;
 
-    set((state) => ({
+    setIfEditable((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === id ? { ...node, data: { ...node.data, collapsed: isCollapsing } } : node,
       ),
@@ -659,7 +668,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Add node to group
   addNodeToGroup: (nodeId, groupId, relativePosition?) => {
-    set((state) => {
+    setIfEditable((state) => {
       const groupNode = state.nodes.find((n) => n.id === groupId);
       const targetNode = state.nodes.find((n) => n.id === nodeId);
       if (!groupNode || !targetNode) {
@@ -738,7 +747,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Remove node from group
   removeNodeFromGroup: (nodeId) => {
-    set((state) => {
+    setIfEditable((state) => {
       const node = state.nodes.find((n) => n.id === nodeId);
       const parentNode = node?.parentId ? state.nodes.find((n) => n.id === node.parentId) : null;
 
@@ -776,7 +785,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Update edge data
   updateEdgeData: (id, data) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       edges: state.edges.map((edge) =>
         edge.id === id ? { ...edge, data: mergeDataPatch(edge.data ?? {}, data) } : edge,
       ),
@@ -787,7 +796,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Delete edge
   deleteEdge: (id) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       edges: state.edges.filter((edge) => edge.id !== id),
       selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId,
     }));
@@ -797,11 +806,11 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Selection
   setSelectedNode: (id) => {
-    set({ selectedNodeId: id, selectedEdgeId: null });
+    setIfEditable({ selectedNodeId: id, selectedEdgeId: null });
   },
 
   setSelectedEdge: (id) => {
-    set({ selectedEdgeId: id, selectedNodeId: null });
+    setIfEditable({ selectedEdgeId: id, selectedNodeId: null });
   },
 
   // Save current state to history
@@ -822,7 +831,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       newHistory.shift();
     }
 
-    set({
+    setIfEditable({
       history: newHistory,
       historyIndex: newHistory.length - 1,
     });
@@ -848,7 +857,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       if (!prevState) {
         return;
       }
-      set({
+      setIfEditable({
         nodes: prevState.nodes,
         edges: prevState.edges,
         historyIndex: historyIndex - 1,
@@ -865,7 +874,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       if (!nextState) {
         return;
       }
-      set({
+      setIfEditable({
         nodes: nextState.nodes,
         edges: nextState.edges,
         historyIndex: historyIndex + 1,
@@ -903,7 +912,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Import diagram data
   importDiagram: (data) => {
     const validated = diagramDataSchema.parse(data);
-    set({
+    setIfEditable({
       nodes: validated.nodes,
       edges: validated.edges,
       flows: validated.flows ?? [],
@@ -916,7 +925,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Clear diagram
   clearDiagram: () => {
-    set({
+    setIfEditable({
       nodes: [],
       edges: [],
       flows: [],
@@ -951,20 +960,20 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       createdAt: new Date().toISOString(),
       ...partial,
     };
-    set((state) => ({ flows: [...state.flows, flow] }));
+    setIfEditable((state) => ({ flows: [...state.flows, flow] }));
     debouncedSave(get().saveDiagram);
     return flow;
   },
 
   updateFlow: (id, patch) => {
-    set((state) => ({
+    setIfEditable((state) => ({
       flows: state.flows.map((f) => (f.id === id ? { ...f, ...patch } : f)),
     }));
     debouncedSave(get().saveDiagram);
   },
 
   deleteFlow: (id) => {
-    set((state) => ({ flows: state.flows.filter((f) => f.id !== id) }));
+    setIfEditable((state) => ({ flows: state.flows.filter((f) => f.id !== id) }));
     debouncedSave(get().saveDiagram);
   },
 
@@ -1006,7 +1015,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     const layoutedNodes = applyDagreLayout(nodes, edges, { direction });
 
     // Update nodes with new positions
-    set({
+    setIfEditable({
       nodes: layoutedNodes,
     });
 
@@ -1031,7 +1040,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     }
 
     // Set loading state
-    set({
+    setIfEditable({
       healthCheckResults: {
         ...healthCheckResults,
         [nodeId]: {
@@ -1047,7 +1056,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     const result = await checkHealth(url);
 
     // Update with result
-    set({
+    setIfEditable({
       healthCheckResults: {
         ...get().healthCheckResults,
         [nodeId]: {
@@ -1070,7 +1079,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   },
 
   clearHealthResults: () => {
-    set({ healthCheckResults: {} });
+    setIfEditable({ healthCheckResults: {} });
   },
 
   getNodeHealthResult: (nodeId: string) => {
