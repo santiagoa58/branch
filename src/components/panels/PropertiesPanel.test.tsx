@@ -82,6 +82,25 @@ describe("property input validation", () => {
     expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({});
   });
 
+  it("documents and preserves architectural reasoning on nodes", () => {
+    render(<PropertiesPanel />);
+    fireEvent.click(screen.getByText(/Design reasoning & tradeoffs/));
+    fireEvent.change(screen.getByLabelText("Why this approach?"), {
+      target: { value: "Reduce database load" },
+    });
+    fireEvent.change(screen.getByLabelText("Tradeoffs and risks"), {
+      target: { value: "Potential stale reads" },
+    });
+    const nodeData = useDiagramStore.getState().nodes[0]?.data;
+    expect(nodeData?.["decision"]).toEqual({
+      reason: "Reduce database load",
+      tradeoffs: "Potential stale reads",
+    });
+    expect(diagramDataSchema.safeParse(useDiagramStore.getState().exportDiagram()).success).toBe(
+      true,
+    );
+  });
+
   it("applies supported node type changes", () => {
     render(<PropertiesPanel />);
     const select = screen
