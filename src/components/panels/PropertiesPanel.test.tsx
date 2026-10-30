@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { useDiagramStore } from "@/store/diagramStore";
+import { diagramDataSchema } from "@/schemas/diagram";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 vi.mock("@/components/ui/CodeEditor", () => ({ CodeEditor: () => null }));
@@ -54,6 +55,31 @@ describe("property input validation", () => {
     for (const hint of ["Show data passing", "Non-blocking call", "Request/Response"]) {
       expect(screen.getByText(hint)).toHaveClass("text-muted-foreground");
     }
+  });
+
+  it("edits and persists custom architecture attributes", () => {
+    render(<PropertiesPanel />);
+    fireEvent.change(screen.getByLabelText("Attribute key"), {
+      target: { value: "Cache TTL" },
+    });
+    fireEvent.change(screen.getByLabelText("Attribute value"), {
+      target: { value: "60s" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add attribute" }));
+    expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({
+      "Cache TTL": "60s",
+    });
+    fireEvent.change(screen.getByLabelText("Value for Cache TTL"), {
+      target: { value: "120s" },
+    });
+    expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({
+      "Cache TTL": "120s",
+    });
+    expect(diagramDataSchema.safeParse(useDiagramStore.getState().exportDiagram()).success).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove Cache TTL" }));
+    expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({});
   });
 
   it("applies supported node type changes", () => {
