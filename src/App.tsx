@@ -14,7 +14,7 @@ import { useParams } from "react-router-dom";
 import { Toaster } from "sileo";
 
 function App() {
-  const theme = useThemeStore((state) => state.theme);
+  const theme = useThemeStore((state) => state.resolvedTheme);
   const { leftPanelVisible, rightPanelVisible } = useUIStore();
   const { setCurrentProject, setCurrentDiagram } = useWorkspaceStore();
   const { projectId, diagramId } = useParams<{ projectId: string; diagramId: string }>();

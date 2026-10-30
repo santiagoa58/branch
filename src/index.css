@@ -475,3 +475,20 @@ input[type="range"]::-webkit-slider-runnable-track {
     @apply font-sans;
   }
 }
+
+/* Only the Magic UI reveal replaces the browser's default crossfade. */
+:root[data-magicui-theme-vt="active"]::view-transition-old(root),
+:root[data-magicui-theme-vt="active"]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+:root[data-magicui-theme-vt="active"]::view-transition-group(root) {
+  animation-duration: var(--magicui-theme-toggle-vt-duration);
+}
+
+/* Firefox can paint the new snapshot before ready resolves. Keep it collapsed
+   until the WAAPI reveal takes over, rather than flashing the full new theme. */
+:root[data-magicui-theme-vt="active"]::view-transition-new(root) {
+  clip-path: var(--magicui-theme-vt-clip-from);
+}

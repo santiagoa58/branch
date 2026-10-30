@@ -9,7 +9,7 @@ import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
 import { preloadEditor } from "@/lib/editorRoute";
-import { useThemeStore } from "@/store/themeStore";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function WorkspaceSkeleton() {
   return (
@@ -37,7 +37,6 @@ function WorkspaceSkeleton() {
 export function ProjectsPage() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
-  const { theme, setTheme } = useThemeStore();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [diagramProject, setDiagramProject] = useState<ApiProject | null>(null);
@@ -96,22 +95,7 @@ export function ProjectsPage() {
         <Brand />
         <div className="flex items-center gap-2">
           <AccountControls />
-          <button
-            type="button"
-            onClick={() =>
-              setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light")
-            }
-            className="rounded-md border border-border bg-muted p-2 hover:bg-accent transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-ring"
-            title={`Theme: ${theme}`}
-          >
-            {theme === "light" ? (
-              <SunIcon className="size-4" />
-            ) : theme === "dark" ? (
-              <MoonIcon className="size-4" />
-            ) : (
-              <ComputerDesktopIcon className="size-4" />
-            )}
-          </button>
+          <ThemeToggle />
           <button
             type="button"
             onClick={() => setCreateOpen(true)}

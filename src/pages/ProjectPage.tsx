@@ -4,40 +4,18 @@ import { LoadingState } from "@/components/ui/loading";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  PlusIcon,
-  TrashIcon,
-  ChevronRightIcon,
-  SunIcon,
-  MoonIcon,
-  ComputerDesktopIcon,
-} from "@heroicons/react/24/outline";
+import { PlusIcon, TrashIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon } from "@heroicons/react/24/solid";
 import { projectsApi, diagramsApi, ApiDiagramSummary } from "@/services/api";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
-import { useThemeStore } from "@/store/themeStore";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { theme, setTheme } = useThemeStore();
+
   const [createOpen, setCreateOpen] = useState(false);
-
-  const cycleTheme = () => {
-    setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
-  };
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case "light":
-        return <SunIcon className="w-3.5 h-3.5" />;
-      case "dark":
-        return <MoonIcon className="w-3.5 h-3.5" />;
-      case "system":
-        return <ComputerDesktopIcon className="w-3.5 h-3.5" />;
-    }
-  };
 
   const { data: project, isError: projectError } = useQuery({
     queryKey: ["projects", projectId],
@@ -91,14 +69,7 @@ export function ProjectPage() {
         </div>
         <div className="flex items-center gap-2">
           <AccountControls />
-          <button
-            type="button"
-            onClick={cycleTheme}
-            className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md transition-colors"
-            title={`Theme: ${theme}`}
-          >
-            {getThemeIcon()}
-          </button>
+          <ThemeToggle />
           <button
             type="button"
             onClick={() => setCreateOpen(true)}

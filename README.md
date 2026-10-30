@@ -98,7 +98,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **Auto-Save** — Serializes cloud writes with optimistic revision checks
 - **Undo/Redo** — Full history support
 - **Getting-Started Checklist** — A dismissible onboarding card that ticks off your first node, connection, data contract, and flow simulation as you do them (auto-hidden once complete; skipped for diagrams that already have content)
-- **Dark/Light Mode** — Theme toggle with system preference support
+- **Dark/Light Mode** — Magic UI animated theme toggle; follows your system preference until you choose light or dark.
 
 The app opens at sign-in and then the workspace dashboard, with projects and their diagrams listed together. The header remains visible while the list loads, and cached lists refresh in the background on return from the editor. Existing project URLs still work as optional focused views. Authentication is required; guest editing is not enabled.
 

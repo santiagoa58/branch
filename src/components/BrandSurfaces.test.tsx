@@ -7,6 +7,7 @@ import { Navbar } from "./Navbar";
 import { ProjectPage } from "@/pages/ProjectPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import type { ApiProject } from "@/services/api";
+import { useThemeStore } from "@/store/themeStore";
 
 vi.mock("@/components/CloudAuth", () => ({ AccountControls: () => null }));
 
@@ -20,7 +21,7 @@ const project: ApiProject = {
 };
 
 function mount(surface: "projects" | "project" | "editor", theme: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  useThemeStore.getState().setTheme(theme);
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   client.setQueryData(["projects"], [project]);
   client.setQueryData(["projects", "workspace"], [{ ...project, diagrams: [] }]);
@@ -54,7 +55,7 @@ function mount(surface: "projects" | "project" | "editor", theme: "light" | "dar
 
 afterEach(() => {
   cleanup();
-  document.documentElement.classList.remove("dark");
+  useThemeStore.getState().setTheme("system");
 });
 
 describe.each(["light", "dark"] as const)("%s brand surfaces", (theme) => {
@@ -70,6 +71,21 @@ describe.each(["light", "dark"] as const)("%s brand surfaces", (theme) => {
       expect(images[0]).toHaveAttribute("alt", "");
       expect(within(header).getAllByText("Branch")).toHaveLength(1);
       expect(within(header).queryByRole("img")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["projects", "project", "editor"] as const)(
+    "uses the shared animated theme toggle on the %s surface",
+    (surface) => {
+      mount(surface, theme);
+      const nextTheme = theme === "dark" ? "light" : "dark";
+      const toggle = within(screen.getByRole("banner")).getByRole("button", {
+        name: `Switch to ${nextTheme} theme`,
+      });
+      fireEvent.click(toggle);
+      expect(useThemeStore.getState().resolvedTheme).toBe(nextTheme);
+      expect(document.documentElement).toHaveClass(nextTheme);
+      expect(toggle).toHaveAttribute("aria-label", `Switch to ${theme} theme`);
     },
   );
 

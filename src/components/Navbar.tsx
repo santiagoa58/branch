@@ -10,9 +10,6 @@ import {
   PhotoIcon,
   DocumentTextIcon,
   CheckIcon,
-  SunIcon,
-  MoonIcon,
-  ComputerDesktopIcon,
   Squares2X2Icon,
   RectangleStackIcon,
   SparklesIcon,
@@ -24,7 +21,7 @@ import {
 import { useAnimationStore } from "@/store/animationStore";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useDiagramStore } from "@/store/diagramStore";
-import { useThemeStore } from "@/store/themeStore";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useUIStore } from "@/store/uiStore";
 import { projectsApi } from "@/services/api";
 import { copyShareableLink } from "@/utils/export";
@@ -52,22 +49,10 @@ export function Navbar() {
     enabled: !!projectId,
   });
 
-  const {
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    nodes,
-    runAllHealthChecks,
-    healthCheckResults,
-  } = useDiagramStore();
-  const { theme, setTheme } = useThemeStore();
-  const {
-    leftPanelVisible,
-    rightPanelVisible,
-    toggleLeftPanel,
-    toggleRightPanel,
-  } = useUIStore();
+  const { undo, redo, canUndo, canRedo, nodes, runAllHealthChecks, healthCheckResults } =
+    useDiagramStore();
+
+  const { leftPanelVisible, rightPanelVisible, toggleLeftPanel, toggleRightPanel } = useUIStore();
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [isExporting] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -174,21 +159,6 @@ export function Navbar() {
       });
     } finally {
       setIsTestingHealth(false);
-    }
-  };
-
-  const cycleTheme = () => {
-    setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
-  };
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case "light":
-        return <SunIcon className="w-3.5 h-3.5" />;
-      case "dark":
-        return <MoonIcon className="w-3.5 h-3.5" />;
-      case "system":
-        return <ComputerDesktopIcon className="w-3.5 h-3.5" />;
     }
   };
 
@@ -423,16 +393,7 @@ export function Navbar() {
         </output>
         <AccountControls />
 
-        {/* Theme Toggle */}
-        <Tooltip content={`Theme: ${theme} — click to cycle`}>
-          <button
-            type="button"
-            onClick={cycleTheme}
-            className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md transition-colors"
-          >
-            {getThemeIcon()}
-          </button>
-        </Tooltip>
+        <ThemeToggle />
 
         {/* Share Button */}
         <Tooltip
