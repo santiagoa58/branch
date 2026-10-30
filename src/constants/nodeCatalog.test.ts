@@ -139,25 +139,22 @@ describe("node catalog", () => {
     expect(diagramDataSchema.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(diagram);
   });
 
-  it.each(["boundary", "view"] as const)(
-    "round-trips %s architectural containers",
-    (groupType) => {
-      expect(groupNodeTypeSchema.parse(groupType)).toBe(groupType);
-      expect(GROUP_TYPES_CONFIG[groupType]).toBeDefined();
-      const diagram = {
-        nodes: [
-          {
-            id: "group",
-            type: "group",
-            position: { x: 0, y: 0 },
-            data: { label: "Custom scope", groupType },
-          },
-        ],
-        edges: [],
-      };
-      expect(diagramDataSchema.parse(diagram)).toEqual(diagram);
-    },
-  );
+  it.each(["boundary", "view"] as const)("round-trips %s architectural containers", (groupType) => {
+    expect(groupNodeTypeSchema.parse(groupType)).toBe(groupType);
+    expect(GROUP_TYPES_CONFIG[groupType]).toBeDefined();
+    const diagram = {
+      nodes: [
+        {
+          id: "group",
+          type: "group",
+          position: { x: 0, y: 0 },
+          data: { label: "Custom scope", groupType },
+        },
+      ],
+      edges: [],
+    };
+    expect(diagramDataSchema.parse(diagram)).toEqual(diagram);
+  });
 
   it("round-trips reasoning on nodes, groups and API edges", () => {
     const decision = {
