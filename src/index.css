@@ -91,6 +91,29 @@
   --edge-selected: #a1a1aa;
 }
 
+/* Shared loading motion uses opacity only and remains legible without animation. */
+.branch-loading-dot {
+  animation: branch-loading-pulse 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes branch-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-loading-dot {
+    animation: none;
+    opacity: 0.65;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

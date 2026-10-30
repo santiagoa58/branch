@@ -42,13 +42,13 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationCircleIcon,
-  ArrowPathIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { TagInput } from "@/components/ui/TagInput";
+import { LoadingIndicator } from "@/components/ui/loading";
 
 export function PropertiesPanel() {
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
@@ -805,7 +805,7 @@ export function PropertiesPanel() {
                     className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                   >
                     {isTestingHealth ? (
-                      <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                      <LoadingIndicator className="size-3" />
                     ) : (
                       <HeartIcon className="w-3 h-3" />
                     )}
@@ -822,9 +822,8 @@ export function PropertiesPanel() {
 
                   const statusStyle =
                     HEALTH_STATUS_STYLES[healthResult.loading ? "loading" : healthResult.status];
-                  const StatusIcon = healthResult.loading
-                    ? ArrowPathIcon
-                    : healthResult.status === "healthy"
+                  const StatusIcon =
+                    healthResult.status === "healthy"
                       ? CheckCircleIcon
                       : healthResult.status === "unhealthy"
                         ? XCircleIcon
@@ -835,13 +834,11 @@ export function PropertiesPanel() {
                       className={cn("mt-2 p-2 rounded border", statusStyle.bg, statusStyle.border)}
                     >
                       <div className="flex items-center gap-2">
-                        <StatusIcon
-                          className={cn(
-                            "w-4 h-4",
-                            statusStyle.icon,
-                            healthResult.loading && "animate-spin",
-                          )}
-                        />
+                        {healthResult.loading ? (
+                          <LoadingIndicator className={cn("size-4", statusStyle.icon)} />
+                        ) : (
+                          <StatusIcon className={cn("w-4 h-4", statusStyle.icon)} />
+                        )}
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <span className={cn("text-xs font-medium", statusStyle.text)}>

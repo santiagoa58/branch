@@ -14,6 +14,7 @@ import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { notify } from "@/services/notify";
 import { VersionPreviewModal } from "@/components/ui/VersionPreviewModal";
+import { LoadingIndicator, LoadingState } from "@/components/ui/loading";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 
 interface VersionsPanelProps {
@@ -133,9 +134,7 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-                  Loading versions…
-                </div>
+                <LoadingState label="Loading versions…" className="py-12" />
               ) : isError ? (
                 <div role="alert" className="p-6 text-sm text-zinc-600 dark:text-zinc-400">
                   Could not load version history.
@@ -258,7 +257,11 @@ function VersionRow({
               className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
               title="Preview this version"
             >
-              <EyeIcon className={`w-3 h-3 ${isLoadingPreview ? "animate-pulse" : ""}`} />
+              {isLoadingPreview ? (
+                <LoadingIndicator className="size-3" />
+              ) : (
+                <EyeIcon className="w-3 h-3" />
+              )}
               Preview
             </button>
             <button
@@ -289,8 +292,9 @@ function VersionRow({
               type="button"
               onClick={onRestoreClick}
               disabled={isRestoring}
-              className="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded transition-colors disabled:opacity-50"
             >
+              {isRestoring && <LoadingIndicator className="size-3" />}
               {isRestoring ? "Restoring…" : "Yes"}
             </button>
             <button
@@ -311,8 +315,9 @@ function VersionRow({
               type="button"
               onClick={onDeleteClick}
               disabled={isDeleting}
-              className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded transition-colors disabled:opacity-50"
             >
+              {isDeleting && <LoadingIndicator className="size-3" />}
               {isDeleting ? "Deleting…" : "Yes"}
             </button>
             <button

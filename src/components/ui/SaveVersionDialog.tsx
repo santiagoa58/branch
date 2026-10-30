@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { LoadingIndicator } from "@/components/ui/loading";
 import { XMarkIcon, BookmarkIcon } from "@heroicons/react/24/outline";
 
 interface SaveVersionDialogProps {
@@ -87,8 +88,9 @@ export function SaveVersionDialog({ isOpen, isSaving, onSave, onClose }: SaveVer
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-1.5 text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 rounded-md hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 rounded-md hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {isSaving && <LoadingIndicator className="size-3" />}
               {isSaving ? "Saving…" : "Save Version"}
             </button>
           </div>

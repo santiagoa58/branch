@@ -16,6 +16,7 @@ import {
 import { DiagramData } from "@/types";
 import { imageBackgroundSchema, imageScaleSchema, pdfOrientationSchema } from "@/schemas/ui";
 import { applyValidatedInput } from "@/lib/validatedInput";
+import { LoadingIndicator, LoadingState } from "@/components/ui/loading";
 
 type ExportFormat = "png" | "svg" | "pdf" | "json";
 
@@ -469,14 +470,7 @@ export function ExportPreviewDialog({
 
               <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-zinc-50 dark:bg-zinc-900/50">
                 {isGenerating ? (
-                  <div className="aspect-video flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-4 border-zinc-200 dark:border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
-                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                        Generating preview...
-                      </span>
-                    </div>
-                  </div>
+                  <LoadingState label="Generating preview..." className="aspect-video" />
                 ) : (
                   <>
                     {isImageFormat && previewUrl && (
@@ -549,7 +543,7 @@ export function ExportPreviewDialog({
             disabled={isExporting || isGenerating}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-4 h-4" />
+            {isExporting ? <LoadingIndicator /> : <Download className="w-4 h-4" />}
             {isExporting ? "Exporting..." : "Export"}
           </button>
         </div>

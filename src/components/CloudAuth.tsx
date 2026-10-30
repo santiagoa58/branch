@@ -8,6 +8,7 @@ import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAIStore } from "@/store/aiStore";
+import { LoadingState } from "@/components/ui/loading";
 
 const clerkTheme = { ...shadcn, cssLayerName: "clerk" };
 let authenticatedOwner: string | null = null;
@@ -175,7 +176,7 @@ function UserWorkspace({ ownerId }: { ownerId: string }) {
       <Outlet />
     </QueryClientProvider>
   ) : (
-    <output>Loading workspace…</output>
+    <LoadingState variant="screen" label="Loading workspace…" />
   );
 }
 
@@ -346,11 +347,7 @@ export function RequireAuth() {
     };
   }, [navigate, isLoaded, isSignedIn, userId]);
   if (!isLoaded) {
-    return (
-      <output className="min-h-screen grid place-content-center bg-background text-muted-foreground">
-        Loading sign-in…
-      </output>
-    );
+    return <LoadingState variant="screen" label="Loading sign-in…" />;
   }
   if (!isSignedIn) {
     return (

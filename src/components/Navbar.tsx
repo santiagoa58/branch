@@ -35,6 +35,7 @@ import { VersionsPanel } from "@/components/panels/VersionsPanel";
 import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { LoadingIndicator } from "@/components/ui/loading";
 import { ArchitectureNodeData } from "@/types";
 
 export function Navbar() {
@@ -444,7 +445,11 @@ export function Navbar() {
               disabled={isExporting}
               className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-900 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shadow-sm disabled:opacity-50"
             >
-              <ArrowDownTrayIcon className="w-3.5 h-3.5" strokeWidth={2} />
+              {isExporting ? (
+                <LoadingIndicator className="size-3.5" />
+              ) : (
+                <ArrowDownTrayIcon className="w-3.5 h-3.5" strokeWidth={2} />
+              )}
               {isExporting ? "Exporting..." : "Export"}
             </button>
           </Tooltip>
@@ -502,14 +507,23 @@ export function Navbar() {
             disabled={isTestingHealth}
             className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <HeartIcon className={`w-3.5 h-3.5 ${isTestingHealth ? "animate-pulse" : ""}`} />
+            {isTestingHealth ? (
+              <LoadingIndicator className="size-3.5" />
+            ) : (
+              <HeartIcon className="w-3.5 h-3.5" />
+            )}
           </button>
         </Tooltip>
 
         <output
-          className="text-xs text-zinc-500 dark:text-zinc-400"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400"
           title={cloud.message ?? undefined}
         >
+          {(cloud.status === "loading" ||
+            cloud.status === "pending" ||
+            cloud.status === "saving" ||
+            cloud.status === "versioning" ||
+            cloud.status === "restoring") && <LoadingIndicator className="size-3" />}
           {cloud.status === "saved"
             ? "Saved"
             : cloud.status === "saving"

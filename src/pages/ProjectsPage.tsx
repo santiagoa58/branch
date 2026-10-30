@@ -1,4 +1,5 @@
 import { AccountControls } from "@/components/CloudAuth";
+import { LoadingState } from "@/components/ui/loading";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -62,11 +63,7 @@ export function ProjectsPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white dark:bg-zinc-950">
-        <div className="text-zinc-500 dark:text-zinc-400">Loading projects...</div>
-      </div>
-    );
+    return <LoadingState variant="screen" label="Loading projects…" />;
   }
 
   return (

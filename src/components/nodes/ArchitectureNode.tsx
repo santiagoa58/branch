@@ -9,7 +9,8 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useUIStore } from "@/store/uiStore";
-import { HeartIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { HeartIcon } from "@heroicons/react/24/outline";
+import { LoadingIndicator } from "@/components/ui/loading";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 
 export const ArchitectureNode = memo(
@@ -277,9 +278,7 @@ export const ArchitectureNode = memo(
                   HEALTH_STATUS_STYLES.loading.bg,
                 )}
               >
-                <ArrowPathIcon
-                  className={cn("w-2.5 h-2.5 animate-spin", HEALTH_STATUS_STYLES.loading.icon)}
-                />
+                <LoadingIndicator className={cn("size-2.5", HEALTH_STATUS_STYLES.loading.icon)} />
               </div>
             ) : healthResult ? (
               <div

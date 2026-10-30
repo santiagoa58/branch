@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet } from "react-rou
 import "./index.css";
 import { CloudAuth, RequireAuth } from "@/components/CloudAuth";
 import { initializeTheme } from "@/store/themeStore";
+import { LoadingState } from "@/components/ui/loading";
 
 const disposeTheme = initializeTheme();
 import.meta.hot?.dispose(disposeTheme);
@@ -16,13 +17,7 @@ const ProjectPage = lazy(() =>
 );
 function Shell() {
   return (
-    <Suspense
-      fallback={
-        <output className="min-h-screen grid place-content-center bg-white dark:bg-zinc-950 text-zinc-500">
-          Loading Branch…
-        </output>
-      }
-    >
+    <Suspense fallback={<LoadingState variant="screen" />}>
       <Outlet />
     </Suspense>
   );

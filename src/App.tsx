@@ -3,6 +3,7 @@ import { DiagramEditor } from "@/components/DiagramEditor";
 import { NodePalette } from "@/components/panels/NodePalette";
 import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
 import { Navbar } from "@/components/Navbar";
+import { LoadingState } from "@/components/ui/loading";
 import { CloudNavigationGuard, CloudSaveError } from "@/components/CloudSaveStatus";
 import { useThemeStore } from "@/store/themeStore";
 import { useUIStore } from "@/store/uiStore";
@@ -38,29 +39,27 @@ function App() {
         <Navbar />
         <CloudSaveError />
         {!loaded ? (
-          <div
-            className="flex-1 grid place-content-center text-sm text-zinc-500"
-            role={cloud.status === "load-error" ? "alert" : "status"}
-          >
-            {cloud.status === "load-error" ? (
-              <>
-                <p>{cloud.message}</p>
-                <button
-                  type="button"
-                  className="mt-3 underline"
-                  onClick={() => {
-                    if (diagramId) {
-                      void cloudWorkspace.load(diagramId, projectId);
-                    }
-                  }}
-                >
-                  Retry loading
-                </button>
-              </>
-            ) : (
-              "Loading diagram…"
-            )}
-          </div>
+          cloud.status === "load-error" ? (
+            <div
+              className="flex-1 grid place-content-center text-sm text-muted-foreground"
+              role="alert"
+            >
+              <p>{cloud.message}</p>
+              <button
+                type="button"
+                className="mt-3 underline"
+                onClick={() => {
+                  if (diagramId) {
+                    void cloudWorkspace.load(diagramId, projectId);
+                  }
+                }}
+              >
+                Retry loading
+              </button>
+            </div>
+          ) : (
+            <LoadingState label="Loading diagram…" className="flex-1" />
+          )
         ) : (
           <main className="flex-1 flex overflow-hidden relative" inert={locked}>
             {leftPanelVisible && <NodePalette />}
@@ -69,9 +68,12 @@ function App() {
           </main>
         )}
         {loaded && locked && (
-          <output className="fixed inset-0 z-90 grid place-content-center bg-black/20 text-sm text-zinc-900 dark:text-zinc-100">
-            {cloud.status === "restoring" ? "Restoring version…" : "Saving version…"}
-          </output>
+          <div className="fixed inset-0 z-90 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
+            <LoadingState
+              label={cloud.status === "restoring" ? "Restoring version…" : "Saving version…"}
+              className="rounded-2xl border border-border bg-card px-8 py-8 shadow-sm"
+            />
+          </div>
         )}
         <Toaster
           position="top-right"

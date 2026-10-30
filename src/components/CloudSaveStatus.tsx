@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoadingState } from "@/components/ui/loading";
 import { useAnimationStore } from "@/store/animationStore";
 import { useBlocker } from "react-router-dom";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
@@ -56,12 +57,18 @@ export function CloudNavigationGuard() {
         aria-label="Unsaved edits"
         className="max-w-md rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 text-zinc-900 dark:text-zinc-100 shadow-xl"
       >
-        <p className="font-semibold">
-          {error ? "Your edits have not been saved" : "Saving before leaving…"}
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {error ?? "Please wait for the cloud operation to finish."}
-        </p>
+        {error ? (
+          <>
+            <p className="font-semibold">Your edits have not been saved</p>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          </>
+        ) : (
+          <LoadingState
+            label="Saving before leaving…"
+            description="Please wait for the cloud operation to finish."
+            className="p-0"
+          />
+        )}
         <div className="mt-4 flex gap-4 text-sm">
           <button
             type="button"

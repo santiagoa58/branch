@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { projectsApi } from "@/services/api";
+import { LoadingIndicator } from "@/components/ui/loading";
 
 const COLORS = [
   "#3b82f6",
@@ -135,9 +136,10 @@ export function CreateProjectDialog({ onClose }: Props) {
             <button
               type="submit"
               disabled={!name.trim() || mutation.isPending}
-              className="px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 transition-colors shadow-sm"
             >
-              {mutation.isPending ? "Creating..." : "Create"}
+              {mutation.isPending && <LoadingIndicator className="size-3" />}
+              {mutation.isPending ? "Creating…" : "Create"}
             </button>
           </div>
         </form>

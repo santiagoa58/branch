@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Search, Sparkles, Loader2 } from "lucide-react";
+import { X, Search, Sparkles } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading";
 import { Icon } from "@iconify/react";
 import { cn } from "@/lib/utils";
 import {
@@ -279,10 +280,7 @@ export function IconPickerDialog({
               ))}
             </div>
           ) : loading ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-3">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Searching icons...</p>
-            </div>
+            <LoadingState label="Searching icons..." className="h-64" />
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-64 gap-3">
               <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
