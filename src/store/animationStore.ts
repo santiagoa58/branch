@@ -4,6 +4,7 @@
  * destroyed (shatter/explode) before being removed from diagram state.
  */
 import { create } from "zustand";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 
 interface AnimationState {
   /** Node IDs currently undergoing destruction animation */
@@ -37,6 +38,9 @@ export const useAnimationStore = create<AnimationState>((set, get) => ({
 
   requestDelete: (id) =>
     set((state) => {
+      if (cloudWorkspace.getState().locked) {
+        return state;
+      }
       const next = new Set(state.pendingDeletions);
       next.add(id);
       return { pendingDeletions: next };
@@ -44,6 +48,9 @@ export const useAnimationStore = create<AnimationState>((set, get) => ({
 
   requestDeleteMultiple: (ids) =>
     set((state) => {
+      if (cloudWorkspace.getState().locked) {
+        return state;
+      }
       const next = new Set(state.pendingDeletions);
       ids.forEach((id) => next.add(id));
       return { pendingDeletions: next };

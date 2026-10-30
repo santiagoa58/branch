@@ -19,6 +19,7 @@ export interface CloudState {
   status: SaveStatus;
   dirty: boolean;
   locked: boolean;
+  transitioning: boolean;
   message: string | null;
 }
 interface CloudApi {
@@ -35,14 +36,18 @@ export class CloudPersistence {
     status: "idle",
     dirty: false,
     locked: false,
+    transitioning: false,
     message: null,
   };
   private listeners = new Set<() => void>();
   private epoch = 0;
+  private loadGeneration = 0;
   private pending: DiagramData | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | null = null;
   private operation = false;
+  private transition = false;
+  private suspended = false;
   constructor(
     private api: CloudApi,
     private hydrate: (data: DiagramData) => void,
@@ -56,7 +61,12 @@ export class CloudPersistence {
     };
   };
   private set(patch: Partial<CloudState>) {
-    this.state = { ...this.state, ...patch };
+    this.state = {
+      ...this.state,
+      ...patch,
+      locked: this.operation || this.transition || this.suspended,
+      transitioning: this.transition,
+    };
     for (const listener of this.listeners) {
       listener();
     }
@@ -67,26 +77,68 @@ export class CloudPersistence {
       this.timer = undefined;
     }
   }
-  isBusy = () => this.operation || this.state.dirty;
+  isBusy = () => this.operation || this.transition || this.state.dirty;
+  suspend = () => {
+    this.suspended = true;
+    this.cancelTimer();
+    this.cancelLoad();
+    this.set({});
+  };
+  resume = () => {
+    this.suspended = false;
+    this.set({});
+    if (this.pending && this.state.status !== "conflict") {
+      this.cancelTimer();
+      this.timer = setTimeout(() => {
+        void this.flush().catch(() => {});
+      }, this.delay);
+    }
+  };
+  runTransition = async (run: () => Promise<void>) => {
+    if (this.state.locked) {
+      throw new Error("Wait for the cloud operation to finish.");
+    }
+    this.transition = true;
+    this.set({});
+    try {
+      await this.flush();
+      await run();
+    } finally {
+      this.transition = false;
+      this.set({});
+    }
+  };
   reset = () => {
     this.cancelTimer();
     this.epoch++;
+    this.loadGeneration++;
     this.pending = null;
     this.saving = null;
     this.operation = false;
+    this.suspended = false;
     this.set({ diagram: null, status: "idle", dirty: false, locked: false, message: null });
   };
   cancelLoad = () => {
-    if (this.state.status === "loading") {
-      this.epoch++;
-    }
+    this.loadGeneration++;
   };
   load = async (id: string, projectId?: string) => {
-    if (this.operation) {
-      throw new Error("Wait for the version operation to finish.");
+    if (this.state.locked) {
+      throw new Error("Wait for the cloud operation to finish.");
     }
+    // Cancel the whole load without invalidating the active document's save.
+    const generation = ++this.loadGeneration;
     if (this.state.dirty) {
-      await this.flush();
+      try {
+        await this.flush();
+      } catch (error) {
+        if (generation !== this.loadGeneration) {
+          return;
+        }
+        throw error;
+      }
+    }
+    if (generation !== this.loadGeneration) {
+      return;
     }
     const epoch = ++this.epoch;
     this.cancelTimer();
@@ -94,7 +146,7 @@ export class CloudPersistence {
     this.set({ diagram: null, status: "loading", dirty: false, message: null });
     try {
       const diagram = await this.api.get(id);
-      if (epoch !== this.epoch) {
+      if (epoch !== this.epoch || generation !== this.loadGeneration) {
         return;
       }
       if (projectId && diagram.projectId !== projectId) {
@@ -103,7 +155,7 @@ export class CloudPersistence {
       this.hydrate(diagram.data);
       this.set({ diagram, status: "saved", message: null });
     } catch (error) {
-      if (epoch === this.epoch) {
+      if (epoch === this.epoch && generation === this.loadGeneration) {
         this.set({
           status: "load-error",
           message: error instanceof Error ? error.message : "Failed to load diagram.",
@@ -112,7 +164,7 @@ export class CloudPersistence {
     }
   };
   schedule = (input: unknown) => {
-    if (!this.state.diagram || this.operation || this.state.status === "loading") {
+    if (!this.state.diagram || this.state.locked || this.state.status === "loading") {
       return;
     }
     this.pending = diagramDataSchema.parse(input);
@@ -129,6 +181,9 @@ export class CloudPersistence {
   };
   flush = (): Promise<void> => {
     this.cancelTimer();
+    if (this.suspended) {
+      return Promise.reject(new Error("Sign in with the original account to save these edits."));
+    }
     if (this.state.status === "conflict") {
       return Promise.reject(
         new Error(this.state.message ?? "Save conflict. Export your edits before reloading."),
@@ -153,7 +208,7 @@ export class CloudPersistence {
     return save;
   };
   private async saveLoop(epoch: number) {
-    while (this.pending && this.state.diagram && epoch === this.epoch) {
+    while (this.pending && this.state.diagram && epoch === this.epoch && !this.suspended) {
       const snapshot = this.pending;
       const { id, revision } = this.state.diagram;
       this.set({ status: "saving", message: null });
@@ -189,8 +244,8 @@ export class CloudPersistence {
     status: "versioning" | "restoring",
     run: (diagram: ApiDiagram, epoch: number) => Promise<T>,
   ) {
-    if (this.operation) {
-      throw new Error("A version operation is already in progress.");
+    if (this.state.locked) {
+      throw new Error("A cloud operation is already in progress.");
     }
     this.operation = true;
     this.set({ locked: true });
