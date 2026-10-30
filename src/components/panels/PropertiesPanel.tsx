@@ -48,6 +48,7 @@ import {
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { TagInput } from "@/components/ui/TagInput";
+import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
 import { LoadingIndicator } from "@/components/ui/loading";
 
 export function PropertiesPanel() {
@@ -883,6 +884,12 @@ export function PropertiesPanel() {
                   </div>
                 )}
               </div>
+
+              <ArchitectureFactsEditor
+                key={selectedNode.id}
+                metadata={nodeData.metadata ?? {}}
+                onChange={(metadata) => updateNodeData(selectedNode.id, { metadata })}
+              />
 
               {/* Tags */}
               <div className="flex flex-col gap-1.5">
