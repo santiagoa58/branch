@@ -1,17 +1,11 @@
 import { create } from "zustand";
 import type { EdgeProtocol } from "@/types";
 
-export type EdgeStyle = "step" | "bezier";
-
 interface UIState {
   leftPanelVisible: boolean;
   rightPanelVisible: boolean;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
-
-  // Edge style
-  edgeStyle: EdgeStyle;
-  toggleEdgeStyle: () => void;
 
   // Legend filtering — protocols whose edges should render dimmed.
   hiddenProtocols: ReadonlySet<EdgeProtocol>;
@@ -37,11 +31,6 @@ export const useUIStore = create<UIState>((set) => ({
   rightPanelVisible: true,
   toggleLeftPanel: () => set((state) => ({ leftPanelVisible: !state.leftPanelVisible })),
   toggleRightPanel: () => set((state) => ({ rightPanelVisible: !state.rightPanelVisible })),
-
-  // Edge style
-  edgeStyle: "step",
-  toggleEdgeStyle: () =>
-    set((state) => ({ edgeStyle: state.edgeStyle === "step" ? "bezier" : "step" })),
 
   // Legend filtering
   hiddenProtocols: new Set<EdgeProtocol>(),

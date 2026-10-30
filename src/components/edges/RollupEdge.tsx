@@ -1,16 +1,9 @@
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  EdgeProps,
-  getSmoothStepPath,
-  getBezierPath,
-} from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from "@xyflow/react";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { RollupEdgeData, EdgeProtocol } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
 
-import { useUIStore } from "@/store/uiStore";
 import { useDiagramStore } from "@/store/diagramStore";
 
 /**
@@ -30,11 +23,9 @@ export function RollupEdge({
 }: EdgeProps) {
   const edgeData = data as RollupEdgeData | undefined;
 
-  const { edgeStyle } = useUIStore();
   const toggleGroupCollapse = useDiagramStore((s) => s.toggleGroupCollapse);
 
-  const getPath = edgeStyle === "bezier" ? getBezierPath : getSmoothStepPath;
-  const [edgePath, labelX, labelY] = getPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,

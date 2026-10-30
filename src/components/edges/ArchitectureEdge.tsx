@@ -1,11 +1,4 @@
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  EdgeProps,
-  type Edge,
-  getSmoothStepPath,
-  getBezierPath,
-} from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, EdgeProps, type Edge, getBezierPath } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import type { ArchitectureEdgeData } from "@/types";
 
@@ -29,7 +22,6 @@ export function ArchitectureEdge({
 }: EdgeProps<Edge<ArchitectureEdgeData>>) {
   const edgeData = data;
 
-  const { edgeStyle } = useUIStore();
   const isProtocolHidden = useUIStore((s) =>
     edgeData?.protocol ? s.hiddenProtocols.has(edgeData.protocol) : false,
   );
@@ -53,8 +45,7 @@ export function ArchitectureEdge({
     setIsDialogOpen(true);
   }, []);
 
-  const getPath = edgeStyle === "bezier" ? getBezierPath : getSmoothStepPath;
-  const [edgePath, labelX, labelY] = getPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,

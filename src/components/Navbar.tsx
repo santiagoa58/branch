@@ -67,8 +67,6 @@ export function Navbar() {
     rightPanelVisible,
     toggleLeftPanel,
     toggleRightPanel,
-    edgeStyle,
-    toggleEdgeStyle,
   } = useUIStore();
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [layoutDropdownOpen, setLayoutDropdownOpen] = useState(false);
@@ -271,43 +269,6 @@ export function Navbar() {
             </button>
           </Tooltip>
         </div>
-
-        {/* Edge Style Toggle */}
-        <Tooltip
-          content={`Edge style: ${edgeStyle === "step" ? "Square" : "Curvy"} — click to toggle`}
-        >
-          <button
-            type="button"
-            onClick={toggleEdgeStyle}
-            className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md transition-colors"
-          >
-            {edgeStyle === "step" ? (
-              <svg
-                className="w-3.5 h-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 12h6v-6h4v12h6" />
-              </svg>
-            ) : (
-              <svg
-                className="w-3.5 h-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 6c4 0 6 12 16 12" />
-              </svg>
-            )}
-          </button>
-        </Tooltip>
 
         {/* Undo/Redo */}
         <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
