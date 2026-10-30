@@ -101,6 +101,36 @@ describe("property input validation", () => {
     );
   });
 
+  it("opens the relevant property section without losing edits", () => {
+    render(<PropertiesPanel />);
+    const why = screen.getByRole("button", { name: "Why" });
+    expect(why).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(why);
+    expect(why).toHaveAttribute("aria-pressed", "true");
+    fireEvent.change(screen.getByLabelText("Why this approach?"), {
+      target: { value: "Improve reliability" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Basics" }));
+    expect(screen.getByRole("button", { name: "Basics" })).toHaveAttribute("aria-pressed", "true");
+    expect(useDiagramStore.getState().nodes[0]?.data["decision"]).toEqual({
+      reason: "Improve reliability",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    expect(screen.getByLabelText("Why this approach?")).toHaveValue("Improve reliability");
+  });
+
+  it("opens the API contract section for a selected connection", () => {
+    useDiagramStore.setState({
+      selectedNodeId: null,
+      selectedEdgeId: "edge",
+      edges: [{ id: "edge", source: "s", target: "s", data: { protocol: "http" } }],
+    });
+    render(<PropertiesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "API" }));
+    expect(screen.getByRole("button", { name: "API" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Data Contract")).toBeTruthy();
+  });
+
   it("applies supported node type changes", () => {
     render(<PropertiesPanel />);
     const select = screen
