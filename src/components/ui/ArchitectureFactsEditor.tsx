@@ -79,14 +79,25 @@ export function ArchitectureFactsEditor({ metadata, onChange }: ArchitectureFact
           value={value}
           placeholder="Value"
           onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => { event.stopPropagation(); if (event.key === "Enter") {
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Enter") {
               add();
-            } }}
+            }
+          }}
           className="w-20 min-w-0 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-foreground"
         />
       </div>
-      {error && <p role="alert" className="text-[10px] text-red-600">{error}</p>}
-      <button type="button" onClick={add} className="self-start rounded border border-zinc-200 dark:border-zinc-800 px-2 py-1 text-xs text-foreground">
+      {error && (
+        <p role="alert" className="text-[10px] text-red-600">
+          {error}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={add}
+        className="self-start rounded border border-zinc-200 dark:border-zinc-800 px-2 py-1 text-xs text-foreground"
+      >
         Add attribute
       </button>
     </section>
