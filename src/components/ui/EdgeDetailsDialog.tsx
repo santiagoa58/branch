@@ -35,7 +35,9 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
   const isAsync = data?.async ?? false;
   const isBidirectional = data?.bidirectional ?? false;
   const isAnimated = data?.animated ?? false;
-  const hasDecision = Object.values(data?.decision ?? {}).some((value) => Boolean(value?.trim()));
+  const hasDecision = Object.values(data?.decision ?? {}).some(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
 
   return (
     <Dialog
