@@ -1,5 +1,6 @@
 import { useDragEvent } from "@/hooks/useDragEvent";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG, COMMENT_CONFIG } from "@/constants";
+import { NODE_CATEGORIES } from "@/constants/nodeCategories";
 import { ArchitectureNodeType, GroupNodeType } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -11,24 +12,8 @@ import {
 import { useState } from "react";
 import { useOnboardingStore } from "@/store/onboardingStore";
 
-// Group configuration for node categories with shortcuts
-const NODE_CATEGORIES = {
-  "Compute & Services": [
-    "service",
-    "gateway",
-    "lambda",
-    "loadbalancer",
-    "container",
-  ] as ArchitectureNodeType[],
-  "Data Store": ["database", "cache", "storage", "datalake"] as ArchitectureNodeType[],
-  Messaging: ["queue", "eventbus", "notification"] as ArchitectureNodeType[],
-  "AI/ML": ["llm", "vectordb", "mlpipeline", "embedding"] as ArchitectureNodeType[],
-  "Cloud Services": ["secrets", "search"] as ArchitectureNodeType[],
-  External: ["external", "client", "cdn", "auth", "dns"] as ArchitectureNodeType[],
-};
-
 // Keyboard shortcuts for nodes
-const NODE_SHORTCUTS: Record<ArchitectureNodeType, string> = {
+const NODE_SHORTCUTS: Partial<Record<ArchitectureNodeType, string>> = {
   service: "S",
   database: "D",
   queue: "Q",
@@ -73,14 +58,14 @@ export function NodePalette() {
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
 
   // Filter regular nodes
-  const filteredCategories = Object.entries(NODE_CATEGORIES).reduce(
-    (acc, [category, types]) => {
+  const filteredCategories = NODE_CATEGORIES.reduce(
+    (acc, { label: category, types }) => {
       const filtered = types.filter((type) => {
         const config = NODE_TYPES_CONFIG[type];
-        return (
-          config.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          type.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return [config.label, config.description, type, ...(config.keywords ?? [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(searchQuery.trim().toLowerCase());
       });
       if (filtered.length > 0) {
         acc[category] = filtered;
@@ -122,6 +107,7 @@ export function NodePalette() {
           <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
           <input
             type="text"
+            aria-label="Search architecture components"
             placeholder="Search components..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -132,10 +118,17 @@ export function NodePalette() {
 
       {/* Categories */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {!showComments &&
+          filteredGroups.length === 0 &&
+          Object.keys(filteredCategories).length === 0 && (
+            <output className="text-sm text-muted-foreground">
+              No components match this search. Try a component name or technology.
+            </output>
+          )}
         {/* Annotations Section */}
         {showComments && (
           <div>
-            <h3 className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-3 flex items-center gap-2">
+            <h3 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-3 flex items-center gap-2">
               <ChatBubbleBottomCenterTextIcon className="w-3 h-3" />
               Annotations
             </h3>
@@ -153,7 +146,7 @@ export function NodePalette() {
         {/* Infrastructure Groups Section */}
         {filteredGroups.length > 0 && (
           <div>
-            <h3 className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-3 flex items-center gap-2">
+            <h3 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-3 flex items-center gap-2">
               <Squares2X2Icon className="w-3 h-3" />
               Infrastructure
             </h3>
@@ -172,10 +165,10 @@ export function NodePalette() {
         {/* Regular Node Categories */}
         {Object.entries(filteredCategories).map(([category, types]) => (
           <div key={category}>
-            <h3 className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 mb-3">
+            <h3 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">
               {category}
             </h3>
-            {category === "Compute & Services" ? (
+            {category === "Backend & Messaging" ? (
               // Grid layout for compute nodes (more visual prominence)
               <div className="grid grid-cols-2 gap-2">
                 {types.map((type) => (
@@ -204,12 +197,12 @@ export function NodePalette() {
       {/* User Profile / Footer */}
       <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-zinc-300 to-zinc-200 dark:from-zinc-700 dark:to-zinc-600 border border-zinc-300 dark:border-zinc-500 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-full bg-linear-to-tr from-zinc-300 to-zinc-200 dark:from-zinc-700 dark:to-zinc-600 border border-zinc-300 dark:border-zinc-500 flex items-center justify-center">
             <UserCircleIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-medium text-zinc-900 dark:text-zinc-200">User</span>
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-500">Workspace Owner</span>
+            <span className="text-[10px] text-muted-foreground">Workspace Owner</span>
           </div>
         </div>
       </div>
@@ -235,9 +228,7 @@ function CommentDraggableNode() {
         <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
           {COMMENT_CONFIG.label}
         </span>
-        <span className="text-[10px] text-zinc-500 dark:text-zinc-600">
-          {COMMENT_CONFIG.description}
-        </span>
+        <span className="text-[10px] text-muted-foreground">{COMMENT_CONFIG.description}</span>
       </div>
       <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
         N
@@ -264,7 +255,7 @@ function GroupDraggableNode({ type }: { type: GroupNodeType }) {
           {shortcut}
         </kbd>
       </div>
-      <Icon className="w-4 h-4 text-zinc-500 dark:text-zinc-500" />
+      <Icon className="w-4 h-4 text-muted-foreground" />
       <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{config.label}</span>
     </div>
   );
@@ -282,11 +273,13 @@ function GridDraggableNode({ type }: { type: ArchitectureNodeType }) {
       onDragStart={onDragStart}
       className="group cursor-grab active:cursor-grabbing bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg p-3 flex flex-col items-center gap-2 transition-all relative"
     >
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded">
-          {shortcut}
-        </kbd>
-      </div>
+      {shortcut && (
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded">
+            {shortcut}
+          </kbd>
+        </div>
+      )}
       <div className={cn("p-2 rounded-md", config.bgClass)}>
         <Icon
           className={cn("w-4.5 h-4.5", config.iconColor, "group-hover:opacity-90")}
@@ -317,11 +310,13 @@ function ListDraggableNode({ type }: { type: ArchitectureNodeType }) {
       </span>
       <div className="flex flex-col flex-1">
         <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{config.label}</span>
-        <span className="text-[10px] text-zinc-500 dark:text-zinc-600">{config.description}</span>
+        <span className="text-[10px] text-muted-foreground">{config.description}</span>
       </div>
-      <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-        {shortcut}
-      </kbd>
+      {shortcut && (
+        <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+          {shortcut}
+        </kbd>
+      )}
     </div>
   );
 }

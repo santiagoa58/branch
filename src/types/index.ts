@@ -27,7 +27,60 @@ export type ArchitectureNodeType =
   | "eventbus"
   | "datalake"
   | "search"
-  | "notification";
+  | "notification"
+  // Frontend
+  | "webapp"
+  | "mobileapp"
+  | "component"
+  | "microfrontend"
+  | "router"
+  | "statestore"
+  | "serviceworker"
+  | "bff"
+  // Backend
+  | "worker"
+  | "scheduler"
+  | "workflow"
+  | "ratelimiter"
+  | "webhook"
+  // Infrastructure
+  | "server"
+  | "kubernetes"
+  | "ingress"
+  | "proxy"
+  | "firewall"
+  | "vpn"
+  // Data
+  | "nosql"
+  | "graphdb"
+  | "timeseries"
+  | "warehouse"
+  | "etl"
+  | "stream"
+  | "backup"
+  // Observability
+  | "logging"
+  | "metrics"
+  | "tracing"
+  | "alerting"
+  // AI/ML
+  | "agent"
+  | "retriever"
+  | "reranker"
+  | "prompt"
+  | "guardrail"
+  | "modelregistry"
+  | "featurestore"
+  | "training"
+  | "inference"
+  | "gpu"
+  | "evaluation"
+  | "tool"
+  // Integrations
+  | "payment"
+  | "email"
+  | "identity"
+  | "iot";
 
 // Group types for infrastructure containers
 export type GroupNodeType = "vpc" | "cluster" | "region" | "subnet";

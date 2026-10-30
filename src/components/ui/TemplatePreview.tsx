@@ -2,39 +2,13 @@ import { useMemo } from "react";
 import { Node } from "@xyflow/react";
 import { ArchitectureNodeType, DiagramData } from "@/types";
 import { cn } from "@/lib/utils";
+import { NODE_TYPES_CONFIG } from "@/constants";
 
 /**
  * Schematic SVG preview of a template's DiagramData: group outlines, colored
  * node blocks and edge lines. Generated from the data itself, so previews
  * never go stale when a template changes.
  */
-
-// Hex equivalents of each node type's `iconColor` Tailwind class (the -400 shade).
-const TYPE_HEX: Record<ArchitectureNodeType, string> = {
-  service: "#60a5fa",
-  database: "#34d399",
-  queue: "#fbbf24",
-  cache: "#f87171",
-  gateway: "#c084fc",
-  external: "#94a3b8",
-  storage: "#22d3ee",
-  client: "#f472b6",
-  lambda: "#fb923c",
-  loadbalancer: "#818cf8",
-  cdn: "#38bdf8",
-  auth: "#a78bfa",
-  container: "#94a3b8",
-  dns: "#a3e635",
-  llm: "#e879f9",
-  vectordb: "#2dd4bf",
-  mlpipeline: "#f472b6",
-  embedding: "#fb7185",
-  secrets: "#facc15",
-  eventbus: "#fb923c",
-  datalake: "#22d3ee",
-  search: "#fbbf24",
-  notification: "#f87171",
-};
 
 // Approximate rendered footprint of an architecture node on the canvas.
 const NODE_W = 150;
@@ -79,7 +53,9 @@ export function TemplatePreview({ data, className }: TemplatePreviewProps) {
       .map((n) => ({
         id: n.id,
         ...bounds(n),
-        color: TYPE_HEX[(n.data as { type: ArchitectureNodeType }).type] ?? "#71717a",
+        colorClass:
+          NODE_TYPES_CONFIG[(n.data as { type: ArchitectureNodeType }).type]?.iconColor ??
+          "text-zinc-500",
       }));
 
     const center = (id: string) => {
@@ -153,7 +129,8 @@ export function TemplatePreview({ data, className }: TemplatePreviewProps) {
           width={b.w}
           height={b.h}
           rx={12}
-          fill={b.color}
+          className={b.colorClass}
+          fill="currentColor"
           fillOpacity={0.85}
         />
       ))}
