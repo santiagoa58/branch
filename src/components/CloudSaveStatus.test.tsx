@@ -143,6 +143,44 @@ describe("cloud navigation and save recovery", () => {
       await operation;
     });
   });
+  it("keeps native text editing, Tab, and Escape available while the workspace is locked", () => {
+    mount();
+    act(() => cloudWorkspace.suspend());
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.focus();
+    try {
+      expect(fireEvent.keyDown(input, { key: "s" })).toBe(true);
+      expect(fireEvent.keyDown(input, { key: "c", metaKey: true })).toBe(true);
+      expect(fireEvent.keyDown(input, { key: "z", ctrlKey: true })).toBe(true);
+      input.blur();
+      expect(fireEvent.keyDown(window, { key: "Tab" })).toBe(true);
+      expect(fireEvent.keyDown(window, { key: "Escape" })).toBe(true);
+      expect(fireEvent.keyDown(window, { key: "s" })).toBe(false);
+    } finally {
+      input.remove();
+    }
+  });
+
+  it("allows copying selected read-only text while the workspace is locked", () => {
+    mount();
+    act(() => cloudWorkspace.suspend());
+    const note = document.createElement("p");
+    note.textContent = "Your edits are still in memory.";
+    document.body.append(note);
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(note);
+    selection?.addRange(range);
+    try {
+      expect(selection?.toString()).toBe(note.textContent);
+      expect(fireEvent.keyDown(note, { key: "c", metaKey: true })).toBe(true);
+    } finally {
+      selection?.removeAllRanges();
+      note.remove();
+    }
+  });
+
   it("shows a conflict without silently overwriting and supports explicit discard", async () => {
     vi.spyOn(diagramsApi, "update").mockRejectedValue(new ApiError(409, "Changed elsewhere"));
     cloudWorkspace.schedule(empty);

@@ -178,22 +178,29 @@ The API tests apply the real migration to an embedded PostgreSQL-compatible engi
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut             | Action                                   |
-| -------------------- | ---------------------------------------- |
-| `V`                  | Select mode                              |
-| `H`                  | Pan mode                                 |
-| `Cmd/Ctrl + C`       | Copy selected                            |
-| `Cmd/Ctrl + V`       | Paste                                    |
-| `Cmd/Ctrl + D`       | Duplicate selected                       |
-| `Cmd/Ctrl + L`       | Auto format                              |
-| `Delete / Backspace` | Delete selected (with shatter animation) |
-| `Cmd/Ctrl + Z`       | Undo                                     |
-| `Cmd/Ctrl + Y`       | Redo                                     |
-| `[`                  | Toggle left panel                        |
-| `]`                  | Toggle right panel                       |
-| `Shift + Click`      | Add to selection                         |
-| `Shift + S`          | Toggle simulation panel                  |
-| `N`                  | Add a comment node                       |
+| Shortcut                                 | Action                                    |
+| ---------------------------------------- | ----------------------------------------- |
+| `V`                                      | Select mode                               |
+| `H`                                      | Pan mode                                  |
+| `Cmd/Ctrl + C`                           | Copy selected                             |
+| `Cmd/Ctrl + V`                           | Paste                                     |
+| `Cmd/Ctrl + D`                           | Duplicate selected                        |
+| `Cmd/Ctrl + L`                           | Auto format                               |
+| `Delete / Backspace`                     | Delete selected (with shatter animation)  |
+| `Cmd/Ctrl + Z`                           | Undo                                      |
+| `Cmd/Ctrl + Shift + Z` or `Cmd/Ctrl + Y` | Redo                                      |
+| `Cmd/Ctrl + A`                           | Select all visible nodes                  |
+| `Cmd/Ctrl + K`                           | Search nodes                              |
+| `[`                                      | Toggle left panel                         |
+| `]`                                      | Toggle right panel                        |
+| `Shift + Click`                          | Add to selection                          |
+| `Shift + S`                              | Toggle simulation panel                   |
+| `N`                                      | Add a comment node                        |
+| `Shift + V / K / R / N`                  | Add a VPC / cluster / region / subnet     |
+| `?`                                      | Show keyboard shortcuts                   |
+| `Escape`                                 | Close a canvas overlay or clear selection |
+
+Shortcuts apply in the diagram editor, not in inputs, text editors, dropdowns, or open dialogs. Held keys do not repeatedly create or delete components. On macOS use Command; on Windows and Linux use Ctrl.
 
 ## 🧩 Component Types
 

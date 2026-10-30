@@ -176,7 +176,10 @@ export function IconPickerDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div
+      data-editor-shortcuts="blocked"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
       <div className="relative w-full max-w-4xl max-h-[85vh] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">

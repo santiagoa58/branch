@@ -63,7 +63,10 @@ export function SaveFlowDialog({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-200 flex items-center justify-center">
+    <div
+      data-editor-shortcuts="blocked"
+      className="fixed inset-0 z-200 flex items-center justify-center"
+    >
       <button
         type="button"
         aria-label="Close flow dialog"

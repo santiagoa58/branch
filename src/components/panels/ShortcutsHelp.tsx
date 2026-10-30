@@ -1,18 +1,22 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { GROUP_SHORTCUTS, QUICK_ADD_SHORTCUTS } from "@/utils/editorShortcuts";
 
 interface ShortcutsHelpProps {
   onClose: () => void;
 }
+
+const nodeSections = [...new Set(QUICK_ADD_SHORTCUTS.map((shortcut) => shortcut.section))];
 
 export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-          Keyboard Shortcuts
+          Keyboard shortcuts
         </h2>
         <button
           type="button"
+          aria-label="Close keyboard shortcuts"
           onClick={onClose}
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
         >
@@ -20,8 +24,11 @@ export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
         </button>
       </div>
       <div className="p-6 overflow-y-auto max-h-[calc(80vh-4rem)]">
+        <p className="mb-6 text-sm text-muted-foreground">
+          Use ⌘ on macOS or Ctrl on Windows and Linux. Canvas shortcuts pause while you type or use
+          a dialog.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Navigation */}
           <Section title="Navigation">
             <Shortcut keys={["V"]} description="Select mode" />
             <Shortcut keys={["H"]} description="Pan/Hand mode" />
@@ -29,87 +36,57 @@ export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
             <Shortcut keys={["["]} description="Toggle left panel" />
             <Shortcut keys={["]"]} description="Toggle right panel" />
             <Shortcut keys={["?"]} description="Show shortcuts" />
+            <Shortcut keys={["Esc"]} description="Close editor overlay or clear selection" />
           </Section>
-
-          {/* Quick Add Nodes */}
-          <Section title="Quick Add Nodes">
-            <Shortcut keys={["S"]} description="Add Service" />
-            <Shortcut keys={["D"]} description="Add Database" />
-            <Shortcut keys={["Q"]} description="Add Queue" />
-            <Shortcut keys={["C"]} description="Add Cache" />
-            <Shortcut keys={["G"]} description="Add Gateway" />
-            <Shortcut keys={["E"]} description="Add External" />
-            <Shortcut keys={["T"]} description="Add Storage" />
-            <Shortcut keys={["L"]} description="Add Client" />
-            <Shortcut keys={["N"]} description="Add Comment" />
-          </Section>
-
-          {/* Quick Add Cloud Nodes */}
-          <Section title="Cloud Infrastructure">
-            <Shortcut keys={["F"]} description="Add Lambda" />
-            <Shortcut keys={["B"]} description="Add Load Balancer" />
-            <Shortcut keys={["Y"]} description="Add CDN" />
-            <Shortcut keys={["A"]} description="Add Auth Provider" />
-            <Shortcut keys={["P"]} description="Add Container" />
-            <Shortcut keys={["Z"]} description="Add DNS" />
-          </Section>
-
-          {/* Quick Add AI/ML Nodes */}
-          <Section title="AI/ML">
-            <Shortcut keys={["M"]} description="Add LLM" />
-            <Shortcut keys={["X"]} description="Add Vector DB" />
-            <Shortcut keys={["W"]} description="Add ML Pipeline" />
-            <Shortcut keys={["I"]} description="Add Embedding" />
-          </Section>
-
-          {/* Quick Add Cloud Services */}
-          <Section title="Cloud Services">
-            <Shortcut keys={["K"]} description="Add Secrets" />
-            <Shortcut keys={["U"]} description="Add Event Bus" />
-            <Shortcut keys={["J"]} description="Add Data Lake" />
-            <Shortcut keys={["R"]} description="Add Search" />
-            <Shortcut keys={["O"]} description="Add Notification" />
-          </Section>
-
-          {/* Quick Add Groups */}
+          {nodeSections.map((section) => (
+            <Section key={section} title={section}>
+              {QUICK_ADD_SHORTCUTS.filter((shortcut) => shortcut.section === section).map(
+                (shortcut) => (
+                  <Shortcut
+                    key={shortcut.key}
+                    keys={[shortcut.key.toUpperCase()]}
+                    description={`Add ${shortcut.label}`}
+                  />
+                ),
+              )}
+            </Section>
+          ))}
           <Section title="Quick Add Groups">
-            <Shortcut keys={["Shift", "V"]} description="Add VPC" />
-            <Shortcut keys={["Shift", "K"]} description="Add Cluster" />
-            <Shortcut keys={["Shift", "R"]} description="Add Region" />
-            <Shortcut keys={["Shift", "N"]} description="Add Subnet" />
+            {GROUP_SHORTCUTS.map((shortcut) => (
+              <Shortcut
+                key={shortcut.key}
+                keys={shortcut.key.split("+")}
+                description={`Add ${shortcut.label}`}
+              />
+            ))}
           </Section>
-
-          {/* Editing */}
           <Section title="Editing">
-            <Shortcut keys={["⌘", "C"]} description="Copy selected" />
-            <Shortcut keys={["⌘", "V"]} description="Paste" />
-            <Shortcut keys={["⌘", "D"]} description="Duplicate" />
-            <Shortcut keys={["Delete"]} description="Delete selected" />
-            <Shortcut keys={["⌘", "Z"]} description="Undo" />
-            <Shortcut keys={["⌘", "Y"]} description="Redo" />
+            <Shortcut keys={["Ctrl/⌘", "C"]} description="Copy selected" />
+            <Shortcut keys={["Ctrl/⌘", "V"]} description="Paste" />
+            <Shortcut keys={["Ctrl/⌘", "D"]} description="Duplicate" />
+            <Shortcut keys={["Delete / Backspace"]} description="Delete selected" />
+            <Shortcut keys={["Ctrl/⌘", "Z"]} description="Undo" />
+            <Shortcut keys={["Ctrl/⌘", "Shift", "Z"]} description="Redo" />
+            <Shortcut keys={["Ctrl/⌘", "Y"]} description="Redo (alternate)" />
           </Section>
-
-          {/* Selection */}
           <Section title="Selection">
             <Shortcut keys={["Shift", "Click"]} description="Multi-select" />
             <Shortcut keys={["Drag"]} description="Box select" />
-            <Shortcut keys={["⌘", "K"]} description="Spotlight search" />
+            <Shortcut keys={["Ctrl/⌘", "A"]} description="Select all visible nodes" />
+            <Shortcut keys={["Ctrl/⌘", "K"]} description="Spotlight search" />
           </Section>
-
-          {/* Layout */}
-          <Section title="Layout">
-            <Shortcut keys={["⌘", "L"]} description="Auto format" />
+          <Section title="Layout and simulation">
+            <Shortcut keys={["Ctrl/⌘", "L"]} description="Auto format" />
+            <Shortcut keys={["Shift", "S"]} description="Toggle simulation panel" />
           </Section>
-
-          {/* Connections */}
           <Section title="Connections">
             <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-sky-400 dark:bg-sky-500 border-2 border-white dark:border-zinc-800"></span>
+                <span className="w-3 h-3 rounded-full bg-sky-400 dark:bg-sky-500 border-2 border-white dark:border-zinc-800" />
                 <span>Input handles (Top, Left)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-400 dark:bg-amber-500 border-2 border-white dark:border-zinc-800"></span>
+                <span className="w-3 h-3 rounded-full bg-amber-400 dark:bg-amber-500 border-2 border-white dark:border-zinc-800" />
                 <span>Output handles (Bottom, Right)</span>
               </div>
               <p className="text-xs text-muted-foreground pt-1">

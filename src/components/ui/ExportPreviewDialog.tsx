@@ -229,7 +229,10 @@ export function ExportPreviewDialog({
   const isDataFormat = selectedFormat === "json";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div
+      data-editor-shortcuts="blocked"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    >
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col my-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">

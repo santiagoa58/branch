@@ -4,8 +4,7 @@ import "@xyflow/react/dist/style.css";
 
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
-import { useAnimationStore } from "@/store/animationStore";
-import { useUIStore } from "@/store/uiStore";
+
 import { nodeTypes } from "@/components/nodes";
 import { edgeTypes } from "@/components/edges";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
@@ -49,6 +48,7 @@ import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
 import { useChaosSimulation } from "@/hooks/useChaosSimulation";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
+import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
 import { useOnboardingStore } from "@/store/onboardingStore";
 
 // Resolve the catalog's Tailwind colors through theme variables so new node
@@ -85,8 +85,6 @@ export function DiagramEditor() {
   const simulationStartFlow = useSimulationStore((s) => s.startFlowSimulation);
   const toggleNodeFailure = useSimulationStore((s) => s.toggleNodeFailure);
   const toggleProtectedNode = useSimulationStore((s) => s.toggleProtectedNode);
-  const requestDelete = useAnimationStore((s) => s.requestDelete);
-  const requestDeleteMultiple = useAnimationStore((s) => s.requestDeleteMultiple);
 
   // Activate GSAP simulation, destroy, and chaos animation hooks
   useSimulationAnimation();
@@ -105,8 +103,7 @@ export function DiagramEditor() {
     addNode,
     setSelectedNode,
     setSelectedEdge,
-    deleteSelectedNodes,
-    duplicateNodes,
+
     addNodeToGroup,
     removeNodeFromGroup,
     copySelectedNodes,
@@ -165,8 +162,8 @@ export function DiagramEditor() {
       }
 
       // Calculate center of viewport
-      const centerX = bounds.width / 2;
-      const centerY = bounds.height / 2;
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
 
       const position = screenToFlowPosition({
         x: centerX,
@@ -507,273 +504,41 @@ export function DiagramEditor() {
   );
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const { selectedNodeId, selectedEdgeId, deleteEdge, undo, redo } = useDiagramStore.getState();
-
-      // Ignore shortcuts when typing in input fields
-      const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
-        return;
-      }
-
-      // Node creation shortcuts (lowercase keys)
-      if (!event.ctrlKey && !event.metaKey && !event.altKey) {
-        switch (event.key.toLowerCase()) {
-          case "s":
-            event.preventDefault();
-            addNodeAtCenter("service");
-            return;
-          case "d":
-            event.preventDefault();
-            addNodeAtCenter("database");
-            return;
-          case "q":
-            event.preventDefault();
-            addNodeAtCenter("queue");
-            return;
-          case "c":
-            event.preventDefault();
-            addNodeAtCenter("cache");
-            return;
-          case "g":
-            event.preventDefault();
-            addNodeAtCenter("gateway");
-            return;
-          case "e":
-            event.preventDefault();
-            addNodeAtCenter("external");
-            return;
-          case "t":
-            event.preventDefault();
-            addNodeAtCenter("storage");
-            return;
-          case "l":
-            event.preventDefault();
-            addNodeAtCenter("client");
-            return;
-          case "n":
-            event.preventDefault();
-            addNodeAtCenter("comment");
-            return;
-          // Tier 1: Cloud Infrastructure shortcuts
-          case "f":
-            event.preventDefault();
-            addNodeAtCenter("lambda");
-            return;
-          case "b":
-            event.preventDefault();
-            addNodeAtCenter("loadbalancer");
-            return;
-          case "y":
-            event.preventDefault();
-            addNodeAtCenter("cdn");
-            return;
-          case "a":
-            event.preventDefault();
-            addNodeAtCenter("auth");
-            return;
-          case "p":
-            event.preventDefault();
-            addNodeAtCenter("container");
-            return;
-          case "z":
-            event.preventDefault();
-            addNodeAtCenter("dns");
-            return;
-          // Tier 2: AI/ML shortcuts
-          case "m":
-            event.preventDefault();
-            addNodeAtCenter("llm");
-            return;
-          case "x":
-            event.preventDefault();
-            addNodeAtCenter("vectordb");
-            return;
-          case "w":
-            event.preventDefault();
-            addNodeAtCenter("mlpipeline");
-            return;
-          case "i":
-            event.preventDefault();
-            addNodeAtCenter("embedding");
-            return;
-          // Tier 3: Cloud Services shortcuts
-          case "k":
-            event.preventDefault();
-            addNodeAtCenter("secrets");
-            return;
-          case "u":
-            event.preventDefault();
-            addNodeAtCenter("eventbus");
-            return;
-          case "j":
-            event.preventDefault();
-            addNodeAtCenter("datalake");
-            return;
-          case "r":
-            event.preventDefault();
-            addNodeAtCenter("search");
-            return;
-          case "o":
-            event.preventDefault();
-            addNodeAtCenter("notification");
-            return;
-        }
-      }
-
-      // Group creation shortcuts (Shift + key)
-      if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        switch (event.key.toUpperCase()) {
-          case "V":
-            event.preventDefault();
-            addNodeAtCenter("group-vpc");
-            return;
-          case "K":
-            event.preventDefault();
-            addNodeAtCenter("group-cluster");
-            return;
-          case "R":
-            event.preventDefault();
-            addNodeAtCenter("group-region");
-            return;
-          case "N":
-            event.preventDefault();
-            addNodeAtCenter("group-subnet");
-            return;
-        }
-      }
-
-      // Toggle modes: V for select, H for hand/pan, ` for laser
-      if (event.key === "v" || event.key === "V") {
-        setPanMode(false);
-        setLaserMode(false);
-        return;
-      }
-      if (event.key === "h" || event.key === "H") {
-        setPanMode(true);
-        setLaserMode(false);
-        return;
-      }
-      if (event.key === "`") {
-        setLaserMode((prev) => {
-          if (!prev) {
-            setPanMode(false);
-          }
-          return !prev;
-        });
-        return;
-      }
-
-      // Show shortcuts: ?
-      if (event.key === "?" && !event.shiftKey) {
-        event.preventDefault();
-        setShowShortcuts(true);
-        return;
-      }
-
-      // Spotlight: Cmd/Ctrl + K
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        useUIStore.getState().setSpotlightOpen(true);
-        return;
-      }
-
-      // Toggle simulation panel: Shift+S
-      if (event.shiftKey && event.key === "S" && !event.ctrlKey && !event.metaKey) {
-        event.preventDefault();
-        setShowSimulationPanel((prev) => {
-          if (prev) {
-            simulationSetMode("idle");
-          } else {
-            simulationSetMode("flow");
-          }
-          return !prev;
-        });
-        return;
-      }
-
-      // Delete - handle both single and multi-selection (with shatter animation)
-      if (event.key === "Delete" || event.key === "Backspace") {
-        event.preventDefault();
-
-        // Check for multi-selected nodes
-        const selectedNodes = nodes.filter((n) => n.selected);
-
-        if (selectedNodes.length > 0) {
-          requestDeleteMultiple(selectedNodes.map((n) => n.id));
-        } else if (selectedNodeId) {
-          requestDelete(selectedNodeId);
-        } else if (selectedEdgeId) {
-          deleteEdge(selectedEdgeId);
-        }
-      }
-
-      // Duplicate: Cmd/Ctrl + D
-      if ((event.ctrlKey || event.metaKey) && event.key === "d") {
-        event.preventDefault();
-
-        const selectedNodes = nodes.filter((n) => n.selected);
-        if (selectedNodes.length > 0) {
-          duplicateNodes(selectedNodes.map((n) => n.id));
-        } else if (selectedNodeId) {
-          duplicateNodes([selectedNodeId]);
-        }
-      }
-
-      // Undo: Ctrl/Cmd + Z
-      if ((event.ctrlKey || event.metaKey) && event.key === "z" && !event.shiftKey) {
-        event.preventDefault();
-        undo();
-      }
-
-      // Redo: Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        (event.key === "y" || (event.key === "z" && event.shiftKey))
-      ) {
-        event.preventDefault();
-        redo();
-      }
-
-      // Copy: Ctrl/Cmd + C
-      if ((event.ctrlKey || event.metaKey) && event.key === "c") {
-        const selectedNodes = nodes.filter((n) => n.selected);
-        if (selectedNodes.length > 0) {
-          event.preventDefault();
-          const { copySelectedNodes } = useDiagramStore.getState();
-          copySelectedNodes();
-        }
-      }
-
-      // Paste: Ctrl/Cmd + V
-      if ((event.ctrlKey || event.metaKey) && event.key === "v") {
-        const { hasClipboardContent, pasteNodes } = useDiagramStore.getState();
-        if (hasClipboardContent()) {
-          event.preventDefault();
-          pasteNodes(); // Paste with default offset
-        }
-      }
-
-      // Auto-layout: Ctrl/Cmd + L
-      if ((event.ctrlKey || event.metaKey) && event.key === "l") {
-        event.preventDefault();
-        autoFormat();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    nodes,
-    deleteSelectedNodes,
-    duplicateNodes,
+  useEditorShortcuts({
     addNodeAtCenter,
-    requestDeleteMultiple,
-    requestDelete,
-    simulationSetMode,
+    selectMode: () => {
+      setPanMode(false);
+      setLaserMode(false);
+    },
+    panMode: () => {
+      setPanMode(true);
+      setLaserMode(false);
+    },
+    toggleLaser: () => {
+      setLaserMode(!laserMode);
+      setPanMode(false);
+    },
+    showShortcuts: () => setShowShortcuts(true),
+    toggleSimulation: () => {
+      setShowSimulationPanel(!showSimulationPanel);
+      simulationSetMode(showSimulationPanel ? "idle" : "flow");
+    },
     autoFormat,
-  ]);
+    escape: () => {
+      if (showShortcuts) {
+        setShowShortcuts(false);
+      } else if (showImportDialog) {
+        setShowImportDialog(false);
+      } else if (showTemplateGallery) {
+        setShowTemplateGallery(false);
+      } else if (contextMenu.show) {
+        setContextMenu((menu) => ({ ...menu, show: false }));
+      } else {
+        return false;
+      }
+      return true;
+    },
+  });
 
   return (
     <div
@@ -793,6 +558,7 @@ export function DiagramEditor() {
             onClick={() => setContextMenu({ x: 0, y: 0, show: false })}
           />
           <div
+            data-editor-shortcuts="blocked"
             className="fixed z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden animate-slide-in min-w-48"
             style={{
               left: `${contextMenu.x}px`,
@@ -1062,9 +828,14 @@ export function DiagramEditor() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowShortcuts(false)}
           />
-          <div className="relative">
+          <dialog
+            open
+            aria-modal="true"
+            aria-label="Keyboard shortcuts"
+            className="relative border-0 bg-transparent p-0"
+          >
             <ShortcutsHelp onClose={() => setShowShortcuts(false)} />
-          </div>
+          </dialog>
         </div>
       )}
 

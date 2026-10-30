@@ -175,7 +175,10 @@ export function VersionPreviewModal({
   const displayEdges = mode === "preview" ? vEdges : diffEdges;
 
   return createPortal(
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+    <div
+      data-editor-shortcuts="blocked"
+      className="fixed inset-0 z-60 flex items-center justify-center p-4"
+    >
       {/* Backdrop */}
       <button
         type="button"

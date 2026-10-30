@@ -3,6 +3,8 @@ import { LoadingState } from "@/components/ui/loading";
 import { useAnimationStore } from "@/store/animationStore";
 import { useBlocker } from "react-router-dom";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
+import { getEditorShortcut } from "@/utils/editorShortcuts";
+import { isTextEditingEvent } from "@/utils/keyboardContext";
 
 export function CloudNavigationGuard() {
   const cloud = useCloudWorkspace();
@@ -15,7 +17,14 @@ export function CloudNavigationGuard() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const lockShortcuts = (event: KeyboardEvent) => {
-      if (cloudWorkspace.getState().locked) {
+      const command = getEditorShortcut(event);
+      if (
+        cloudWorkspace.getState().locked &&
+        command &&
+        command.type !== "escape" &&
+        !(command.type === "copy-selection" && window.getSelection()?.toString()) &&
+        !isTextEditingEvent(event)
+      ) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }

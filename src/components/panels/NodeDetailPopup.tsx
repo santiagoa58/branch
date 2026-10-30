@@ -5,6 +5,7 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { NODE_TYPES_CONFIG } from "@/constants";
 import { ArchitectureNodeData } from "@/types";
 import { cn } from "@/lib/utils";
+import { hasBlockingEditorOverlay, isTextEditingEvent } from "@/utils/keyboardContext";
 
 export function NodeDetailPopup() {
   const selectedNodeId = useDiagramStore((s) => s.selectedNodeId);
@@ -18,7 +19,12 @@ export function NodeDetailPopup() {
       return;
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (
+        e.key === "Escape" &&
+        !e.defaultPrevented &&
+        !isTextEditingEvent(e) &&
+        !hasBlockingEditorOverlay()
+      ) {
         setDismissedNodeId(selectedNodeId);
       }
     };
