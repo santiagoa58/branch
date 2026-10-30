@@ -13,7 +13,7 @@ const fields = [
 ] as const;
 
 export function DesignDecisionEditor({ value, onChange }: Props) {
-  const hasDecision = Object.values(value ?? {}).some((item) => item?.trim());
+  const hasDecision = Object.values(value ?? {}).some((item) => typeof item === "string" && item.trim().length > 0);
   return (
     <details
       className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3"
