@@ -110,7 +110,7 @@ The app opens at sign-in and then the projects dashboard. Authentication is requ
 
 ### Initial setup
 
-1. Create a [Neon project](https://neon.com/docs/get-started/signing-up). Use the pooled connection string for runtime requests and a direct connection string for migrations. Preserve the SSL parameters Neon supplies. Use an isolated Neon branch for development and each preview environment; production uses its own branch.
+1. Create a [Neon project](https://neon.com/docs/get-started/signing-up). Use the pooled connection string for runtime requests. Preserve the SSL parameters Neon supplies. Use an isolated Neon branch for development and each preview environment; production uses its own branch.
 2. Create a [Clerk application](https://clerk.com/docs/react/getting-started/quickstart). Enable the sign-in methods you want in Clerk. Copy its publishable and secret keys. Development uses Clerk test keys; production uses the production instance and its domain/DNS setup. The publishable and secret keys must refer to the same Clerk instance.
 3. Install dependencies and copy the environment template:
 
@@ -119,14 +119,8 @@ The app opens at sign-in and then the projects dashboard. Authentication is requ
    cp .env.example .env.local
    ```
 
-4. Edit `.env.local` with your actual connection strings, Clerk keys and exact allowed frontend origins. Never commit this file. Only `VITE_CLERK_PUBLISHABLE_KEY` is exposed to the browser; `CLERK_SECRET_KEY`, `DATABASE_URL`, and `DATABASE_URL_UNPOOLED` stay server-side. AI provider keys remain client-side preferences and are never sent to this backend.
-5. Apply migrations to the intended database:
-
-   ```bash
-   pnpm db:migrate
-   ```
-
-   For a fresh database this only creates empty application tables; it does not migrate legacy data. The command reads `.env.local`, requires `DATABASE_URL_UNPOOLED`, rejects Neon pooler hosts, and applies ordered SQL files in a transaction under an advisory lock. It records checksums and refuses edited applied migrations. Add new numbered migrations instead. Test migrations on an isolated Neon branch before applying them to production. Migrations never run during builds or API requests.
+4. Edit `.env.local` with your actual connection strings, Clerk keys and exact allowed frontend origins. Never commit this file. Only `VITE_CLERK_PUBLISHABLE_KEY` is exposed to the browser; `CLERK_SECRET_KEY` and `DATABASE_URL` stay server-side. AI provider keys remain client-side preferences and are never sent to this backend.
+5. For a new, empty database, run `migrations/001_workspace.sql` through the Neon SQL Editor or a trusted PostgreSQL client to create the application tables and indexes. This initializes the schema; it does not migrate legacy data. Skip this step if the tables already exist—do not rerun the file against an initialized database. Schema setup never runs during builds or API requests.
 
 ### Local development
 
@@ -154,9 +148,9 @@ Configure Clerk development origins for `http://localhost:3000`, and set `CLERK_
    | `CLERK_AUTHORIZED_PARTIES`   | Comma-separated exact frontend origins, including scheme |
    | `DATABASE_URL`               | Neon pooled connection string for that environment       |
 
-   Keep `DATABASE_URL_UNPOOLED` in your trusted migration environment rather than the frontend or build command. For preview deployments, use Clerk development keys and an isolated Neon branch. Configure Clerk to accept the preview frontend domain, set its exact origin in `CLERK_AUTHORIZED_PARTIES`, and redeploy after changing variables. A stable preview alias avoids maintaining an allowlist of changing deployment URLs. Production uses Clerk production keys and the configured production domain. Do not use wildcard origins or production database credentials for untrusted preview branches.
+   For preview deployments, use Clerk development keys and an isolated Neon branch. Configure Clerk to accept the preview frontend domain, set its exact origin in `CLERK_AUTHORIZED_PARTIES`, and redeploy after changing variables. A stable preview alias avoids maintaining an allowlist of changing deployment URLs. Production uses Clerk production keys and the configured production domain. Do not use wildcard origins or production database credentials for untrusted preview branches.
 
-3. Run `pnpm db:migrate` from a trusted checkout with `.env.local` pointing to the target database's direct URL. Confirm the target first. For CI that already injects secrets, run `node scripts/migrate.mjs` with `DATABASE_URL_UNPOOLED` set.
+3. Confirm the target database has the application tables. For a new, empty database only, initialize it with `migrations/001_workspace.sql` through the Neon SQL Editor or a trusted PostgreSQL client. Review and apply any future schema changes explicitly, testing on an isolated Neon branch first.
 4. Deploy with Vercel's Git integration or `pnpm dlx vercel@latest --prod`. `vercel.json` sends `/api/*` to the catch-all Node.js function and rewrites SPA deep links to `index.html`; API errors remain JSON responses.
 5. Smoke-test with two accounts: sign in, create a project and diagram, edit and reload, create/restore a version, and verify a second account cannot open the first account's copied diagram URL. Test a stale save from two tabs and a failed network save before using production data.
 
@@ -314,8 +308,7 @@ Markdown import reconstructs components from `## Components` and connections fro
 ```text
 api/[...path].ts          Vercel Function entry point
 server/                  Clerk verification, REST handler, pooled DB and owned queries
-migrations/              Reproducible SQL migrations
-scripts/migrate.mjs       Transactional migration runner
+migrations/              SQL schema used for database initialization and API tests
 src/components/          Existing canvas, nodes, edges, panels and UI
 src/services/api.ts      Authenticated same-origin REST client
 src/services/cloudPersistence.ts  Active document and serialized revision-checked saves

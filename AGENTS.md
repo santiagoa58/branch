@@ -76,6 +76,7 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
 - Navigation must flush pending edits or stay in the editor on failure. Never add
   localStorage document fallback. Simulation state remains ephemeral.
 - Diagram PATCH, thumbnail PUT, version creation and restore require `expectedRevision`.
-- Add append-only SQL migrations under `migrations/`; run `pnpm db:migrate` against
-  a direct Neon connection, explicitly outside application builds.
+- Keep SQL schema changes under `migrations/`. Apply them explicitly through the
+  Neon SQL Editor or a trusted PostgreSQL client, never during application builds.
+  `001_workspace.sql` initializes an empty database; do not rerun it on existing tables.
 - `pnpm dev` serves frontend only; `pnpm dev:cloud` runs Vercel frontend + API locally.

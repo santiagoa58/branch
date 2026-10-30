@@ -33,8 +33,7 @@
     "test:coverage": "vp test run --coverage",
     "type-check": "tsc --noEmit",
     "audit": "pnpm audit",
-    "dev:cloud": "node --env-file=.env.local scripts/dev-cloud.mjs",
-    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
+    "dev:cloud": "node --env-file=.env.local scripts/dev-cloud.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
