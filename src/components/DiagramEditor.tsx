@@ -48,6 +48,7 @@ import { useSimulationAnimation } from "@/hooks/useSimulationAnimation";
 import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
 import { useChaosSimulation } from "@/hooks/useChaosSimulation";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
+import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useOnboardingStore } from "@/store/onboardingStore";
 
 // Resolve the catalog's Tailwind colors through theme variables so new node
@@ -63,6 +64,7 @@ export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
   const { screenToFlowPosition, zoomIn, zoomOut, getZoom, getIntersectingNodes } = useReactFlow();
   const rfStore = useStoreApi();
+  const { autoFormat } = useAutoFormat();
   const [zoom, setZoom] = useState(100);
   const [panMode, setPanMode] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; show: boolean }>({
@@ -756,8 +758,7 @@ export function DiagramEditor() {
       // Auto-layout: Ctrl/Cmd + L
       if ((event.ctrlKey || event.metaKey) && event.key === "l") {
         event.preventDefault();
-        const { applyAutoLayout } = useDiagramStore.getState();
-        applyAutoLayout("TB"); // Default to top-to-bottom
+        autoFormat();
       }
     };
 
@@ -771,6 +772,7 @@ export function DiagramEditor() {
     requestDeleteMultiple,
     requestDelete,
     simulationSetMode,
+    autoFormat,
   ]);
 
   return (

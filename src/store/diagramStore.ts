@@ -15,7 +15,7 @@ import { useAnimationStore } from "@/store/animationStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { getDefaultProtocolForNode, MAX_HISTORY_LENGTH } from "@/constants";
-import { applyDagreLayout, LayoutDirection } from "@/utils/layout";
+import { autoLayoutDiagram } from "@/utils/layout";
 import { checkHealth, HealthCheckResult } from "@/services/healthCheck";
 import { cloudWorkspace, setDiagramHydrator } from "@/services/cloudWorkspace";
 import { diagramDataSchema } from "@/schemas/diagram";
@@ -98,7 +98,7 @@ interface DiagramStore {
   setSelectedEdge: (id: string | null) => void;
 
   // Layout actions
-  applyAutoLayout: (direction?: LayoutDirection) => void;
+  applyAutoLayout: () => boolean;
 
   // Health check actions
   runNodeHealthCheck: (nodeId: string) => Promise<void>;
@@ -1000,27 +1000,39 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     return true;
   },
 
-  // Apply auto-layout using Dagre
-  applyAutoLayout: (direction = "TB") => {
-    const { nodes, edges } = get();
-
-    if (nodes.length === 0) {
-      return; // Nothing to layout
+  applyAutoLayout: () => {
+    const cloud = cloudWorkspace.getState();
+    const { nodes, edges, history, historyIndex } = get();
+    if (
+      nodes.length === 0 ||
+      cloud.locked ||
+      cloud.status === "loading" ||
+      useAnimationStore.getState().pendingDeletions.size > 0
+    ) {
+      return false;
     }
 
-    // Save state before layout
+    const formatted = autoLayoutDiagram(nodes, edges);
+    if (JSON.stringify(formatted) === JSON.stringify(nodes)) {
+      return false;
+    }
+
     get().saveToHistory();
-
-    // Apply Dagre layout algorithm
-    const layoutedNodes = applyDagreLayout(nodes, edges, { direction });
-
-    // Update nodes with new positions
+    const before = get().history[get().historyIndex]!;
+    // History stores post-edit snapshots. Refresh the current baseline (including
+    // measured dimensions), then add exactly one new state for undo and redo.
+    const nextHistory = [
+      ...history.slice(0, Math.max(0, historyIndex)),
+      before,
+      { nodes: structuredClone(formatted), edges: structuredClone(edges) },
+    ].slice(-MAX_HISTORY_LENGTH);
     setIfEditable({
-      nodes: layoutedNodes,
+      nodes: formatted,
+      history: nextHistory,
+      historyIndex: nextHistory.length - 1,
     });
-
-    // Save after layout
     debouncedSave(get().saveDiagram);
+    return true;
   },
 
   // Health check actions

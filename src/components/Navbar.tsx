@@ -22,6 +22,7 @@ import {
   BookmarkIcon,
 } from "@heroicons/react/24/outline";
 import { useAnimationStore } from "@/store/animationStore";
+import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useThemeStore } from "@/store/themeStore";
 import { useUIStore } from "@/store/uiStore";
@@ -56,7 +57,6 @@ export function Navbar() {
     redo,
     canUndo,
     canRedo,
-    applyAutoLayout,
     nodes,
     runAllHealthChecks,
     healthCheckResults,
@@ -69,7 +69,6 @@ export function Navbar() {
     toggleRightPanel,
   } = useUIStore();
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
-  const [layoutDropdownOpen, setLayoutDropdownOpen] = useState(false);
   const [isExporting] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -82,7 +81,7 @@ export function Navbar() {
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
   const queryClient = useQueryClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const layoutDropdownRef = useRef<HTMLDivElement>(null);
+  const { autoFormat, disabled: formatDisabled } = useAutoFormat();
 
   const saveVersionMutation = useMutation({
     mutationFn: (label: string) => {
@@ -107,9 +106,6 @@ export function Navbar() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setExportDropdownOpen(false);
       }
-      if (layoutDropdownRef.current && !layoutDropdownRef.current.contains(event.target as Node)) {
-        setLayoutDropdownOpen(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -129,11 +125,6 @@ export function Navbar() {
     } catch (error) {
       console.error("Failed to copy link:", error);
     }
-  };
-
-  const handleLayout = (direction: "TB" | "LR") => {
-    applyAutoLayout(direction);
-    setLayoutDropdownOpen(false);
   };
 
   const handleTestHealth = async () => {
@@ -294,67 +285,17 @@ export function Navbar() {
           </Tooltip>
         </div>
 
-        {/* Auto-Layout Dropdown */}
-        <div className="relative" ref={layoutDropdownRef}>
-          <Tooltip content="Auto-arrange layout (⌘L)">
-            <button
-              type="button"
-              onClick={() => setLayoutDropdownOpen(!layoutDropdownOpen)}
-              className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
-            >
-              <SparklesIcon className="w-3.5 h-3.5" strokeWidth={2} />
-              Layout
-            </button>
-          </Tooltip>
-
-          {/* Layout Dropdown Menu */}
-          {layoutDropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl z-50 overflow-hidden animate-slide-in">
-              <div className="p-1">
-                <button
-                  type="button"
-                  onClick={() => handleLayout("TB")}
-                  className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                    />
-                  </svg>
-                  Top to Bottom
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLayout("LR")}
-                  className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14 5l7 7m0 0l-7 7m7-7H3"
-                    />
-                  </svg>
-                  Left to Right
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <Tooltip content="Auto format diagram (⌘L)">
+          <button
+            type="button"
+            onClick={autoFormat}
+            disabled={formatDisabled}
+            className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <SparklesIcon className="size-4" strokeWidth={2} />
+            Auto format
+          </button>
+        </Tooltip>
 
         {/* Version History */}
         {diagramId && (

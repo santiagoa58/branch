@@ -24,7 +24,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **AI/ML Components** — LLM, Vector DB, ML Pipeline, Embedding
 - **Cloud Services** — Secrets Manager, Event Bus, Data Lake, Search, Notifications
 - **Group Containers** — Organize with VPCs, Clusters, Regions, and Subnets
-- **Auto-Layout** — Dagre.js automatic arrangement (Top-to-Bottom, Left-to-Right)
+- **Auto format** — One click arranges components using their actual dimensions, fits nested groups around their contents, respects connections across groups, and packs disconnected sections. The result fits in view and can be undone in one step.
 
 ### Data Flow & Contracts
 
@@ -185,7 +185,7 @@ The API tests apply the real migration to an embedded PostgreSQL-compatible engi
 | `Cmd/Ctrl + C`       | Copy selected                            |
 | `Cmd/Ctrl + V`       | Paste                                    |
 | `Cmd/Ctrl + D`       | Duplicate selected                       |
-| `Cmd/Ctrl + L`       | Auto-layout                              |
+| `Cmd/Ctrl + L`       | Auto format                              |
 | `Delete / Backspace` | Delete selected (with shatter animation) |
 | `Cmd/Ctrl + Z`       | Undo                                     |
 | `Cmd/Ctrl + Y`       | Redo                                     |

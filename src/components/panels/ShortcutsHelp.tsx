@@ -98,7 +98,7 @@ export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
 
           {/* Layout */}
           <Section title="Layout">
-            <Shortcut keys={["⌘", "L"]} description="Auto-layout" />
+            <Shortcut keys={["⌘", "L"]} description="Auto format" />
           </Section>
 
           {/* Connections */}
