@@ -67,7 +67,10 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
 ## Cloud persistence and deployment
 
 - One Vite frontend + same-repository Vercel Function in `api/`; server modules in
-  `server/` must never be imported by browser code.
+  `server/` must never be imported by browser code. Workspace HTTP routes are explicit
+  Hono handlers in `server/routes/`; see `docs/api.md`. Browser calls compose the helpers
+  under `src/services/api/`, and TanStack Query options live in `workspaceQuery.ts`.
+  Keep draft saves in `cloudWorkspace`, not in the Query cache.
 - Clerk supplies verified owner IDs. Every project, diagram, and version query must
   be scoped to that owner. Secrets belong only in server environment variables.
 - `cloudWorkspace` owns the active document identity, revision, serialized save queue,

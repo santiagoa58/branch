@@ -6,6 +6,7 @@ import { Link, useNavigation } from "react-router-dom";
 import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, FolderIcon } from "@heroicons/react/24/solid";
 import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
+import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
 import { preloadEditor } from "@/lib/editorRoute";
@@ -44,20 +45,24 @@ export function ProjectsPage() {
   const [projectName, setProjectName] = useState("");
   const [search, setSearch] = useState("");
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["projects", "workspace"],
-    queryFn: projectsApi.workspace,
-    // Keep the cached list visible on return, but refresh summaries after editor changes.
-    staleTime: 0,
-  });
+  const { data, isLoading, isError, refetch, dataUpdatedAt } = useQuery(workspaceQuery.root());
   const projects = data ?? [];
 
   useEffect(() => {
     for (const { diagrams, ...project } of data ?? []) {
-      queryClient.setQueryData(["projects", project.id], project);
-      queryClient.setQueryData(["projects", project.id, "diagrams"], diagrams);
+      const projectKey = workspaceQuery.project(project.id).queryKey;
+      const diagramsKey = workspaceQuery.diagrams(project.id).queryKey;
+      const projectState = queryClient.getQueryState(projectKey);
+      const diagramsState = queryClient.getQueryState(diagramsKey);
+      // Seeding must not mark old summaries as freshly fetched or overwrite newer queries.
+      if (!projectState || projectState.dataUpdatedAt < dataUpdatedAt) {
+        queryClient.setQueryData(projectKey, project, { updatedAt: dataUpdatedAt });
+      }
+      if (!diagramsState || diagramsState.dataUpdatedAt < dataUpdatedAt) {
+        queryClient.setQueryData(diagramsKey, diagrams, { updatedAt: dataUpdatedAt });
+      }
     }
-  }, [data, queryClient]);
+  }, [data, dataUpdatedAt, queryClient]);
 
   const deleteMutation = useMutation({
     mutationFn: projectsApi.delete,

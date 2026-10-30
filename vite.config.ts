@@ -55,6 +55,7 @@ export default defineConfig({
         files: [
           "src/schemas/**",
           "src/services/api.ts",
+          "src/services/api/**",
           "src/services/iconify.ts",
           "src/services/ai/providers/openai.ts",
           "src/utils/import.ts",

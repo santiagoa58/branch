@@ -108,6 +108,19 @@ describe("cloud API client", () => {
     ).rejects.toBeInstanceOf(ApiError);
     await expect(projectsApi.list()).rejects.toBeInstanceOf(ApiResponseValidationError);
   });
+  it("validates writes before fetching and forwards read cancellation", async () => {
+    setApiTokenProvider(async () => "token");
+    const fetcher = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetcher);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(projectsApi.create({ name: "" })).rejects.toThrow("Cannot send POST");
+    await expect(projectsApi.list({ signal: controller.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("sends expected revisions for snapshot and restore requests", async () => {
     setApiTokenProvider(async () => "token");
     const fetcher = vi

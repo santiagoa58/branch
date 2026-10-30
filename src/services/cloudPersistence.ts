@@ -31,6 +31,7 @@ interface CloudApi {
 
 /** One active document, one save in flight, no browser document persistence. */
 export class CloudPersistence {
+  onDocument?: (diagram: ApiDiagram) => void;
   private state: CloudState = {
     diagram: null,
     status: "idle",
@@ -153,6 +154,7 @@ export class CloudPersistence {
         throw new Error("This diagram does not belong to this project.");
       }
       this.hydrate(diagram.data);
+      this.onDocument?.(diagram);
       this.set({ diagram, status: "saved", message: null });
     } catch (error) {
       if (epoch === this.epoch && generation === this.loadGeneration) {
@@ -220,6 +222,7 @@ export class CloudPersistence {
         if (this.pending === snapshot) {
           this.pending = null;
         }
+        this.onDocument?.(saved);
         this.set({
           diagram: saved,
           dirty: this.pending !== null,
@@ -290,6 +293,7 @@ export class CloudPersistence {
       const restored = await this.api.restoreVersion(diagram.id, versionId, diagram.revision);
       if (epoch === this.epoch) {
         this.hydrate(restored.data);
+        this.onDocument?.(restored);
         this.set({ diagram: restored, dirty: false });
       }
       return restored;

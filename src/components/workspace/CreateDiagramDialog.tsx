@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { diagramsApi } from "@/services/api";
+
 import { LoadingIndicator } from "@/components/ui/loading";
 
 interface Props {
@@ -20,6 +21,7 @@ export function CreateDiagramDialog({ projectId, onClose }: Props) {
     mutationFn: (data: { name: string; description?: string }) =>
       diagramsApi.create(projectId, data),
     onSuccess: (diagram) => {
+      queryClient.setQueryData(["diagrams", diagram.id], diagram);
       void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] });
       void queryClient.invalidateQueries({ queryKey: ["projects", "workspace"] });
       void navigate(`/projects/${projectId}/diagrams/${diagram.id}`);

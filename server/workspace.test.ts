@@ -185,6 +185,61 @@ describe("authenticated cloud API", () => {
     expect((await api("/workspace/projects")).status).toBe(404);
     expect(query).not.toHaveBeenCalled();
   });
+  it("bounds bodies, distinguishes request validation from stored data, and rejects aliases", async () => {
+    const owner = "boundary";
+    const project = await json(
+      await api("/projects", "POST", { name: "Boundary" }, owner),
+      apiProjectSchema,
+    );
+    const diagram = await json(
+      await api(`/projects/${project.id}/diagrams`, "POST", { name: "A", data: empty }, owner),
+      apiDiagramSchema,
+    );
+    query.mockClear();
+    const malformed = await api(`/diagrams/${diagram.id}`, "PATCH", undefined, owner);
+    expect(malformed.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    query.mockClear();
+    const oversized = await handle(
+      new Request(`https://branch.test/api/diagrams/${diagram.id}`, {
+        method: "PATCH",
+        headers: { "x-test-user": owner, "content-type": "application/json" },
+        body: JSON.stringify({
+          data: empty,
+          expectedRevision: 1,
+          padding: "x".repeat(4_000_001),
+        }),
+      }),
+    );
+    expect(oversized.status).toBe(413);
+    query.mockClear();
+    expect(
+      (
+        await handle(
+          new Request(`https://branch.test/api/diagrams/${diagram.id}`, {
+            method: "PATCH",
+            headers: { "x-test-user": owner, "content-type": "text/plain" },
+            body: "not-json",
+          }),
+        )
+      ).status,
+    ).toBe(415);
+    expect(
+      (
+        await handle(
+          new Request(`https://branch.test/api/diagrams/${diagram.id}`, {
+            method: "HEAD",
+            headers: { "x-test-user": owner },
+          }),
+        )
+      ).status,
+    ).toBe(405);
+    expect(query).not.toHaveBeenCalled();
+    query.mockImplementationOnce(async () => ({ rows: [{}], rowCount: 1 }));
+    expect((await api(`/diagrams/${diagram.id}`, "GET", undefined, owner)).status).toBe(500);
+    expect((await api("/projects/not-a-uuid", "GET", undefined, owner)).status).toBe(400);
+  });
+
   it("validates untrusted input and returns JSON errors", async () => {
     expect((await api("/projects", "POST", { name: "" })).status).toBe(400);
     expect((await api("/missing")).status).toBe(404);

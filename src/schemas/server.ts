@@ -11,3 +11,9 @@ export const serverEnvSchema = z.object({
     .pipe(z.array(z.url()).min(1)),
 });
 export const routeIdSchema = z.uuid();
+
+export const projectRouteParamsSchema = z.strictObject({ projectId: routeIdSchema });
+export const diagramRouteParamsSchema = z.strictObject({ diagramId: routeIdSchema });
+export const versionRouteParamsSchema = diagramRouteParamsSchema.extend({
+  versionId: routeIdSchema,
+});

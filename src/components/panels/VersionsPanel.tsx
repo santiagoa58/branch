@@ -10,6 +10,7 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import { versionsApi, type ApiDiagramVersion } from "@/services/api";
+import { workspaceQuery } from "@/services/workspaceQuery";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { notify } from "@/services/notify";
@@ -43,9 +44,8 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
 
   // Fetch full version data (with `data` field) only when a preview is requested
   const { data: previewVersion, isLoading: isLoadingPreview } = useQuery({
-    queryKey: ["version-full", diagramId, previewVersionId],
-    queryFn: () => versionsApi.get(diagramId, previewVersionId!),
-    enabled: !!previewVersionId,
+    ...workspaceQuery.version(diagramId, previewVersionId ?? ""),
+    enabled: isOpen && !!previewVersionId,
   });
 
   const {
@@ -54,15 +54,20 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["versions", diagramId],
-    queryFn: () => versionsApi.list(diagramId),
+    ...workspaceQuery.versions(diagramId),
     enabled: isOpen && !!diagramId,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (versionId: string) => versionsApi.delete(diagramId, versionId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["versions", diagramId] });
+    onSuccess: (_result, versionId) => {
+      void queryClient.invalidateQueries({ queryKey: workspaceQuery.versions(diagramId).queryKey });
+      queryClient.removeQueries({
+        queryKey: workspaceQuery.version(diagramId, versionId).queryKey,
+      });
+      if (previewVersionId === versionId) {
+        setPreviewVersionId(null);
+      }
       setConfirmDeleteId(null);
       notify.success({ title: "Version deleted" });
     },
@@ -79,7 +84,7 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
       return cloudWorkspace.restoreVersion(versionId);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["diagrams", diagramId] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
       setConfirmRestoreId(null);
       notify.success({
         title: "Version restored",

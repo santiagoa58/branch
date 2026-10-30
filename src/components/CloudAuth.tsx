@@ -4,7 +4,11 @@ import { ClerkProvider, SignIn, SignUp, useAuth, useClerk } from "@clerk/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { setApiTokenProvider } from "@/services/api";
-import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
+import {
+  bindWorkspaceQueryClient,
+  cloudWorkspace,
+  useCloudWorkspace,
+} from "@/services/cloudWorkspace";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAIStore } from "@/store/aiStore";
@@ -85,8 +89,12 @@ function UserWorkspace({ ownerId }: { ownerId: string }) {
             return authenticatedOwner === ownerId ? token : null;
           },
     );
-    return () => setApiTokenProvider(null);
-  }, [getToken, ownerId, attempt]);
+    bindWorkspaceQueryClient(ownerBlocked ? null : queryClient);
+    return () => {
+      bindWorkspaceQueryClient(null);
+      setApiTokenProvider(null);
+    };
+  }, [getToken, ownerId, attempt, queryClient]);
   useEffect(() => {
     // A reset can outlive sign-out; do not mount routes until that transition settles.
     if (transitioning) {

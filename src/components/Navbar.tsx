@@ -23,7 +23,8 @@ import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useDiagramStore } from "@/store/diagramStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useUIStore } from "@/store/uiStore";
-import { projectsApi } from "@/services/api";
+
+import { workspaceQuery } from "@/services/workspaceQuery";
 import { copyShareableLink } from "@/utils/export";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { AccountControls } from "@/components/CloudAuth";
@@ -44,8 +45,7 @@ export function Navbar() {
   const navigate = useNavigate();
 
   const { data: project } = useQuery({
-    queryKey: ["projects", projectId],
-    queryFn: () => projectsApi.get(projectId!),
+    ...workspaceQuery.project(projectId ?? ""),
     enabled: !!projectId,
   });
 
@@ -76,7 +76,9 @@ export function Navbar() {
       return cloudWorkspace.createVersion(label || undefined);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["versions", diagramId] });
+      void queryClient.invalidateQueries({
+        queryKey: workspaceQuery.versions(diagramId!).queryKey,
+      });
       setSaveVersionOpen(false);
       notify.success({ title: "Version saved", message: "Snapshot added to version history" });
     },

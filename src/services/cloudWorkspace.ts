@@ -1,4 +1,5 @@
 import { AUTO_SAVE_DEBOUNCE } from "@/constants";
+import type { QueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { diagramsApi, versionsApi } from "./api";
 import { updateDiagramRequestSchema } from "@/schemas/api";
@@ -19,6 +20,18 @@ export const cloudWorkspace = new CloudPersistence(
   (data) => hydrate(data),
   AUTO_SAVE_DEBOUNCE,
 );
+let activeQueryClient: QueryClient | null = null;
+cloudWorkspace.onDocument = (diagram) => {
+  activeQueryClient?.setQueryData(["diagrams", diagram.id], diagram);
+  void activeQueryClient?.invalidateQueries({
+    queryKey: ["projects"],
+    refetchType: "none",
+  });
+};
+/** Bind acknowledged document responses to the signed-in account's Query cache. */
+export function bindWorkspaceQueryClient(client: QueryClient | null) {
+  activeQueryClient = client;
+}
 export function useCloudWorkspace() {
   return useSyncExternalStore(cloudWorkspace.subscribe, cloudWorkspace.getState);
 }

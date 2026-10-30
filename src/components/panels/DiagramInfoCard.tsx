@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { workspaceQuery } from "@/services/workspaceQuery";
+import { useCloudWorkspace } from "@/services/cloudWorkspace";
 import { ChevronDownIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { projectsApi, diagramsApi } from "@/services/api";
+
 import {
   ArchitectureEdgeData,
   ArchitectureNodeData,
@@ -34,20 +36,16 @@ const TECH_RULES: Array<{
 export function DiagramInfoCard() {
   const [collapsed, setCollapsed] = useState(true);
   const { currentProjectId, currentDiagramId } = useWorkspaceStore();
+  const cloud = useCloudWorkspace();
   const nodes = useDiagramStore((s) => s.nodes);
   const edges = useDiagramStore((s) => s.edges);
 
   const { data: project } = useQuery({
-    queryKey: ["projects", currentProjectId],
-    queryFn: () => projectsApi.get(currentProjectId!),
+    ...workspaceQuery.project(currentProjectId ?? ""),
     enabled: !!currentProjectId,
   });
-
-  const { data: diagram } = useQuery({
-    queryKey: ["diagrams", currentDiagramId],
-    queryFn: () => diagramsApi.get(currentDiagramId!),
-    enabled: !!currentDiagramId,
-  });
+  // The active editor document is already authoritative; do not download it again.
+  const diagram = cloud.diagram?.id === currentDiagramId ? cloud.diagram : null;
 
   const techTags = useMemo(() => {
     const usedTypes = new Set<string>();

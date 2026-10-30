@@ -6,7 +6,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, TrashIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon } from "@heroicons/react/24/solid";
-import { projectsApi, diagramsApi, ApiDiagramSummary } from "@/services/api";
+import { diagramsApi, ApiDiagramSummary } from "@/services/api";
+import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -18,8 +19,7 @@ export function ProjectPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: project, isError: projectError } = useQuery({
-    queryKey: ["projects", projectId],
-    queryFn: () => projectsApi.get(projectId!),
+    ...workspaceQuery.project(projectId ?? ""),
     enabled: !!projectId,
   });
 
@@ -27,10 +27,8 @@ export function ProjectPage() {
     data: diagrams = [],
     isLoading,
     isError,
-    refetch,
   } = useQuery({
-    queryKey: ["projects", projectId, "diagrams"],
-    queryFn: () => projectsApi.diagrams(projectId!),
+    ...workspaceQuery.diagrams(projectId ?? ""),
     enabled: !!projectId,
   });
 
@@ -100,7 +98,6 @@ export function ProjectPage() {
               className="underline"
               onClick={() => {
                 void queryClient.invalidateQueries({ queryKey: ["projects", projectId] });
-                void refetch();
               }}
             >
               Retry

@@ -65,6 +65,7 @@ beforeEach(() => {
     createdAt: "today",
   });
   cloud = new CloudPersistence(api, hydrate, 10000);
+  cloud.onDocument = vi.fn<(diagram: ApiDiagram) => void>();
   api.get.mockImplementation(async (id: string) => diagram(id));
   api.update.mockImplementation(
     async (id: string, input: { data: DiagramData; expectedRevision: number }) =>
@@ -326,6 +327,7 @@ describe("cloud document lifecycle", () => {
     expect(hydrate).toHaveBeenLastCalledWith(edited);
     expect(api.update).not.toHaveBeenCalled();
     expect(cloud.getState().diagram?.revision).toBe(2);
+    expect(cloud.onDocument).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 2 }));
   });
   it("invalidates a restore response after the workspace resets", async () => {
     await cloud.load("a");
