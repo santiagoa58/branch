@@ -242,7 +242,7 @@ export const ArchitectureNode = memo(
           </span>
         </div>
 
-        {nodeData.decision && Object.values(nodeData.decision).some((value) => value?.trim()) && (
+        {nodeData.decision && Object.values(nodeData.decision).some((value) => typeof value === "string" && value.trim().length > 0) && (
           <span
             title={nodeData.decision.reason || "Design reasoning documented"}
             className="rounded border border-zinc-300 dark:border-zinc-700 px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground"
