@@ -1,7 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vite-plus/test";
-import { NODE_TYPES_CONFIG } from "@/constants";
+import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
 import { NODE_CATEGORIES } from "@/constants/nodeCategories";
-import { architectureNodeTypeSchema, diagramDataSchema } from "@/schemas/diagram";
+import {
+  architectureNodeTypeSchema,
+  groupNodeTypeSchema,
+  diagramDataSchema,
+} from "@/schemas/diagram";
 import type { ArchitectureNodeType, DiagramData } from "@/types";
 import type { z } from "zod";
 
@@ -133,6 +137,58 @@ describe("node catalog", () => {
     const parsed = diagramDataSchema.parse(JSON.parse(JSON.stringify(diagram)));
     expect(parsed).toEqual(diagram);
     expect(diagramDataSchema.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(diagram);
+  });
+
+  it.each(["boundary", "view"] as const)("round-trips %s architectural containers", (groupType) => {
+    expect(groupNodeTypeSchema.parse(groupType)).toBe(groupType);
+    expect(GROUP_TYPES_CONFIG[groupType]).toBeDefined();
+    const diagram = {
+      nodes: [
+        {
+          id: "group",
+          type: "group",
+          position: { x: 0, y: 0 },
+          data: { label: "Custom scope", groupType },
+        },
+      ],
+      edges: [],
+    };
+    expect(diagramDataSchema.parse(diagram)).toEqual(diagram);
+  });
+
+  it("round-trips reasoning on nodes, groups and API edges", () => {
+    const decision = {
+      reason: "Reduce latency",
+      alternatives: "Direct database reads",
+      tradeoffs: "Staleness",
+      assumptions: "Read-heavy workload",
+    };
+    const diagram = {
+      nodes: [
+        {
+          id: "service",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { type: "service", label: "API", decision },
+        },
+        {
+          id: "boundary",
+          type: "group",
+          position: { x: 0, y: 0 },
+          data: { groupType: "boundary", label: "Trust boundary", decision },
+        },
+      ],
+      edges: [
+        {
+          id: "request",
+          type: "architecture",
+          source: "service",
+          target: "boundary",
+          data: { protocol: "http", decision },
+        },
+      ],
+    };
+    expect(diagramDataSchema.parse(diagram)).toEqual(diagram);
   });
 
   it("rejects unknown node types instead of silently coercing them", () => {

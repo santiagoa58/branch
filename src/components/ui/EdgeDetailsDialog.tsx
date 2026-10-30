@@ -35,6 +35,9 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
   const isAsync = data?.async ?? false;
   const isBidirectional = data?.bidirectional ?? false;
   const isAnimated = data?.animated ?? false;
+  const hasDecision = Object.values(data?.decision ?? {}).some(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
 
   return (
     <Dialog
@@ -97,6 +100,19 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
             </div>
           </Row>
         </Section>
+
+        {hasDecision && data?.decision && (
+          <Section title="Design reasoning & tradeoffs">
+            {data.decision.reason && <Row label="Why">{data.decision.reason}</Row>}
+            {data.decision.alternatives && (
+              <Row label="Alternatives">{data.decision.alternatives}</Row>
+            )}
+            {data.decision.tradeoffs && <Row label="Tradeoffs">{data.decision.tradeoffs}</Row>}
+            {data.decision.assumptions && (
+              <Row label="Assumptions">{data.decision.assumptions}</Row>
+            )}
+          </Section>
+        )}
 
         {/* ── Data Contract — request, plus response when present ── */}
         {data?.dataContract && (

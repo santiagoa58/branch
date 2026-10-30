@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { useDiagramStore } from "@/store/diagramStore";
+import { diagramDataSchema } from "@/schemas/diagram";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 vi.mock("@/components/ui/CodeEditor", () => ({ CodeEditor: () => null }));
@@ -54,6 +55,80 @@ describe("property input validation", () => {
     for (const hint of ["Show data passing", "Non-blocking call", "Request/Response"]) {
       expect(screen.getByText(hint)).toHaveClass("text-muted-foreground");
     }
+  });
+
+  it("edits and persists custom architecture attributes", () => {
+    render(<PropertiesPanel />);
+    fireEvent.change(screen.getByLabelText("Attribute key"), {
+      target: { value: "Cache TTL" },
+    });
+    fireEvent.change(screen.getByLabelText("Attribute value"), {
+      target: { value: "60s" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add attribute" }));
+    expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({
+      "Cache TTL": "60s",
+    });
+    fireEvent.change(screen.getByLabelText("Value for Cache TTL"), {
+      target: { value: "120s" },
+    });
+    expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({
+      "Cache TTL": "120s",
+    });
+    expect(diagramDataSchema.safeParse(useDiagramStore.getState().exportDiagram()).success).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove Cache TTL" }));
+    expect(useDiagramStore.getState().nodes[0]?.data["metadata"]).toEqual({});
+  });
+
+  it("documents and preserves architectural reasoning on nodes", () => {
+    render(<PropertiesPanel />);
+    fireEvent.click(screen.getByText(/Design reasoning & tradeoffs/));
+    fireEvent.change(screen.getByLabelText("Why this approach?"), {
+      target: { value: "Reduce database load" },
+    });
+    fireEvent.change(screen.getByLabelText("Tradeoffs and risks"), {
+      target: { value: "Potential stale reads" },
+    });
+    const nodeData = useDiagramStore.getState().nodes[0]?.data;
+    expect(nodeData?.["decision"]).toEqual({
+      reason: "Reduce database load",
+      tradeoffs: "Potential stale reads",
+    });
+    expect(diagramDataSchema.safeParse(useDiagramStore.getState().exportDiagram()).success).toBe(
+      true,
+    );
+  });
+
+  it("opens the relevant property section without losing edits", () => {
+    render(<PropertiesPanel />);
+    const why = screen.getByRole("button", { name: "Why" });
+    expect(why).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(why);
+    expect(why).toHaveAttribute("aria-pressed", "true");
+    fireEvent.change(screen.getByLabelText("Why this approach?"), {
+      target: { value: "Improve reliability" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Basics" }));
+    expect(screen.getByRole("button", { name: "Basics" })).toHaveAttribute("aria-pressed", "true");
+    expect(useDiagramStore.getState().nodes[0]?.data["decision"]).toEqual({
+      reason: "Improve reliability",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Why" }));
+    expect(screen.getByLabelText("Why this approach?")).toHaveValue("Improve reliability");
+  });
+
+  it("opens the API contract section for a selected connection", () => {
+    useDiagramStore.setState({
+      selectedNodeId: null,
+      selectedEdgeId: "edge",
+      edges: [{ id: "edge", source: "s", target: "s", data: { protocol: "http" } }],
+    });
+    render(<PropertiesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "API" }));
+    expect(screen.getByRole("button", { name: "API" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Data Contract")).toBeTruthy();
   });
 
   it("applies supported node type changes", () => {
