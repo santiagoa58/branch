@@ -155,6 +155,41 @@ describe("node catalog", () => {
     },
   );
 
+  it("round-trips reasoning on nodes, groups and API edges", () => {
+    const decision = {
+      reason: "Reduce latency",
+      alternatives: "Direct database reads",
+      tradeoffs: "Staleness",
+      assumptions: "Read-heavy workload",
+    };
+    const diagram = {
+      nodes: [
+        {
+          id: "service",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { type: "service", label: "API", decision },
+        },
+        {
+          id: "boundary",
+          type: "group",
+          position: { x: 0, y: 0 },
+          data: { groupType: "boundary", label: "Trust boundary", decision },
+        },
+      ],
+      edges: [
+        {
+          id: "request",
+          type: "architecture",
+          source: "service",
+          target: "boundary",
+          data: { protocol: "http", decision },
+        },
+      ],
+    };
+    expect(diagramDataSchema.parse(diagram)).toEqual(diagram);
+  });
+
   it("rejects unknown node types instead of silently coercing them", () => {
     expect(architectureNodeTypeSchema.safeParse("unknown-node").success).toBe(false);
   });
