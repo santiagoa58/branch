@@ -1,0 +1,27 @@
+name: Temporary formatting diagnostics
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".node-version"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compute formatter corrections
+        run: |
+          pnpm exec vp fmt . --write
+          echo '===BEGIN_FORMAT_DIFF==='
+          git diff -- src docs
+          echo '===END_FORMAT_DIFF==='
+      - name: Full diagnostics after formatting
+        run: |
+          pnpm check || true
+          pnpm test:run || true
+          pnpm build || true
