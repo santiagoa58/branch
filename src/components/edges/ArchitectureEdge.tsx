@@ -134,6 +134,9 @@ export function ArchitectureEdge({
     fullLabel = `${baseLabel} • ${edgeData.dataContract.schemaName}`;
   }
 
+  const hasDecision = !!edgeData?.decision &&
+    Object.values(edgeData.decision).some((value) => value?.trim());
+
   // Determine marker IDs for bidirectional support
   const isBidirectional = edgeData?.bidirectional ?? false;
   const markerEnd = isBidirectional ? `url(#arrow-${id}-end)` : "url(#arrow-end)";
@@ -267,6 +270,19 @@ export function ArchitectureEdge({
       )}
 
       <EdgeLabelRenderer>
+        {hasDecision && (
+          <div
+            title={edgeData?.decision?.reason || "Design reasoning documented"}
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX + 26}px, ${labelY - 24}px)`,
+              pointerEvents: "none",
+            }}
+            className="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1 text-[9px] text-muted-foreground"
+          >
+            Why
+          </div>
+        )}
         {/* Invisible hit area at edge centre — always present for double-click */}
         {!fullLabel && (
           <div
