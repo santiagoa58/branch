@@ -242,6 +242,32 @@ export const ArchitectureNode = memo(
           </span>
         </div>
 
+        {/* Important design constraints should be visible without opening properties. */}
+        {nodeData.metadata && Object.keys(nodeData.metadata).length > 0 && (
+          <div
+            className="w-full max-w-48 border-t border-zinc-200 dark:border-zinc-700 pt-1.5 space-y-0.5"
+            title={Object.entries(nodeData.metadata)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join("\n")}
+          >
+            {Object.entries(nodeData.metadata)
+              .slice(0, 3)
+              .map(([key, value]) => (
+                <div key={key} className="flex items-baseline justify-between gap-2 text-[9px]">
+                  <span className="text-muted-foreground truncate">{key}</span>
+                  <span className="text-zinc-700 dark:text-zinc-300 font-mono truncate">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            {Object.keys(nodeData.metadata).length > 3 && (
+              <div className="text-[9px] text-muted-foreground">
+                +{Object.keys(nodeData.metadata).length - 3} more
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Output Port - Bottom */}
         <Handle
           type="source"

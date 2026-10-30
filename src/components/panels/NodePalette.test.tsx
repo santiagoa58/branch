@@ -9,7 +9,7 @@ describe("architecture node palette", () => {
   it("exposes every configured architecture node", () => {
     const { container } = render(<NodePalette />);
     expect(container.querySelectorAll('[draggable="true"]')).toHaveLength(
-      Object.keys(NODE_TYPES_CONFIG).length + 5,
+      Object.keys(NODE_TYPES_CONFIG).length + 7,
     );
     for (const config of Object.values(NODE_TYPES_CONFIG)) {
       expect(screen.getAllByText(config.label).length).toBeGreaterThan(0);

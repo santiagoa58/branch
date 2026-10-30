@@ -83,7 +83,7 @@ export type ArchitectureNodeType =
   | "iot";
 
 // Group types for infrastructure containers
-export type GroupNodeType = "vpc" | "cluster" | "region" | "subnet";
+export type GroupNodeType = "vpc" | "cluster" | "region" | "subnet" | "boundary" | "view";
 
 // Comment note colors
 export type CommentColor = "yellow" | "blue" | "green" | "pink" | "purple";
