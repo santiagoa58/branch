@@ -49,6 +49,7 @@ import { CodeEditor } from "@/components/ui/CodeEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { TagInput } from "@/components/ui/TagInput";
 import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
+import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 import { LoadingIndicator } from "@/components/ui/loading";
 
@@ -90,6 +91,12 @@ export function PropertiesPanel() {
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
 
+  // Selection-specific navigation: each new item starts with the essential fields.
+  const selectionKey = selectedNode ? `node:${selectedNode.id}` : selectedEdge ? `edge:${selectedEdge.id}` : "";
+  const [inspectorSelection, setInspectorSelection] = useState<{key:string;tab:InspectorTab}>({ key:"", tab:"basics" });
+  const activeInspectorTab = inspectorSelection.key === selectionKey ? inspectorSelection.tab : "basics";
+  const chooseInspectorTab = (tab: InspectorTab) => setInspectorSelection({key:selectionKey,tab});
+
   // Tag suggestions: union of every tag in use across nodes + edges.
   const tagSuggestions = useMemo(() => {
     const set = new Set<string>();
@@ -118,7 +125,7 @@ export function PropertiesPanel() {
 
   if (!selectedNode && !selectedEdge) {
     return (
-      <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Properties</span>
         </div>
@@ -141,7 +148,7 @@ export function PropertiesPanel() {
       const colorConfig = COMMENT_CONFIG.colors[color];
 
       return (
-        <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
@@ -290,7 +297,7 @@ export function PropertiesPanel() {
       const Icon = config.icon;
 
       return (
-        <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
@@ -305,8 +312,17 @@ export function PropertiesPanel() {
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+                  <InspectorTabs
+          items={[
+            { id: "basics", label: "Basics" },
+            { id: "design", label: "Why", populated: Object.values(groupData.decision ?? {}).some((v) => typeof v === "string" && v.trim().length > 0) },
+            { id: "advanced", label: "More" },
+          ]}
+          value={activeInspectorTab}
+          onChange={chooseInspectorTab}
+        />
+{/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
             {/* Header Section */}
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/30 dark:bg-zinc-900/30">
@@ -326,7 +342,8 @@ export function PropertiesPanel() {
 
             {/* Fields */}
             <div className="space-y-4">
-              {/* Display Name */}
+                            <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Display Name */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Label
@@ -381,7 +398,9 @@ export function PropertiesPanel() {
                 />
               </div>
 
-              {/* Accent Color */}
+                            </div>
+              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Accent Color */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Accent Color
@@ -441,14 +460,18 @@ export function PropertiesPanel() {
                   onChange={() => toggleGroupCollapse(selectedNode.id)}
                 />
               </div>
+              </div>
             </div>
 
-            <DesignDecisionEditor
+                        <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
+<DesignDecisionEditor
               key={`decision-${selectedNode.id}`}
               value={groupData.decision}
               onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
             />
-            {/* Metadata Section */}
+                        </div>
+            <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Metadata Section */}
             <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex justify-between text-[10px]">
                 <span className="text-muted-foreground">Group ID</span>
@@ -492,6 +515,7 @@ export function PropertiesPanel() {
               Delete Group
             </button>
           </div>
+          </div>
         </aside>
       );
     }
@@ -503,7 +527,7 @@ export function PropertiesPanel() {
 
     return (
       <>
-        <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
@@ -518,8 +542,17 @@ export function PropertiesPanel() {
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+                  <InspectorTabs
+          items={[
+            { id: "basics", label: "Basics" },
+            { id: "design", label: "Why", populated: Object.values(nodeData.decision ?? {}).some((v) => typeof v === "string" && v.trim().length > 0) },
+            { id: "advanced", label: "More" },
+          ]}
+          value={activeInspectorTab}
+          onChange={chooseInspectorTab}
+        />
+{/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
             {/* Header Section */}
             <div className="flex items-start gap-4">
               <div className={cn("p-3 rounded-lg border", config.bgClass, config.borderClass)}>
@@ -547,7 +580,8 @@ export function PropertiesPanel() {
 
             {/* Fields */}
             <div className="space-y-4">
-              {/* Display Name */}
+                            <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Display Name */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Display Name
@@ -587,7 +621,9 @@ export function PropertiesPanel() {
                 </div>
               </div>
 
-              {/* Custom Icon */}
+                            </div>
+              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Custom Icon */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Custom Icon
@@ -656,7 +692,9 @@ export function PropertiesPanel() {
                 )}
               </div>
 
-              {/* Technology */}
+                            </div>
+              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Technology */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Technology
@@ -671,7 +709,9 @@ export function PropertiesPanel() {
                 />
               </div>
 
-              {/* Status */}
+                            </div>
+              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Status */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Status
@@ -765,7 +805,9 @@ export function PropertiesPanel() {
                 />
               </div>
 
-              {/* Description */}
+                            </div>
+              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Description */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Description
@@ -780,7 +822,9 @@ export function PropertiesPanel() {
                 />
               </div>
 
-              {/* Health Check */}
+                            </div>
+              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Health Check */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide flex items-center gap-1">
                   <HeartIcon className="w-3 h-3" />
@@ -891,7 +935,9 @@ export function PropertiesPanel() {
                 )}
               </div>
 
-              <DesignDecisionEditor
+                            </div>
+              <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
+<DesignDecisionEditor
                 key={`decision-${selectedNode.id}`}
                 value={nodeData.decision}
                 onChange={(decision) => updateNodeData(selectedNode.id, { decision })}
@@ -902,7 +948,9 @@ export function PropertiesPanel() {
                 onChange={(metadata) => updateNodeData(selectedNode.id, { metadata })}
               />
 
-              {/* Tags */}
+                            </div>
+              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Tags */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Tags
@@ -918,7 +966,9 @@ export function PropertiesPanel() {
                 </span>
               </div>
 
-              {/* Parent Group */}
+                            </div>
+              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Parent Group */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                   Parent Group
@@ -951,9 +1001,11 @@ export function PropertiesPanel() {
                   Tip: Drag node inside a group to auto-assign
                 </p>
               </div>
+              </div>
             </div>
 
-            {/* Metadata Section */}
+                        <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Metadata Section */}
             <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex justify-between text-[10px]">
                 <span className="text-muted-foreground">Node ID</span>
@@ -985,6 +1037,7 @@ export function PropertiesPanel() {
               Delete Node
             </button>
           </div>
+          </div>
         </aside>
         <IconPickerDialog
           isOpen={isIconPickerOpen}
@@ -1003,7 +1056,7 @@ export function PropertiesPanel() {
     const edgeData = architectureEdgeDataSchema.parse(selectedEdge.data ?? {});
 
     return (
-      <aside className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
         {/* Header */}
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Connection</span>
@@ -1016,11 +1069,22 @@ export function PropertiesPanel() {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6 animate-slide-in">
+                <InspectorTabs
+          items={[
+            { id: "basics", label: "Basics" },
+            { id: "contract", label: "API", populated: !!(edgeData.dataContract || edgeData.responseContract) },
+            { id: "design", label: "Why", populated: Object.values(edgeData.decision ?? {}).some((v) => typeof v === "string" && v.trim().length > 0) },
+            { id: "advanced", label: "More" },
+          ]}
+          value={activeInspectorTab}
+          onChange={chooseInspectorTab}
+        />
+{/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
           {/* Fields */}
           <div className="space-y-4">
-            {/* Label */}
+                        <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Label */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                 Label
@@ -1116,7 +1180,9 @@ export function PropertiesPanel() {
               </div>
             )}
 
-            {/* Animated Toggle */}
+                        </div>
+            <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Animated Toggle */}
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-700 dark:text-zinc-300">Animated</span>
               <div className="flex flex-col">
@@ -1178,7 +1244,9 @@ export function PropertiesPanel() {
               </span>
             </div>
 
-            {/* Description */}
+                        </div>
+            <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
+{/* Description */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                 Description
@@ -1193,12 +1261,16 @@ export function PropertiesPanel() {
               />
             </div>
 
-            <DesignDecisionEditor
+                        </div>
+            <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
+<DesignDecisionEditor
               key={selectedEdge.id}
               value={edgeData.decision}
               onChange={(decision) => updateEdgeData(selectedEdge.id, { decision })}
             />
-            {/* Tags */}
+                        </div>
+            <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Tags */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                 Tags
@@ -1210,8 +1282,10 @@ export function PropertiesPanel() {
                 placeholder="e.g. critical, public-api"
               />
             </div>
+            </div>
           </div>
 
+          <div className={activeInspectorTab === "contract" ? "space-y-4" : "hidden"}>
           <hr className="border-zinc-200 dark:border-zinc-800" />
 
           {/* Data Contract Section — segmented Request | Response for request/response protocols. */}
@@ -1372,7 +1446,9 @@ export function PropertiesPanel() {
             );
           })()}
 
-          {/* Metadata Section */}
+                    </div>
+          <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
+{/* Metadata Section */}
           <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
             <div className="flex justify-between text-[10px]">
               <span className="text-muted-foreground">Edge ID</span>
@@ -1403,6 +1479,7 @@ export function PropertiesPanel() {
             <TrashIcon className="w-3 h-3" />
             Delete Connection
           </button>
+          </div>
         </div>
       </aside>
     );
