@@ -2,7 +2,7 @@ name: Branch baseline checks
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 permissions:
