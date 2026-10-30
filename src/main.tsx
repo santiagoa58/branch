@@ -5,13 +5,12 @@ import "./index.css";
 import { CloudAuth, RequireAuth } from "@/components/CloudAuth";
 import { initializeTheme } from "@/store/themeStore";
 import { LoadingState } from "@/components/ui/loading";
+import { ProjectsPage } from "@/pages/ProjectsPage";
+import { loadEditor } from "@/lib/editorRoute";
 
 const disposeTheme = initializeTheme();
 import.meta.hot?.dispose(disposeTheme);
-const App = lazy(() => import("./App.tsx"));
-const ProjectsPage = lazy(() =>
-  import("./pages/ProjectsPage.tsx").then((m) => ({ default: m.ProjectsPage })),
-);
+
 const ProjectPage = lazy(() =>
   import("./pages/ProjectPage.tsx").then((m) => ({ default: m.ProjectPage })),
 );
@@ -25,6 +24,7 @@ function Shell() {
 const router = createBrowserRouter([
   {
     element: <Shell />,
+    HydrateFallback: () => <LoadingState variant="screen" />,
     children: [
       {
         element: <RequireAuth />,
@@ -32,7 +32,10 @@ const router = createBrowserRouter([
           { path: "/", element: <ProjectsPage /> },
           { path: "/sign-up", element: <Navigate to="/" replace /> },
           { path: "/projects/:projectId", element: <ProjectPage /> },
-          { path: "/projects/:projectId/diagrams/:diagramId", element: <App /> },
+          {
+            path: "/projects/:projectId/diagrams/:diagramId",
+            lazy: async () => ({ Component: (await loadEditor()).default }),
+          },
           { path: "*", element: <Navigate to="/" replace /> },
         ],
       },

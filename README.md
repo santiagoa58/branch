@@ -79,6 +79,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 ### Cloud Workspace
 
 - **Private projects and diagrams** — Sign in with Clerk and organize diagrams into projects.
+- **Direct diagram access** — Home lists diagrams grouped by project in one request. Search across the workspace and open any diagram directly, without visiting a project page.
 - **Cloud auto-save** — Loading, unsaved, saving, saved, failure, and conflict states are visible.
 - **Version history** — Capture saved snapshots, preview them, and restore them with revision checks.
 - **Ownership enforcement** — Every project, diagram, thumbnail and version API operation verifies access server-side.
@@ -99,7 +100,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **Getting-Started Checklist** — A dismissible onboarding card that ticks off your first node, connection, data contract, and flow simulation as you do them (auto-hidden once complete; skipped for diagrams that already have content)
 - **Dark/Light Mode** — Theme toggle with system preference support
 
-The app opens at sign-in and then the projects dashboard. Authentication is required; guest editing is not enabled.
+The app opens at sign-in and then the workspace dashboard, with projects and their diagrams listed together. The header remains visible while the list loads, and cached lists refresh in the background on return from the editor. Existing project URLs still work as optional focused views. Authentication is required; guest editing is not enabled.
 
 ## 🚀 Quick Start
 

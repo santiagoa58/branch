@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   apiProjectSchema,
   apiProjectListSchema,
+  apiWorkspaceSchema,
   apiDiagramSchema,
   apiDiagramSummaryListSchema,
   apiDiagramVersionSchema,
@@ -46,6 +47,28 @@ function first(rows: unknown[]) {
 
 export class WorkspaceRepository {
   constructor(private db: Database) {}
+  async workspace(owner: string) {
+    const [projects, result] = await Promise.all([
+      this.projects(owner),
+      this.db.query(
+        `SELECT ${diagramColumns.replace("data, ", "")} FROM diagrams WHERE project_id IN (SELECT id FROM projects WHERE owner_id = $1) ORDER BY updated_at DESC`,
+        [owner],
+      ),
+    ]);
+    const diagrams = apiDiagramSummaryListSchema.parse(result.rows);
+    const byProject = new Map<string, typeof diagrams>();
+    for (const diagram of diagrams) {
+      const projectDiagrams = byProject.get(diagram.projectId);
+      if (projectDiagrams) {
+        projectDiagrams.push(diagram);
+      } else {
+        byProject.set(diagram.projectId, [diagram]);
+      }
+    }
+    return apiWorkspaceSchema.parse(
+      projects.map((project) => ({ ...project, diagrams: byProject.get(project.id) ?? [] })),
+    );
+  }
   async projects(owner: string) {
     return apiProjectListSchema.parse(
       (

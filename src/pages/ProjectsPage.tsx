@@ -1,109 +1,165 @@
 import { AccountControls } from "@/components/CloudAuth";
 import { Brand } from "@/components/Brand";
-import { LoadingState } from "@/components/ui/loading";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import {
-  PlusIcon,
-  TrashIcon,
-  PencilIcon,
-  SunIcon,
-  MoonIcon,
-  ComputerDesktopIcon,
-} from "@heroicons/react/24/outline";
-import { FolderIcon } from "@heroicons/react/24/solid";
-import { projectsApi, ApiProject } from "@/services/api";
+import { Link, useNavigation } from "react-router-dom";
+import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { DocumentIcon, FolderIcon } from "@heroicons/react/24/solid";
+import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
+import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
+import { preloadEditor } from "@/lib/editorRoute";
 import { useThemeStore } from "@/store/themeStore";
 
+function WorkspaceSkeleton() {
+  return (
+    <output
+      aria-label="Loading projects and diagrams…"
+      aria-busy="true"
+      className="block space-y-6"
+    >
+      <span className="sr-only">Loading projects and diagrams…</span>
+      {["first", "second", "third"].map((key) => (
+        <div
+          key={key}
+          aria-hidden="true"
+          className="rounded-xl border border-border bg-card p-4 space-y-4"
+        >
+          <div className="h-6 w-48 rounded bg-muted" />
+          <div className="h-16 rounded-lg bg-muted/60" />
+          <div className="h-16 rounded-lg bg-muted/60" />
+        </div>
+      ))}
+    </output>
+  );
+}
+
 export function ProjectsPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const navigation = useNavigation();
   const { theme, setTheme } = useThemeStore();
+
   const [createOpen, setCreateOpen] = useState(false);
+  const [diagramProject, setDiagramProject] = useState<ApiProject | null>(null);
   const [editingProject, setEditingProject] = useState<ApiProject | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [search, setSearch] = useState("");
 
-  const cycleTheme = () => {
-    setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light");
-  };
-
-  const getThemeIcon = () => {
-    switch (theme) {
-      case "light":
-        return <SunIcon className="w-3.5 h-3.5" />;
-      case "dark":
-        return <MoonIcon className="w-3.5 h-3.5" />;
-      case "system":
-        return <ComputerDesktopIcon className="w-3.5 h-3.5" />;
-    }
-  };
-
-  const {
-    data: projects = [],
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["projects"],
-    queryFn: projectsApi.list,
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["projects", "workspace"],
+    queryFn: projectsApi.workspace,
+    // Keep the cached list visible on return, but refresh summaries after editor changes.
+    staleTime: 0,
   });
+  const projects = data ?? [];
+
+  useEffect(() => {
+    for (const { diagrams, ...project } of data ?? []) {
+      queryClient.setQueryData(["projects", project.id], project);
+      queryClient.setQueryData(["projects", project.id, "diagrams"], diagrams);
+    }
+  }, [data, queryClient]);
 
   const deleteMutation = useMutation({
     mutationFn: projectsApi.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
   });
-
+  const deleteDiagramMutation = useMutation({
+    mutationFn: diagramsApi.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  });
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string }) => projectsApi.update(id, data),
+    mutationFn: ({ id, name }: { id: string; name: string }) => projectsApi.update(id, { name }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["projects"] });
       setEditingProject(null);
     },
   });
 
-  if (isLoading) {
-    return <LoadingState variant="screen" label="Loading projects…" />;
-  }
+  const term = search.trim().toLocaleLowerCase();
+  const visibleProjects = projects.flatMap((project) => {
+    if (
+      !term ||
+      `${project.name} ${project.description ?? ""}`.toLocaleLowerCase().includes(term)
+    ) {
+      return [project];
+    }
+    const diagrams = project.diagrams.filter((diagram) =>
+      `${diagram.name} ${diagram.description ?? ""}`.toLocaleLowerCase().includes(term),
+    );
+    return diagrams.length ? [{ ...project, diagrams }] : [];
+  });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-300">
-      {/* Header */}
-      <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-50">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="min-h-14 border-b border-border flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-background/80 backdrop-blur-md">
         <Brand />
         <div className="flex items-center gap-2">
           <AccountControls />
           <button
             type="button"
-            onClick={cycleTheme}
-            className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md transition-colors"
+            onClick={() =>
+              setTheme(theme === "light" ? "dark" : theme === "dark" ? "system" : "light")
+            }
+            className="rounded-md border border-border bg-muted p-2 hover:bg-accent transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-ring"
             title={`Theme: ${theme}`}
           >
-            {getThemeIcon()}
+            {theme === "light" ? (
+              <SunIcon className="size-4" />
+            ) : theme === "dark" ? (
+              <MoonIcon className="size-4" />
+            ) : (
+              <ComputerDesktopIcon className="size-4" />
+            )}
           </button>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-900 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shadow-sm"
+            className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <PlusIcon className="w-3.5 h-3.5" />
-            New Project
+            <PlusIcon className="size-4" />
+            New project
           </button>
         </div>
       </header>
 
-      {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {(deleteMutation.isError || updateMutation.isError) && (
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-balance">Projects</h1>
+            <p className="mt-2 text-sm text-muted-foreground text-pretty">
+              Open any diagram directly from your workspace.
+            </p>
+          </div>
+          <label className="flex w-full sm:w-80 items-center gap-2 rounded-lg border border-input bg-card px-3 py-2 focus-within:ring-2 focus-within:ring-ring">
+            <MagnifyingGlassIcon
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted-foreground"
+            />
+            <span className="sr-only">Search projects and diagrams</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search projects and diagrams"
+              className="min-w-0 w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
+            />
+          </label>
+        </div>
+
+        {navigation.state !== "idle" && navigation.location.pathname.includes("/diagrams/") && (
+          <output className="mb-4 block text-sm text-muted-foreground" aria-live="polite">
+            Opening diagram…
+          </output>
+        )}
+        {(deleteMutation.isError || updateMutation.isError || deleteDiagramMutation.isError) && (
           <p role="alert" className="mb-4 text-sm text-muted-foreground">
-            Could not update the project. Please try again.
+            Could not update the workspace. Please try again.
           </p>
         )}
-        <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-5">Projects</h2>
-
-        {isError ? (
-          <div role="alert" className="text-sm text-muted-foreground">
-            Could not load your projects.{" "}
+        {isError && (
+          <div role="alert" className="mb-4 text-sm text-muted-foreground">
+            Could not load your projects and diagrams.{" "}
             <button
               type="button"
               className="underline"
@@ -114,108 +170,221 @@ export function ProjectsPage() {
               Retry
             </button>
           </div>
-        ) : projects.length === 0 ? (
-          <div className="text-center py-20">
-            <FolderIcon className="w-12 h-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">No projects yet</p>
+        )}
+
+        {isLoading ? (
+          <WorkspaceSkeleton />
+        ) : projects.length === 0 && !isError ? (
+          <div className="rounded-xl border border-border bg-card px-6 py-16 text-center">
+            <FolderIcon aria-hidden="true" className="size-12 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-base font-semibold">No projects yet</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Create a project, then add your first diagram.
+            </p>
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="flex items-center gap-2 mx-auto bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-900 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shadow-sm"
+              className="mt-4 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               Create your first project
             </button>
           </div>
+        ) : visibleProjects.length === 0 && projects.length > 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No projects or diagrams match your search.
+            </p>
+            <button type="button" onClick={() => setSearch("")} className="mt-4 text-sm underline">
+              Clear search
+            </button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project) => (
-              <article
+          <div className="space-y-6">
+            {visibleProjects.map((project) => (
+              <section
                 key={project.id}
-                className="group relative border border-zinc-200 dark:border-zinc-800 rounded-lg p-5 hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer transition-colors bg-white dark:bg-zinc-900"
+                aria-label={project.name}
+                className="rounded-xl border border-border bg-card p-4"
               >
-                <a
-                  href={`/projects/${project.id}`}
-                  aria-label={`Open ${project.name}`}
-                  className="absolute inset-0 rounded-lg"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    void navigate(`/projects/${project.id}`);
-                  }}
-                />
-                {/* Color indicator */}
-                <div
-                  className="w-3 h-3 rounded-full mb-3"
-                  style={{ backgroundColor: project.color ?? "#3b82f6" }}
-                />
-
-                {editingProject?.id === project.id ? (
-                  <form
-                    className="relative z-10"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const formData = new FormData(e.currentTarget);
-                      updateMutation.mutate({
-                        id: project.id,
-                        name: formData.get("name") as string,
-                      });
-                    }}
-                  >
-                    <input
-                      name="name"
-                      defaultValue={project.name}
-                      aria-label="Project name"
-                      onBlur={() => setEditingProject(null)}
-                      className="w-full bg-transparent border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
-                    />
-                  </form>
-                ) : (
-                  <h3 className="font-medium text-base mb-1">{project.name}</h3>
-                )}
-
-                {project.description && (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                    {project.description}
-                  </p>
-                )}
-
-                <p className="text-xs text-muted-foreground mt-3">
-                  Updated {new Date(project.updatedAt).toLocaleDateString()}
-                </p>
-
-                {/* Actions */}
-                <div className="absolute z-10 top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingProject(project);
-                    }}
-                    aria-label={`Rename ${project.name}`}
-                    className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                  >
-                    <PencilIcon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Delete project "${project.name}"?`)) {
-                        deleteMutation.mutate(project.id);
-                      }
-                    }}
-                    aria-label={`Delete ${project.name}`}
-                    className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950 text-zinc-400 hover:text-red-500"
-                  >
-                    <TrashIcon className="w-3.5 h-3.5" />
-                  </button>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    {editingProject?.id === project.id ? (
+                      <form
+                        className="flex flex-wrap items-center gap-2"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (projectName.trim()) {
+                            updateMutation.mutate({ id: project.id, name: projectName.trim() });
+                          }
+                        }}
+                      >
+                        <input
+                          value={projectName}
+                          onChange={(event) => setProjectName(event.target.value)}
+                          aria-label="Project name"
+                          maxLength={200}
+                          required
+                          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <button
+                          type="submit"
+                          disabled={updateMutation.isPending || !projectName.trim()}
+                          className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingProject(null)}
+                          className="px-3 py-2 text-sm underline"
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      <h2 className="flex items-center gap-2 text-base font-semibold">
+                        <FolderIcon
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-muted-foreground"
+                          style={{ color: project.color ?? undefined }}
+                        />
+                        <Link
+                          to={`/projects/${project.id}`}
+                          className="truncate rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          {project.name}
+                        </Link>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {project.diagrams.length}{" "}
+                          {project.diagrams.length === 1 ? "diagram" : "diagrams"}
+                        </span>
+                      </h2>
+                    )}
+                    {project.description && (
+                      <p className="mt-2 text-sm text-muted-foreground text-pretty">
+                        {project.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDiagramProject(project)}
+                      aria-label={`New diagram in ${project.name}`}
+                      className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-accent transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <PlusIcon className="size-4" />
+                      New diagram
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProject(project);
+                        setProjectName(project.name);
+                      }}
+                      aria-label={`Rename ${project.name}`}
+                      className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <PencilIcon className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => {
+                        if (confirm(`Delete project "${project.name}" and all its diagrams?`)) {
+                          deleteMutation.mutate(project.id);
+                        }
+                      }}
+                      aria-label={`Delete ${project.name}`}
+                      className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <TrashIcon className="size-4" />
+                    </button>
+                  </div>
                 </div>
-              </article>
+
+                {project.diagrams.length === 0 ? (
+                  <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+                    No diagrams yet. Add a diagram to this project to get started.
+                  </p>
+                ) : (
+                  <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {project.diagrams.map((diagram) => (
+                      <li
+                        key={diagram.id}
+                        className="flex items-center gap-2 rounded-lg border border-border bg-background hover:bg-accent/50 transition-colors duration-300"
+                      >
+                        <Link
+                          to={`/projects/${project.id}/diagrams/${diagram.id}`}
+                          aria-label={`Open ${diagram.name}`}
+                          aria-busy={
+                            (navigation.state !== "idle" &&
+                              navigation.location.pathname ===
+                                `/projects/${project.id}/diagrams/${diagram.id}`) ||
+                            undefined
+                          }
+                          onMouseEnter={preloadEditor}
+                          onFocus={preloadEditor}
+                          className="flex flex-1 min-w-0 items-center gap-3 rounded-lg p-3 focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
+                          >
+                            {diagram.thumbnail ? (
+                              <img
+                                src={diagram.thumbnail}
+                                alt=""
+                                loading="lazy"
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <DocumentIcon className="size-6 text-muted-foreground" />
+                            )}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">
+                              {diagram.name}
+                            </span>
+                            {diagram.description && (
+                              <span className="mt-1 block truncate text-xs text-muted-foreground">
+                                {diagram.description}
+                              </span>
+                            )}
+                            <span className="mt-2 block text-xs text-muted-foreground">
+                              Updated {new Date(diagram.updatedAt).toLocaleDateString()}
+                            </span>
+                          </span>
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={deleteDiagramMutation.isPending}
+                          onClick={() => {
+                            if (confirm(`Delete diagram "${diagram.name}"?`)) {
+                              deleteDiagramMutation.mutate(diagram.id);
+                            }
+                          }}
+                          aria-label={`Delete diagram ${diagram.name}`}
+                          className="mr-3 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <TrashIcon className="size-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             ))}
           </div>
         )}
       </main>
-
       {createOpen && <CreateProjectDialog onClose={() => setCreateOpen(false)} />}
+      {diagramProject && (
+        <CreateDiagramDialog
+          projectId={diagramProject.id}
+          onClose={() => setDiagramProject(null)}
+        />
+      )}
     </div>
   );
 }

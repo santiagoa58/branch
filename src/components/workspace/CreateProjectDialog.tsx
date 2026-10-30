@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { projectsApi } from "@/services/api";
 import { LoadingIndicator } from "@/components/ui/loading";
@@ -21,7 +21,6 @@ interface Props {
 }
 
 export function CreateProjectDialog({ onClose }: Props) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -31,7 +30,7 @@ export function CreateProjectDialog({ onClose }: Props) {
     mutationFn: projectsApi.create,
     onSuccess: (project) => {
       void queryClient.invalidateQueries({ queryKey: ["projects"] });
-      void navigate(`/projects/${project.id}`);
+      queryClient.setQueryData(["projects", project.id], project);
       onClose();
     },
   });

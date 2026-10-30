@@ -58,13 +58,11 @@ export function ProjectPage() {
 
   const deleteMutation = useMutation({
     mutationFn: diagramsApi.delete,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] });
+      void queryClient.invalidateQueries({ queryKey: ["projects", "workspace"] });
+    },
   });
-
-  if (isLoading) {
-    return <LoadingState variant="screen" label="Loading diagrams…" />;
-  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-300">
@@ -121,7 +119,9 @@ export function ProjectPage() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-5">Diagrams</h2>
 
-        {isError || projectError ? (
+        {isLoading ? (
+          <LoadingState label="Loading diagrams…" />
+        ) : isError || projectError ? (
           <div role="alert" className="text-sm text-muted-foreground">
             Could not load this project.{" "}
             <button

@@ -8,6 +8,7 @@ import {
   apiErrorBodySchema,
   apiProjectListSchema,
   apiProjectSchema,
+  apiWorkspaceSchema,
   createDiagramRequestSchema,
   createDiagramVersionRequestSchema,
   createProjectRequestSchema,
@@ -31,6 +32,7 @@ export type {
   ApiErrorBody,
   ApiProject,
   ApiProjectSummary,
+  ApiWorkspaceProject,
   CreateDiagramRequest,
   CreateDiagramVersionRequest,
   CreateProjectRequest,
@@ -176,6 +178,8 @@ async function request<TResponse, TRequest = never>(
 // --- Projects ---
 
 export const projectsApi = {
+  workspace: () => request("/workspace", apiWorkspaceSchema),
+
   list: () => request("/projects", apiProjectListSchema),
 
   get: (id: string) => request(`/projects/${encodeURIComponent(id)}`, apiProjectSchema),

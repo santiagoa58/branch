@@ -82,11 +82,16 @@ export const apiErrorBodySchema = z.strictObject({
 
 export const apiProjectListSchema = z.array(apiProjectSummarySchema);
 export const apiDiagramSummaryListSchema = z.array(apiDiagramSummarySchema);
+export const apiWorkspaceProjectSchema = apiProjectSchema.extend({
+  diagrams: apiDiagramSummaryListSchema,
+});
+export const apiWorkspaceSchema = z.array(apiWorkspaceProjectSchema);
 export const apiDiagramVersionListSchema = z.array(apiDiagramVersionSchema);
 export const voidResponseSchema = z.void();
 
 export type ApiProject = z.infer<typeof apiProjectSchema>;
 export type ApiProjectSummary = z.infer<typeof apiProjectSummarySchema>;
+export type ApiWorkspaceProject = z.infer<typeof apiWorkspaceProjectSchema>;
 export type ApiDiagram = z.infer<typeof apiDiagramSchema>;
 export type ApiDiagramSummary = z.infer<typeof apiDiagramSummarySchema>;
 export type ApiDiagramVersion = z.infer<typeof apiDiagramVersionSchema>;

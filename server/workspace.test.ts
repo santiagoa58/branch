@@ -1,14 +1,20 @@
 // @vitest-environment node
-import { beforeAll, afterAll, describe, it, expect } from "vite-plus/test";
+import { beforeAll, afterAll, describe, it, expect, vi } from "vite-plus/test";
 import { PGlite } from "@electric-sql/pglite";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { apiProjectSchema, apiDiagramSchema, apiDiagramVersionSchema } from "../src/schemas/api";
+import {
+  apiProjectSchema,
+  apiDiagramSchema,
+  apiDiagramVersionSchema,
+  apiWorkspaceSchema,
+} from "../src/schemas/api";
 import { createHandler } from "./handler";
 import { WorkspaceRepository, type Database } from "./repository";
 
 let database: PGlite;
 let handle: (request: Request) => Promise<Response>;
+const query = vi.fn<Database["query"]>();
 const empty = { nodes: [], edges: [], flows: [] };
 async function api(path: string, method = "GET", body?: object, user = "alice") {
   return handle(
@@ -29,11 +35,12 @@ beforeAll(async () => {
   await database.exec(
     await readFile(new URL("../migrations/001_workspace.sql", import.meta.url), "utf8"),
   );
+  query.mockImplementation(async (text, values = []) => {
+    const result = await database.query(text, [...values]);
+    return { rows: result.rows, rowCount: result.affectedRows };
+  });
   const adapter: Database = {
-    query: async (text, values = []) => {
-      const result = await database.query(text, [...values]);
-      return { rows: result.rows, rowCount: result.affectedRows };
-    },
+    query,
     transaction: async (run) =>
       database.transaction(async (tx) =>
         run({
@@ -54,6 +61,129 @@ afterAll(async () => database?.close());
 describe("authenticated cloud API", () => {
   it("rejects unauthenticated requests before accessing documents", async () => {
     expect((await api("/projects", "GET", undefined, "")).status).toBe(401);
+  });
+  it("requires authentication for workspace reads before querying the database", async () => {
+    query.mockClear();
+    expect((await api("/workspace", "GET", undefined, "")).status).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+  it("lists all owned projects with metadata-only diagrams in two scoped queries", async () => {
+    const alice = "workspace-alice";
+    const bob = "workspace-bob";
+    const createProject = async (name: string, owner: string) =>
+      json(
+        await api("/projects", "POST", { name, description: `${name} project` }, owner),
+        apiProjectSchema,
+      );
+    const aliceProject = await createProject("Alice design", alice);
+    const aliceEmpty = await createProject("Alice empty", alice);
+    const aliceOther = await createProject("Alice other", alice);
+    const bobProject = await createProject("Bob design", bob);
+    const createDiagram = async (projectId: string, name: string, owner: string) =>
+      json(
+        await api(
+          `/projects/${projectId}/diagrams`,
+          "POST",
+          { name, description: `${name} diagram`, data: empty },
+          owner,
+        ),
+        apiDiagramSchema,
+      );
+    const aliceFirst = await createDiagram(aliceProject.id, "First", alice);
+    const aliceSecond = await createDiagram(aliceProject.id, "Second", alice);
+    const aliceThird = await createDiagram(aliceOther.id, "Third", alice);
+    const bobDiagram = await createDiagram(bobProject.id, "Private", bob);
+    const aliceUpdated = await json(
+      await api(
+        `/diagrams/${aliceFirst.id}/thumbnail`,
+        "PUT",
+        {
+          thumbnail: "data:image/png;base64,dGVzdA==",
+          expectedRevision: aliceFirst.revision,
+        },
+        alice,
+      ),
+      apiDiagramSchema,
+    );
+    await json(
+      await api(
+        `/diagrams/${aliceFirst.id}/versions`,
+        "POST",
+        { expectedRevision: aliceUpdated.revision },
+        alice,
+      ),
+      apiDiagramVersionSchema,
+    );
+    const aliceVersioned = await json(
+      await api(`/diagrams/${aliceFirst.id}`, "GET", undefined, alice),
+      apiDiagramSchema,
+    );
+    const summaries = [aliceVersioned, aliceSecond, aliceThird, bobDiagram].map(
+      ({ data, ...summary }) => {
+        expect(data).toEqual(empty);
+        return summary;
+      },
+    );
+
+    query.mockClear();
+    const response = await api("/workspace", "GET", undefined, alice);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const workspace = await json(response, apiWorkspaceSchema);
+    expect(workspace).toHaveLength(3);
+    expect(workspace).toEqual(
+      expect.arrayContaining([
+        { ...aliceProject, diagrams: [summaries[0], summaries[1]] },
+        { ...aliceEmpty, diagrams: [] },
+        { ...aliceOther, diagrams: [summaries[2]] },
+      ]),
+    );
+    expect(workspace.flatMap((project) => project.diagrams)).toHaveLength(3);
+    expect(query).toHaveBeenCalledTimes(2);
+    for (const [sql, values] of query.mock.calls) {
+      expect(sql).toMatch(/owner_id = \$1/);
+      expect(sql).not.toMatch(/\bdata\b/i);
+      expect(values).toEqual([alice]);
+    }
+
+    query.mockClear();
+    expect(await json(await api("/workspace", "GET", undefined, bob), apiWorkspaceSchema)).toEqual([
+      { ...bobProject, diagrams: [summaries[3]] },
+    ]);
+    expect(query).toHaveBeenCalledTimes(2);
+    for (const [, values] of query.mock.calls) {
+      expect(values).toEqual([bob]);
+    }
+  });
+  it("returns an empty workspace or empty project without per-project queries", async () => {
+    const owner = "workspace-empty";
+    query.mockClear();
+    expect(
+      await json(await api("/workspace", "GET", undefined, owner), apiWorkspaceSchema),
+    ).toEqual([]);
+    expect(query).toHaveBeenCalledTimes(2);
+    const project = await json(
+      await api("/projects", "POST", { name: "Empty" }, owner),
+      apiProjectSchema,
+    );
+    query.mockClear();
+    expect(
+      await json(await api("/workspace", "GET", undefined, owner), apiWorkspaceSchema),
+    ).toEqual([{ ...project, diagrams: [] }]);
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+  it.each(["POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])(
+    "rejects %s /workspace without accessing or changing documents",
+    async (method) => {
+      query.mockClear();
+      expect((await api("/workspace", method)).status).toBe(405);
+      expect(query).not.toHaveBeenCalled();
+    },
+  );
+  it("does not treat nested workspace paths as the listing endpoint", async () => {
+    query.mockClear();
+    expect((await api("/workspace/projects")).status).toBe(404);
+    expect(query).not.toHaveBeenCalled();
   });
   it("validates untrusted input and returns JSON errors", async () => {
     expect((await api("/projects", "POST", { name: "" })).status).toBe(400);

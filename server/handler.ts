@@ -82,6 +82,12 @@ export function createHandler(deps: {
       const [resource, rawId, child, rawChildId, action] = segments;
       const method = request.method;
       const repo = deps.repository;
+      if (resource === "workspace" && segments.length === 1) {
+        if (method === "GET") {
+          return response(await repo.workspace(owner));
+        }
+        methodNotAllowed();
+      }
       if (resource === "projects" && segments.length === 1) {
         if (method === "GET") {
           return response(await repo.projects(owner));

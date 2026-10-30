@@ -21,6 +21,7 @@ export function CreateDiagramDialog({ projectId, onClose }: Props) {
       diagramsApi.create(projectId, data),
     onSuccess: (diagram) => {
       void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] });
+      void queryClient.invalidateQueries({ queryKey: ["projects", "workspace"] });
       void navigate(`/projects/${projectId}/diagrams/${diagram.id}`);
       onClose();
     },
