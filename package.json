@@ -21,7 +21,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
+    "dev": "node --env-file=.env.local scripts/dev.mjs",
     "build": "tsc && vp build",
     "preview": "vp preview",
     "check": "vp check --deny-warnings",
@@ -32,8 +32,7 @@
     "test:run": "vp test run",
     "test:coverage": "vp test run --coverage",
     "type-check": "tsc --noEmit",
-    "audit": "pnpm audit",
-    "dev:cloud": "node --env-file=.env.local scripts/dev-cloud.mjs"
+    "audit": "pnpm audit"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

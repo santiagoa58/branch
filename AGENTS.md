@@ -8,7 +8,7 @@ and `.cursor/` for deep references (`rules.md`, `features.md`, `components.mdc`,
 ## Commands
 
 ```bash
-pnpm dev            # Vite+ development server on :5173
+pnpm dev            # Complete app (Vite+ frontend + Vercel API) on :3000
 pnpm audit          # Dependency vulnerability audit
 pnpm check          # Strict format, lint, and type checks
 pnpm test:run       # Vitest run (one-shot)
@@ -79,4 +79,4 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
 - Keep SQL schema changes under `migrations/`. Apply them explicitly through the
   Neon SQL Editor or a trusted PostgreSQL client, never during application builds.
   `001_workspace.sql` initializes an empty database; do not rerun it on existing tables.
-- `pnpm dev` serves frontend only; `pnpm dev:cloud` runs Vercel frontend + API locally.
+- `pnpm dev` runs the complete app (Vite frontend + Vercel API) on port 3000. Vercel starts Vite internally; never make its `devCommand` call `pnpm dev` recursively.

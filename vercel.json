@@ -17,7 +17,7 @@
       "destination": "/index.html"
     }
   ],
-  "devCommand": "pnpm dev --port $PORT",
+  "devCommand": "pnpm exec vp dev --port $PORT",
   "redirects": [
     {
       "source": "/about",
