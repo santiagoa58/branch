@@ -17,7 +17,6 @@ export function DesignDecisionEditor({ value, onChange }: Props) {
   return (
     <details
       className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3"
-      open={undefined}
     >
       <summary className="cursor-pointer text-xs font-semibold text-foreground">
         Design reasoning & tradeoffs {hasDecision ? "• Documented" : "• Add"}
