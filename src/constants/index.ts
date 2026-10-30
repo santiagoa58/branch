@@ -931,6 +931,18 @@ export const GROUP_TYPES_CONFIG: Record<
     icon: RectangleGroupIcon,
     defaultLabel: "Subnet",
   },
+  boundary: {
+    label: "Boundary",
+    description: "Logical, trust, data, or deployment boundary",
+    icon: CubeTransparentIcon,
+    defaultLabel: "Boundary",
+  },
+  view: {
+    label: "Screen / View",
+    description: "Frontend page, screen, or application view",
+    icon: RectangleGroupIcon,
+    defaultLabel: "View",
+  },
 };
 
 // Data format configuration for edge data contracts

@@ -43,15 +43,22 @@ const NODE_SHORTCUTS: Partial<Record<ArchitectureNodeType, string>> = {
 };
 
 // Keyboard shortcuts for groups
-const GROUP_SHORTCUTS: Record<GroupNodeType, string> = {
+const GROUP_SHORTCUTS: Partial<Record<GroupNodeType, string>> = {
   vpc: "Shift+V",
   cluster: "Shift+K",
   region: "Shift+R",
   subnet: "Shift+N",
 };
 
-// Infrastructure groups
-const GROUP_CATEGORIES: GroupNodeType[] = ["vpc", "cluster", "region", "subnet"];
+// Infrastructure and logical containers
+const GROUP_CATEGORIES: GroupNodeType[] = [
+  "boundary",
+  "view",
+  "vpc",
+  "cluster",
+  "region",
+  "subnet",
+];
 
 export function NodePalette() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,12 +150,12 @@ export function NodePalette() {
             <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full" />
           )}
 
-        {/* Infrastructure Groups Section */}
+        {/* Architectural containers */}
         {filteredGroups.length > 0 && (
           <div>
             <h3 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-3 flex items-center gap-2">
               <Squares2X2Icon className="w-3 h-3" />
-              Infrastructure
+              Containers & Boundaries
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {filteredGroups.map((type) => (
@@ -250,11 +257,13 @@ function GroupDraggableNode({ type }: { type: GroupNodeType }) {
       onDragStart={onDragStart}
       className="cursor-grab active:cursor-grabbing bg-zinc-100/50 dark:bg-zinc-900/30 hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 rounded-lg p-3 flex flex-col items-center gap-2 transition-all relative group"
     >
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded">
-          {shortcut}
-        </kbd>
-      </div>
+      {shortcut && (
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded">
+            {shortcut}
+          </kbd>
+        </div>
+      )}
       <Icon className="w-4 h-4 text-muted-foreground" />
       <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{config.label}</span>
     </div>
