@@ -1,7 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vite-plus/test";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
 import { NODE_CATEGORIES } from "@/constants/nodeCategories";
-import { architectureNodeTypeSchema, groupNodeTypeSchema, diagramDataSchema } from "@/schemas/diagram";
+import {
+  architectureNodeTypeSchema,
+  groupNodeTypeSchema,
+  diagramDataSchema,
+} from "@/schemas/diagram";
 import type { ArchitectureNodeType, DiagramData } from "@/types";
 import type { z } from "zod";
 
