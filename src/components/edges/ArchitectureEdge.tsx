@@ -135,7 +135,10 @@ export function ArchitectureEdge({
   }
 
   const hasDecision =
-    !!edgeData?.decision && Object.values(edgeData.decision).some((value) => typeof value === "string" && value.trim().length > 0);
+    !!edgeData?.decision &&
+    Object.values(edgeData.decision).some(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
 
   // Determine marker IDs for bidirectional support
   const isBidirectional = edgeData?.bidirectional ?? false;
