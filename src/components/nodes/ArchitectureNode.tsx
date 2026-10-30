@@ -132,7 +132,7 @@ export const ArchitectureNode = memo(
         {/* Description Tooltip */}
         {showTooltip && hasDescription && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
-            <div className="relative bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 text-[11px] leading-relaxed px-3 py-2 rounded-lg shadow-lg max-w-[220px] w-max">
+            <div className="relative bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 text-[11px] leading-relaxed px-3 py-2 rounded-lg shadow-lg max-w-55 w-max">
               {nodeData.description}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-zinc-900 dark:border-t-zinc-100" />
             </div>
@@ -153,7 +153,7 @@ export const ArchitectureNode = memo(
           type="target"
           position={Position.Top}
           title="Input"
-          className="!w-2 !h-2 !rounded-full !bg-zinc-300 dark:!bg-zinc-700 !border-2 !border-white dark:!border-zinc-950 !-top-1 hover:!scale-150 !transition-transform"
+          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! -top-1! hover:scale-150! transition-transform!"
         />
 
         {/* Icon */}
@@ -175,7 +175,7 @@ export const ArchitectureNode = memo(
           }}
           title="Double-click to change icon"
         >
-          {nodeData.iconifyIcon?.startsWith("lucide:") ? (
+          {nodeData.iconifyIcon ? (
             <IconifyIcon
               icon={nodeData.iconifyIcon}
               className="w-5 h-5"
@@ -214,7 +214,7 @@ export const ArchitectureNode = memo(
                 onBlur={() => setIsEditing(false)}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="nodrag nowheel nopan text-xs font-semibold text-zinc-900 dark:text-zinc-200 bg-transparent border-b border-zinc-400 dark:border-zinc-600 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 text-center w-full max-w-[120px] px-1"
+                className="nodrag nowheel nopan text-xs font-semibold text-zinc-900 dark:text-zinc-200 bg-transparent border-b border-zinc-400 dark:border-zinc-600 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 text-center w-full max-w-30 px-1"
               />
             ) : (
               <span
@@ -236,7 +236,7 @@ export const ArchitectureNode = memo(
               />
             )}
           </div>
-          <span className="text-[9px] font-mono text-zinc-500 dark:text-zinc-500 uppercase tracking-tight">
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-tight">
             {nodeData.type}
           </span>
         </div>
@@ -246,7 +246,7 @@ export const ArchitectureNode = memo(
           type="source"
           position={Position.Bottom}
           title="Output"
-          className="!w-2 !h-2 !rounded-full !bg-zinc-200 dark:!bg-zinc-500 !border-2 !border-white dark:!border-zinc-950 !-bottom-1 hover:!scale-150 !transition-transform"
+          className="w-2! h-2! rounded-full! bg-zinc-200! dark:bg-zinc-500! border-2! border-white! dark:border-zinc-950! -bottom-1! hover:scale-150! transition-transform!"
         />
 
         {/* Left Handle - Input */}
@@ -255,7 +255,7 @@ export const ArchitectureNode = memo(
           position={Position.Left}
           id="left"
           title="Input"
-          className="!w-2 !h-2 !rounded-full !bg-zinc-300 dark:!bg-zinc-700 !border-2 !border-white dark:!border-zinc-950 hover:!scale-150 !transition-transform"
+          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
         />
 
         {/* Right Handle - Output */}
@@ -264,7 +264,7 @@ export const ArchitectureNode = memo(
           position={Position.Right}
           id="right"
           title="Output"
-          className="!w-2 !h-2 !rounded-full !bg-zinc-300 dark:!bg-zinc-700 !border-2 !border-white dark:!border-zinc-950 hover:!scale-150 !transition-transform"
+          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
         />
 
         {/* Health Check Indicator */}
