@@ -15,78 +15,33 @@ interface CodeEditorProps {
   readOnly?: boolean;
 }
 
-// Custom theme extensions for light and dark modes
-const lightTheme = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "rgb(250 250 250)", // zinc-50
-      fontSize: "11px",
+// Neutral editor surfaces follow the same tokens as the surrounding form.
+function editorTheme(dark: boolean) {
+  return EditorView.theme(
+    {
+      "&": {
+        backgroundColor: "var(--card)",
+        color: "var(--card-foreground)",
+        fontSize: "11px",
+      },
+      ".cm-gutters": {
+        backgroundColor: "var(--card)",
+        borderRight: "1px solid var(--border)",
+        color: "var(--muted-foreground)",
+      },
+      ".cm-activeLineGutter, .cm-activeLine": { backgroundColor: "var(--muted)" },
+      ".cm-cursor": { borderLeftColor: "var(--foreground)" },
+      ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
+        backgroundColor: "color-mix(in srgb, var(--foreground) 20%, var(--card)) !important",
+      },
+      ".cm-content": { caretColor: "var(--foreground)" },
+      ".cm-placeholder": { color: "var(--muted-foreground)" },
     },
-    ".cm-gutters": {
-      backgroundColor: "rgb(244 244 245)", // zinc-100
-      borderRight: "1px solid rgb(228 228 231)", // zinc-200
-      color: "rgb(161 161 170)", // zinc-400
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "rgb(228 228 231)", // zinc-200
-    },
-    ".cm-activeLine": {
-      backgroundColor: "rgb(244 244 245)", // zinc-100
-    },
-    ".cm-cursor": {
-      borderLeftColor: "rgb(39 39 42)", // zinc-800
-    },
-    ".cm-selectionBackground": {
-      backgroundColor: "rgb(212 212 216) !important", // zinc-300
-    },
-    "&.cm-focused .cm-selectionBackground": {
-      backgroundColor: "rgb(212 212 216) !important",
-    },
-    ".cm-content": {
-      caretColor: "rgb(39 39 42)", // zinc-800
-    },
-    ".cm-placeholder": {
-      color: "rgb(161 161 170)", // zinc-400
-    },
-  },
-  { dark: false },
-);
-
-const darkTheme = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "rgb(24 24 27)", // zinc-900
-      fontSize: "11px",
-    },
-    ".cm-gutters": {
-      backgroundColor: "rgb(24 24 27)", // zinc-900
-      borderRight: "1px solid rgb(39 39 42)", // zinc-800
-      color: "rgb(82 82 91)", // zinc-600
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "rgb(39 39 42)", // zinc-800
-    },
-    ".cm-activeLine": {
-      backgroundColor: "rgb(39 39 42 / 0.5)", // zinc-800/50
-    },
-    ".cm-cursor": {
-      borderLeftColor: "rgb(244 244 245)", // zinc-100
-    },
-    ".cm-selectionBackground": {
-      backgroundColor: "rgb(63 63 70) !important", // zinc-700
-    },
-    "&.cm-focused .cm-selectionBackground": {
-      backgroundColor: "rgb(63 63 70) !important",
-    },
-    ".cm-content": {
-      caretColor: "rgb(244 244 245)", // zinc-100
-    },
-    ".cm-placeholder": {
-      color: "rgb(82 82 91)", // zinc-600
-    },
-  },
-  { dark: true },
-);
+    { dark },
+  );
+}
+const lightTheme = editorTheme(false);
+const darkTheme = editorTheme(true);
 
 // Syntax highlighting colors
 const syntaxHighlightingLight = EditorView.theme({
@@ -119,15 +74,7 @@ export function CodeEditor({
   height = "180px",
   readOnly = false,
 }: CodeEditorProps) {
-  const { theme } = useThemeStore();
-
-  // Determine if dark mode is active
-  const isDark = useMemo(() => {
-    if (theme === "system") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    return theme === "dark";
-  }, [theme]);
+  const isDark = useThemeStore((state) => state.resolvedTheme === "dark");
 
   // Get language extension based on format
   const getLanguageExtension = useCallback(() => {
@@ -162,7 +109,7 @@ export function CodeEditor({
   }, [isDark, getLanguageExtension]);
 
   return (
-    <div className="rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden focus-within:border-zinc-400 dark:focus-within:border-zinc-600 transition-colors">
+    <div className="rounded border border-input overflow-hidden focus-within:border-ring transition-colors">
       <CodeMirror
         value={value}
         height={height}

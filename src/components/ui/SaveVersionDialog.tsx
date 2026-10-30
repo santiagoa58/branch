@@ -59,7 +59,7 @@ export function SaveVersionDialog({ isOpen, isSaving, onSave, onClose }: SaveVer
               htmlFor="version-label"
               className="text-xs font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Label <span className="text-zinc-400 font-normal">(optional)</span>
+              Label <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <input
               id="version-label"
@@ -69,9 +69,9 @@ export function SaveVersionDialog({ isOpen, isSaving, onSave, onClose }: SaveVer
               placeholder="e.g. Before refactor, v1.2, Sprint 3 baseline…"
               maxLength={255}
 
-              className="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition"
+              className="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition"
             />
-            <p className="text-xs text-zinc-400 dark:text-zinc-600">
+            <p className="text-xs text-muted-foreground">
               A snapshot of the current diagram state will be saved.
             </p>
           </div>

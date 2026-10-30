@@ -50,7 +50,7 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
           <DialogTitle className="flex items-center gap-2">
             {/* Protocol colour dot */}
             <span
-              className="inline-block h-3 w-3 rounded-full flex-shrink-0"
+              className="inline-block h-3 w-3 rounded-full shrink-0"
               style={{ background: protocolColor }}
             />
             Edge Details

@@ -141,7 +141,7 @@ export function GettingStartedChecklist({ hidden = false }: GettingStartedCheckl
               );
             })}
           </ul>
-          <div className="px-3.5 py-2 border-t border-zinc-100 dark:border-zinc-800 text-[10px] text-zinc-400 dark:text-zinc-500">
+          <div className="px-3.5 py-2 border-t border-zinc-100 dark:border-zinc-800 text-[10px] text-muted-foreground">
             {count} of {total} done · dismiss anytime
           </div>
         </>

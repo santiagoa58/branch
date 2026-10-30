@@ -175,7 +175,7 @@ export function VersionPreviewModal({
   const displayEdges = mode === "preview" ? vEdges : diffEdges;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
       {/* Backdrop */}
       <button
         type="button"
@@ -187,7 +187,7 @@ export function VersionPreviewModal({
       {/* Modal */}
       <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col w-full max-w-4xl h-[82vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
           <div className="flex items-center gap-3 flex-wrap">
             {/* Version label */}
             <div>
@@ -202,7 +202,7 @@ export function VersionPreviewModal({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
+              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                 <ClockIcon className="w-3 h-3" />
                 {formatDate(version.createdAt)}
               </p>
@@ -255,7 +255,7 @@ export function VersionPreviewModal({
                   </span>
                 )}
                 {addedCount === 0 && removedCount === 0 && modifiedCount === 0 && (
-                  <span className="text-xs text-zinc-400">No changes vs current</span>
+                  <span className="text-xs text-muted-foreground">No changes vs current</span>
                 )}
               </div>
             )}
@@ -264,7 +264,7 @@ export function VersionPreviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 transition-colors flex-shrink-0"
+            className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500 transition-colors shrink-0"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
@@ -295,8 +295,8 @@ export function VersionPreviewModal({
 
         {/* Diff legend footer */}
         {mode === "diff" && (
-          <div className="flex items-center gap-5 px-5 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-b-xl">
-            <span className="text-xs text-zinc-400 font-medium">Legend:</span>
+          <div className="flex items-center gap-5 px-5 py-2.5 border-t border-zinc-200 dark:border-zinc-800 shrink-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-b-xl">
+            <span className="text-xs text-muted-foreground font-medium">Legend:</span>
             {[
               { dot: "bg-green-500", label: "Added in current" },
               { dot: "bg-red-500", label: "Removed in current" },
@@ -306,7 +306,7 @@ export function VersionPreviewModal({
                 key={label}
                 className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400"
               >
-                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot}`} />
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
                 {label}
               </span>
             ))}

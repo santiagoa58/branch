@@ -54,7 +54,7 @@ export function TagFilter() {
         onClick={() => setOpen(true)}
         className={cn(
           // Sits below the protocol legend pill (top-4 + ~40px button + 8px gap).
-          "absolute top-[60px] right-4 z-20 flex items-center gap-1.5 px-2.5 py-1.5",
+          "absolute top-15 right-4 z-20 flex items-center gap-1.5 px-2.5 py-1.5",
           "bg-white/90 dark:bg-zinc-950/80 backdrop-blur-md",
           "border border-zinc-200 dark:border-zinc-800 rounded-lg",
           "shadow shadow-black/5 dark:shadow-black/40",
@@ -66,9 +66,7 @@ export function TagFilter() {
       >
         <TagIcon className="w-3 h-3" />
         <span>Tags</span>
-        <span className="text-zinc-400 dark:text-zinc-600 normal-case font-normal">
-          {allTags.length}
-        </span>
+        <span className="text-muted-foreground normal-case font-normal">{allTags.length}</span>
         {anyHidden && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
       </button>
     );
@@ -77,7 +75,7 @@ export function TagFilter() {
   return (
     <div
       className={cn(
-        "absolute top-[60px] right-4 z-20 min-w-[200px] max-w-[260px] px-3.5 py-2.5",
+        "absolute top-15 right-4 z-20 min-w-50 max-w-65 px-3.5 py-2.5",
         "bg-white/95 dark:bg-zinc-950/85 backdrop-blur-md",
         "border border-zinc-200 dark:border-zinc-800 rounded-lg",
         "shadow-lg shadow-black/5 dark:shadow-black/40",
@@ -85,7 +83,7 @@ export function TagFilter() {
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Tags
         </span>
         <div className="flex items-center gap-0.5">
@@ -105,7 +103,7 @@ export function TagFilter() {
             className="p-1 opacity-50 hover:opacity-100 transition-opacity"
             title="Hide"
           >
-            <XMarkIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-500" />
+            <XMarkIcon className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -133,18 +131,16 @@ export function TagFilter() {
               <span className="text-[11px] font-mono text-zinc-700 dark:text-zinc-300 flex-1 truncate">
                 {tag}
               </span>
-              <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-600 flex-shrink-0">
-                {count}
-              </span>
+              <span className="text-[10px] font-mono text-muted-foreground shrink-0">{count}</span>
               {isHidden && (
-                <EyeSlashIcon className="w-3 h-3 text-zinc-400 dark:text-zinc-600 flex-shrink-0" />
+                <EyeSlashIcon className="w-3 h-3 text-zinc-400 dark:text-zinc-600 shrink-0" />
               )}
             </button>
           );
         })}
       </div>
 
-      <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[9px] text-zinc-400 dark:text-zinc-600">
+      <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[9px] text-muted-foreground">
         Click toggle · Dbl-click isolate
       </div>
     </div>

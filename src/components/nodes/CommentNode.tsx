@@ -34,7 +34,7 @@ export const CommentNode = memo(
       <div
         data-node-id={id}
         className={cn(
-          "rounded-lg border-2 shadow-lg transition-all backdrop-blur-sm min-w-[200px] max-w-[300px]",
+          "rounded-lg border-2 shadow-lg transition-all backdrop-blur-sm min-w-50 max-w-75",
           colorConfig.bg,
           colorConfig.border,
           selected && "ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-2",
@@ -65,7 +65,7 @@ export const CommentNode = memo(
         {/* Content */}
         {!isMinimized && (
           <div className="p-3">
-            <div className={cn("text-sm whitespace-pre-wrap break-words", colorConfig.text)}>
+            <div className={cn("text-sm whitespace-pre-wrap wrap-break-word", colorConfig.text)}>
               {commentData.text || "Add your note here..."}
             </div>
 

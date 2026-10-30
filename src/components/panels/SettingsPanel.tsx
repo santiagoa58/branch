@@ -184,7 +184,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 {showApiKey ? "Hide" : "Show"}
               </button>

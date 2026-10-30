@@ -83,7 +83,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
             <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {nodeData.label}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500 mt-0.5">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
               {config.label}
             </div>
           </div>
@@ -170,7 +170,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         )}
         {/* Label Badge - positioned at top */}
         <div
-          className="absolute -top-3 left-4 bg-white dark:bg-zinc-950 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-zinc-600 dark:text-zinc-500 flex items-center gap-1.5 border border-zinc-300 dark:border-zinc-800 rounded-full pointer-events-auto cursor-pointer"
+          className="absolute -top-3 left-4 bg-white dark:bg-zinc-950 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5 border border-zinc-300 dark:border-zinc-800 rounded-full pointer-events-auto cursor-pointer"
           style={accentColor ? { borderColor: accentColor, color: accentColor } : undefined}
         >
           <Icon className="w-2.5 h-2.5" />

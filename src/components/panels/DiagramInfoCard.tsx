@@ -100,14 +100,14 @@ export function DiagramInfoCard() {
           "border border-zinc-200 dark:border-zinc-800 rounded-lg",
           "shadow-lg shadow-black/5 dark:shadow-black/40",
           "hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors",
-          "max-w-[284px] animate-slide-in",
+          "max-w-71 animate-slide-in",
         )}
         title="Expand"
       >
         <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate tracking-tight">
           {title}
         </span>
-        <ChevronDownIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-500 flex-shrink-0" />
+        <ChevronDownIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-500 shrink-0" />
       </button>
     );
   }
@@ -115,7 +115,7 @@ export function DiagramInfoCard() {
   return (
     <div
       className={cn(
-        "absolute top-4 left-4 z-20 max-w-[284px] px-3.5 py-3",
+        "absolute top-4 left-4 z-20 max-w-71 px-3.5 py-3",
         "bg-white/95 dark:bg-zinc-950/85 backdrop-blur-md",
         "border border-zinc-200 dark:border-zinc-800 rounded-lg",
         "shadow-lg shadow-black/5 dark:shadow-black/40",
@@ -136,7 +136,7 @@ export function DiagramInfoCard() {
         <button
           type="button"
           onClick={() => setCollapsed(true)}
-          className="flex-shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity"
+          className="shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity"
           title="Collapse"
         >
           <ChevronLeftIcon className="w-3 h-3 text-zinc-500 dark:text-zinc-500" />

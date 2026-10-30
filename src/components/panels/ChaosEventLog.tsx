@@ -47,14 +47,14 @@ export function ChaosEventLog() {
 
   if (chaosEventLog.length === 0) {
     return (
-      <div className="mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg px-4 py-3 min-w-[400px] max-w-[520px]">
+      <div className="mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg px-4 py-3 min-w-100 max-w-130">
         <div className="flex items-center gap-2 mb-1">
           <BoltIcon className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Chaos Event Log
           </span>
         </div>
-        <p className="text-xs text-zinc-400 dark:text-zinc-600 italic">
+        <p className="text-xs text-muted-foreground italic">
           No events yet — press Play to start chaos simulation
         </p>
       </div>
@@ -62,10 +62,10 @@ export function ChaosEventLog() {
   }
 
   return (
-    <div className="mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg px-4 py-3 min-w-[400px] max-w-[520px]">
+    <div className="mb-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg px-4 py-3 min-w-100 max-w-130">
       <div className="flex items-center gap-2 mb-2">
         <BoltIcon className="w-3.5 h-3.5 text-amber-500" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           Chaos Event Log
         </span>
         <span className="ml-auto text-[10px] font-mono text-zinc-400 tabular-nums">
@@ -75,7 +75,7 @@ export function ChaosEventLog() {
 
       <div
         ref={scrollRef}
-        className="max-h-[200px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700"
+        className="max-h-50 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700"
       >
         {chaosEventLog.map((event) => {
           const Icon = EVENT_ICONS[event.type];
@@ -87,7 +87,7 @@ export function ChaosEventLog() {
                 EVENT_BG[event.type],
               )}
             >
-              <Icon className={cn("w-3.5 h-3.5 mt-0.5 flex-shrink-0", EVENT_COLORS[event.type])} />
+              <Icon className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", EVENT_COLORS[event.type])} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={cn("font-semibold", EVENT_COLORS[event.type])}>
@@ -96,12 +96,12 @@ export function ChaosEventLog() {
                   <span className="text-zinc-500 dark:text-zinc-400">{event.message}</span>
                 </div>
                 {event.affectedCount > 0 && (
-                  <span className="text-[10px] text-zinc-400 dark:text-zinc-600">
+                  <span className="text-[10px] text-muted-foreground">
                     {event.affectedCount} affected downstream
                   </span>
                 )}
               </div>
-              <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-600 flex-shrink-0 mt-0.5">
+              <span className="text-[9px] font-mono text-muted-foreground shrink-0 mt-0.5">
                 {formatTimestamp(event.timestamp)}
               </span>
             </div>
