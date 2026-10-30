@@ -1,7 +1,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { useDiagramStore } from "@/store/diagramStore";
 import { PropertiesPanel } from "./PropertiesPanel";
+
+vi.mock("@/components/ui/CodeEditor", () => ({ CodeEditor: () => null }));
 
 describe("property input validation", () => {
   beforeEach(() => {
@@ -36,6 +38,22 @@ describe("property input validation", () => {
     fireEvent.change(select, { target: { value: "unsupported" } });
     expect(useDiagramStore.getState().nodes[0]?.data["type"]).toBe("service");
     expect(() => useDiagramStore.getState().saveDiagram()).not.toThrow();
+  });
+
+  it("uses theme-aware text for edge flow labels and hints", () => {
+    useDiagramStore.setState({
+      selectedNodeId: null,
+      selectedEdgeId: "edge",
+      edges: [{ id: "edge", source: "s", target: "s", data: { protocol: "http" } }],
+    });
+    render(<PropertiesPanel />);
+
+    for (const label of ["Animated Flow", "Fire & Forget", "Two-way Flow"]) {
+      expect(screen.getByText(label)).toHaveClass("text-foreground");
+    }
+    for (const hint of ["Show data passing", "Non-blocking call", "Request/Response"]) {
+      expect(screen.getByText(hint)).toHaveClass("text-muted-foreground");
+    }
   });
 
   it("applies supported node type changes", () => {

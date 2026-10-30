@@ -123,9 +123,7 @@ export function PropertiesPanel() {
         <div className="flex-1 overflow-y-auto p-5">
           <div className="text-center mt-20 opacity-40">
             <CursorArrowRippleIcon className="w-8 h-8 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
-            <p className="text-xs text-zinc-500 dark:text-zinc-500">
-              Select a node to view properties
-            </p>
+            <p className="text-xs text-muted-foreground">Select a node to view properties</p>
           </div>
         </div>
       </aside>
@@ -167,7 +165,7 @@ export function PropertiesPanel() {
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
                   Comment
                 </h2>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   ID: {selectedNode.id.slice(-8).toUpperCase()}
                 </span>
               </div>
@@ -188,7 +186,7 @@ export function PropertiesPanel() {
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder="Add your note here..."
                   rows={6}
-                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-2 text-sm text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-2 text-sm text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
                 />
               </div>
 
@@ -225,7 +223,7 @@ export function PropertiesPanel() {
                   onChange={(e) => updateNodeData(selectedNode.id, { author: e.target.value })}
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder="Your name"
-                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                 />
               </div>
 
@@ -242,13 +240,13 @@ export function PropertiesPanel() {
             {/* Metadata Section */}
             <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Comment ID</span>
+                <span className="text-muted-foreground">Comment ID</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {selectedNode.id.slice(-12)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Created</span>
+                <span className="text-muted-foreground">Created</span>
                 <span className="text-zinc-700 dark:text-zinc-300">
                   {commentData.createdAt
                     ? new Date(commentData.createdAt).toLocaleDateString()
@@ -256,13 +254,13 @@ export function PropertiesPanel() {
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Position X</span>
+                <span className="text-muted-foreground">Position X</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {Math.round(selectedNode.position.x)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Position Y</span>
+                <span className="text-muted-foreground">Position Y</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {Math.round(selectedNode.position.y)}
                 </span>
@@ -316,7 +314,7 @@ export function PropertiesPanel() {
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
                   {groupData.label}
                 </h2>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   ID: {selectedNode.id.slice(-8).toUpperCase()}
                 </span>
               </div>
@@ -377,7 +375,7 @@ export function PropertiesPanel() {
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder="Describe this group..."
                   rows={3}
-                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
                 />
               </div>
 
@@ -446,31 +444,31 @@ export function PropertiesPanel() {
             {/* Metadata Section */}
             <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Group ID</span>
+                <span className="text-muted-foreground">Group ID</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {selectedNode.id.slice(-12)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Position X</span>
+                <span className="text-muted-foreground">Position X</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {Math.round(selectedNode.position.x)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Position Y</span>
+                <span className="text-muted-foreground">Position Y</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {Math.round(selectedNode.position.y)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Width</span>
+                <span className="text-muted-foreground">Width</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {(selectedNode.style?.width as number) || 300}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Height</span>
+                <span className="text-muted-foreground">Height</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {(selectedNode.style?.height as number) || 250}
                 </span>
@@ -532,7 +530,7 @@ export function PropertiesPanel() {
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
                   {nodeData.label}
                 </h2>
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-500 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   ID: {selectedNode.id.slice(-8).toUpperCase()}
                 </span>
               </div>
@@ -597,7 +595,7 @@ export function PropertiesPanel() {
                       }
                       onKeyDown={(e) => e.stopPropagation()}
                       placeholder="e.g., mdi:kubernetes, logos:docker-icon"
-                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                      className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                     />
                     {nodeData.iconifyIcon && (
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4">
@@ -662,7 +660,7 @@ export function PropertiesPanel() {
                   onChange={(e) => updateNodeData(selectedNode.id, { technology: e.target.value })}
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder="e.g., Node.js, PostgreSQL"
-                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                 />
               </div>
 
@@ -756,7 +754,7 @@ export function PropertiesPanel() {
                   onChange={(e) => updateNodeData(selectedNode.id, { port: e.target.value })}
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder="e.g., 3000, 5432"
-                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                 />
               </div>
 
@@ -771,7 +769,7 @@ export function PropertiesPanel() {
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder="Describe this component..."
                   rows={3}
-                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
                 />
               </div>
 
@@ -790,7 +788,7 @@ export function PropertiesPanel() {
                     }
                     onKeyDown={(e) => e.stopPropagation()}
                     placeholder="https://api.example.com/health"
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                   />
                   <button
                     type="button"
@@ -856,7 +854,7 @@ export function PropertiesPanel() {
                                     : "Error"}
                             </span>
                             {!healthResult.loading && (
-                              <span className="text-[10px] text-zinc-500 dark:text-zinc-500">
+                              <span className="text-[10px] text-muted-foreground">
                                 {healthResult.latency}ms
                               </span>
                             )}
@@ -867,7 +865,7 @@ export function PropertiesPanel() {
                             </p>
                           )}
                           {!healthResult.loading && (
-                            <p className="text-[9px] text-zinc-500 dark:text-zinc-500 mt-0.5">
+                            <p className="text-[9px] text-muted-foreground mt-0.5">
                               {new Date(healthResult.timestamp).toLocaleTimeString()}
                             </p>
                           )}
@@ -900,7 +898,7 @@ export function PropertiesPanel() {
                   suggestions={tagSuggestions}
                   placeholder="e.g. pci, team:payments"
                 />
-                <span className="text-[9px] text-zinc-400 dark:text-zinc-600">
+                <span className="text-[9px] text-muted-foreground">
                   Filter the canvas by tag from the top-right overlay
                 </span>
               </div>
@@ -934,7 +932,7 @@ export function PropertiesPanel() {
                   </select>
                   <Squares2X2Icon className="absolute right-2 top-2 w-3 h-3 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   Tip: Drag node inside a group to auto-assign
                 </p>
               </div>
@@ -943,19 +941,19 @@ export function PropertiesPanel() {
             {/* Metadata Section */}
             <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Node ID</span>
+                <span className="text-muted-foreground">Node ID</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {selectedNode.id.slice(-12)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Position X</span>
+                <span className="text-muted-foreground">Position X</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {Math.round(selectedNode.position.x)}
                 </span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500 dark:text-zinc-500">Position Y</span>
+                <span className="text-muted-foreground">Position Y</span>
                 <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                   {Math.round(selectedNode.position.y)}
                 </span>
@@ -1018,7 +1016,7 @@ export function PropertiesPanel() {
                 onChange={(e) => updateEdgeData(selectedEdge.id, { label: e.target.value })}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="e.g., /api/users"
-                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
               />
             </div>
 
@@ -1107,8 +1105,8 @@ export function PropertiesPanel() {
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-700 dark:text-zinc-300">Animated</span>
               <div className="flex flex-col">
-                <span className="text-xs text-zinc-300">Animated Flow</span>
-                <span className="text-[10px] text-zinc-500">Show data passing</span>
+                <span className="text-xs text-foreground">Animated Flow</span>
+                <span className="text-[10px] text-muted-foreground">Show data passing</span>
               </div>
               <ToggleSwitch
                 checked={edgeData.animated || false}
@@ -1120,8 +1118,8 @@ export function PropertiesPanel() {
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-700 dark:text-zinc-300">Asynchronous</span>
               <div className="flex flex-col">
-                <span className="text-xs text-zinc-300">Fire & Forget</span>
-                <span className="text-[10px] text-zinc-500">Non-blocking call</span>
+                <span className="text-xs text-foreground">Fire & Forget</span>
+                <span className="text-[10px] text-muted-foreground">Non-blocking call</span>
               </div>
               <ToggleSwitch
                 checked={edgeData.async || false}
@@ -1133,8 +1131,8 @@ export function PropertiesPanel() {
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-700 dark:text-zinc-300">Bidirectional</span>
               <div className="flex flex-col">
-                <span className="text-xs text-zinc-300">Two-way Flow</span>
-                <span className="text-[10px] text-zinc-500">Request/Response</span>
+                <span className="text-xs text-foreground">Two-way Flow</span>
+                <span className="text-[10px] text-muted-foreground">Request/Response</span>
               </div>
               <ToggleSwitch
                 checked={edgeData.bidirectional || false}
@@ -1158,9 +1156,9 @@ export function PropertiesPanel() {
                 }}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="e.g. 50"
-                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
               />
-              <span className="text-[9px] text-zinc-400 dark:text-zinc-600">
+              <span className="text-[9px] text-muted-foreground">
                 Used by simulation for packet speed
               </span>
             </div>
@@ -1176,7 +1174,7 @@ export function PropertiesPanel() {
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="Describe this connection..."
                 rows={3}
-                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
               />
             </div>
 
@@ -1227,7 +1225,7 @@ export function PropertiesPanel() {
                   <span className="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
                     Data Contract
                   </span>
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-600">Optional</span>
+                  <span className="text-[9px] text-muted-foreground">Optional</span>
                 </div>
 
                 {/* Segmented control — only for request/response protocols. */}
@@ -1311,7 +1309,7 @@ export function PropertiesPanel() {
                         ? "e.g., TaskCreatedResponse"
                         : "e.g., TaskCreatedEvent"
                     }
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
+                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                   />
                 </div>
 
@@ -1327,7 +1325,7 @@ export function PropertiesPanel() {
                     placeholder={DATA_FORMATS[activeContract?.format || "json"].placeholder}
                     height="180px"
                   />
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-600">
+                  <span className="text-[9px] text-muted-foreground">
                     {DATA_FORMATS[activeContract?.format || "json"].description}
                   </span>
                 </div>
@@ -1347,7 +1345,7 @@ export function PropertiesPanel() {
                         : "Additional notes about this data contract..."
                     }
                     rows={2}
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
+                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
                   />
                 </div>
               </div>
@@ -1357,19 +1355,19 @@ export function PropertiesPanel() {
           {/* Metadata Section */}
           <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
             <div className="flex justify-between text-[10px]">
-              <span className="text-zinc-500 dark:text-zinc-500">Edge ID</span>
+              <span className="text-muted-foreground">Edge ID</span>
               <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                 {selectedEdge.id.slice(-12)}
               </span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-zinc-500 dark:text-zinc-500">Source</span>
+              <span className="text-muted-foreground">Source</span>
               <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                 {selectedEdge.source.slice(-8)}
               </span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-zinc-500 dark:text-zinc-500">Target</span>
+              <span className="text-muted-foreground">Target</span>
               <span className="text-zinc-700 dark:text-zinc-300 font-mono">
                 {selectedEdge.target.slice(-8)}
               </span>
