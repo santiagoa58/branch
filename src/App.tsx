@@ -5,16 +5,14 @@ import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
 import { Navbar } from "@/components/Navbar";
 import { LoadingState } from "@/components/ui/loading";
 import { CloudNavigationGuard, CloudSaveError } from "@/components/CloudSaveStatus";
-import { useThemeStore } from "@/store/themeStore";
+import { ToastNotifications } from "@/components/ui/ToastNotifications";
 import { useUIStore } from "@/store/uiStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Toaster } from "sileo";
 
 function App() {
-  const theme = useThemeStore((state) => state.resolvedTheme);
   const { leftPanelVisible, rightPanelVisible } = useUIStore();
   const { setCurrentProject, setCurrentDiagram } = useWorkspaceStore();
   const { projectId, diagramId } = useParams<{ projectId: string; diagramId: string }>();
@@ -75,20 +73,7 @@ function App() {
             />
           </div>
         )}
-        <Toaster
-          position="top-right"
-          offset={{ top: 16, right: 16 }}
-          theme={theme}
-          options={{
-            roundness: 12,
-            styles: {
-              title: "text-sm font-semibold text-zinc-900 dark:text-zinc-100!",
-              description: "text-sm text-zinc-600 dark:text-zinc-400!",
-              badge: "bg-zinc-200/80 dark:bg-zinc-800/80!",
-              button: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100!",
-            },
-          }}
-        />
+        <ToastNotifications />
       </div>
     </ReactFlowProvider>
   );
