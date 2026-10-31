@@ -36,22 +36,34 @@ describe("shared loading UI", () => {
   });
 
   it.each(["screen", "panel"] as const)(
-    "preserves the animated branching artwork in the %s loader",
+    "animates one request signal through the branch in the %s loader",
     (variant) => {
-      const { container } = render(<LoadingState variant={variant} />);
+      const { container } = render(<LoadingState variant={variant} label="Loading diagram…" />);
       const artwork = container.querySelector("svg");
 
       expect(artwork).toHaveAttribute("viewBox", "0 0 160 96");
-      expect(artwork?.closest('[aria-hidden="true"]')).not.toBeNull();
-      expect(artwork?.querySelector("path")).toHaveClass("stroke-border");
-      expect(artwork?.querySelectorAll("rect")).toHaveLength(3);
-      const dots = artwork?.querySelectorAll("circle.branch-loading-dot");
-      expect(dots).toHaveLength(3);
-      dots?.forEach((dot, step) => {
-        expect(dot).toHaveClass("fill-primary");
-        expect(dot).toHaveStyle({ animationDelay: `${step * 160}ms` });
-      });
-      expect(container.querySelector("img")).not.toBeInTheDocument();
+      expect(artwork).toHaveAttribute("aria-hidden", "true");
+      const signals = Array.from(artwork?.querySelectorAll("path.branch-signal") ?? []);
+      expect(signals.map((path) => path.getAttribute("pathLength"))).toEqual(["1", "1", "1"]);
+      expect(artwork?.querySelectorAll(".branch-signal-trunk")).toHaveLength(1);
+      expect(artwork?.querySelectorAll(".branch-signal-fork")).toHaveLength(2);
+      // Each signal path rides on a matching static connector.
+      const connectors = Array.from(
+        artwork?.querySelectorAll("path:not(.branch-signal)") ?? [],
+        (path) => path.getAttribute("d"),
+      );
+      expect(signals.map((path) => path.getAttribute("d"))).toEqual(connectors);
+      expect(artwork?.querySelectorAll("rect.branch-node-source")).toHaveLength(1);
+      expect(artwork?.querySelectorAll("rect.branch-node-target")).toHaveLength(2);
+    },
+  );
+
+  it.each(["screen", "panel"] as const)(
+    "shows a single label without a wordmark or a second dot indicator (%s)",
+    (variant) => {
+      const { container } = render(<LoadingState variant={variant} label="Loading diagram…" />);
+      expect(screen.getByRole("status").textContent).toBe("Loading diagram…");
+      expect(container.querySelector(".branch-loading-dot")).not.toBeInTheDocument();
     },
   );
 

@@ -18,6 +18,55 @@ export function LoadingIndicator({ className }: { className?: string }) {
   );
 }
 
+const TRUNK = "M52 48h16";
+const FORKS = ["M68 48c16 0 12-24 28-24h12", "M68 48c16 0 12 24 28 24h12"];
+
+/** A request signal travelling from one service through a fork to two others. */
+function BranchSignalArtwork() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 160 96" fill="none" className="h-24 w-40">
+      <g className="stroke-border" strokeWidth="2" strokeLinecap="round">
+        <path d={TRUNK} />
+        {FORKS.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </g>
+      <g className="stroke-primary" strokeWidth="2.5" strokeLinecap="round">
+        <path d={TRUNK} pathLength={1} className="branch-signal branch-signal-trunk" />
+        {FORKS.map((d) => (
+          <path key={d} d={d} pathLength={1} className="branch-signal branch-signal-fork" />
+        ))}
+      </g>
+      <g className="fill-card" strokeWidth="1.5">
+        <rect
+          x="24"
+          y="34"
+          width="28"
+          height="28"
+          rx="8"
+          className="branch-node branch-node-source"
+        />
+        <rect
+          x="108"
+          y="12"
+          width="24"
+          height="24"
+          rx="6"
+          className="branch-node branch-node-target"
+        />
+        <rect
+          x="108"
+          y="60"
+          width="24"
+          height="24"
+          rx="6"
+          className="branch-node branch-node-target"
+        />
+      </g>
+    </svg>
+  );
+}
+
 interface LoadingStateProps {
   label?: string;
   description?: string;
@@ -43,45 +92,9 @@ export function LoadingState({
         className,
       )}
     >
-      <div aria-hidden="true" className="relative flex h-24 w-40 items-center justify-center">
-        <div className="absolute inset-0 rounded-2xl bg-muted/50 bg-grid-pattern opacity-40" />
-        <svg viewBox="0 0 160 96" fill="none" className="relative h-full w-full">
-          <path
-            d="M52 48h16c16 0 12-24 28-24h12M68 48c16 0 12 24 28 24h12"
-            className="stroke-border"
-            strokeWidth="2"
-          />
-          <g className="fill-card stroke-border" strokeWidth="1.5">
-            <rect x="24" y="34" width="28" height="28" rx="8" />
-            <rect x="108" y="12" width="24" height="24" rx="6" />
-            <rect x="108" y="60" width="24" height="24" rx="6" />
-          </g>
-          {[
-            { cx: 38, cy: 48 },
-            { cx: 120, cy: 24 },
-            { cx: 120, cy: 72 },
-          ].map(({ cx, cy }, step) => (
-            <circle
-              key={cy}
-              cx={cx}
-              cy={cy}
-              r="3"
-              className="branch-loading-dot fill-primary"
-              style={{ animationDelay: `${step * 160}ms` }}
-            />
-          ))}
-        </svg>
-      </div>
-      <div className="flex max-w-sm flex-col items-center gap-2">
-        {screen && (
-          <span aria-hidden="true" className="text-base font-semibold tracking-tight">
-            Branch
-          </span>
-        )}
-        <span className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoadingIndicator />
-          {label}
-        </span>
+      <BranchSignalArtwork />
+      <div className="flex max-w-sm flex-col items-center gap-1">
+        <span className="text-sm text-muted-foreground">{label}</span>
         {description && (
           <span className="text-pretty text-xs text-muted-foreground">{description}</span>
         )}
