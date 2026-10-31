@@ -20,11 +20,12 @@ Object.defineProperty(globalThis, "localStorage", {
 Object.defineProperty(globalThis, "ResizeObserver", {
   configurable: true,
   writable: true,
-  value: vi.fn<(callback: ResizeObserverCallback) => ResizeObserver>().mockImplementation(() => ({
-    observe: vi.fn<ResizeObserver["observe"]>(),
-    unobserve: vi.fn<ResizeObserver["unobserve"]>(),
-    disconnect: vi.fn<ResizeObserver["disconnect"]>(),
-  })),
+  // A class, because libraries such as React Flow construct it with `new`.
+  value: class implements ResizeObserver {
+    observe = vi.fn<ResizeObserver["observe"]>();
+    unobserve = vi.fn<ResizeObserver["unobserve"]>();
+    disconnect = vi.fn<ResizeObserver["disconnect"]>();
+  },
 });
 
 // Mock matchMedia

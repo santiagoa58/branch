@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { LoadingState } from "@/components/ui/loading";
+import { SaveConflictDialog } from "@/components/SaveConflictDialog";
 import { useAnimationStore } from "@/store/animationStore";
 import { useBlocker } from "react-router-dom";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
@@ -109,7 +110,15 @@ export function CloudNavigationGuard() {
 
 export function CloudSaveError() {
   const cloud = useCloudWorkspace();
-  if (cloud.status !== "error" && cloud.status !== "conflict") {
+  const conflicted = cloud.status === "conflict";
+  const [reviewing, setReviewing] = useState(conflicted);
+  const [wasConflicted, setWasConflicted] = useState(conflicted);
+  // Open the comparison as soon as a conflict happens; closing it leaves this banner to reopen it.
+  if (conflicted !== wasConflicted) {
+    setWasConflicted(conflicted);
+    setReviewing(conflicted);
+  }
+  if (cloud.status !== "error" && !conflicted) {
     return null;
   }
   return (
@@ -117,14 +126,17 @@ export function CloudSaveError() {
       role="alert"
       className="flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300"
     >
-      <span>
+      <span className="min-w-0 flex-1">
         {cloud.message}{" "}
-        {cloud.dirty && "Your edits are still in memory. Export JSON before closing or reloading."}
+        {cloud.dirty &&
+          (conflicted
+            ? "Your edits in this tab aren't saved yet."
+            : "Your edits are kept in this tab until they save.")}
       </span>
       {cloud.status === "error" && cloud.dirty && (
         <button
           type="button"
-          className="underline shrink-0"
+          className="underline shrink-0 whitespace-nowrap"
           onClick={() => {
             void cloudWorkspace.flush().catch(() => {});
           }}
@@ -132,26 +144,17 @@ export function CloudSaveError() {
           Retry save
         </button>
       )}
-      {cloud.status === "conflict" && (
-        <button
-          type="button"
-          className="underline shrink-0"
-          onClick={() => {
-            if (
-              window.confirm(
-                "Discard your unsaved edits and reload the cloud document? Export JSON first to keep a copy.",
-              )
-            ) {
-              const diagram = cloud.diagram;
-              cloudWorkspace.reset();
-              if (diagram) {
-                void cloudWorkspace.load(diagram.id, diagram.projectId);
-              }
-            }
-          }}
-        >
-          Discard edits and reload
-        </button>
+      {conflicted && (
+        <>
+          <button
+            type="button"
+            className="underline shrink-0 whitespace-nowrap"
+            onClick={() => setReviewing(true)}
+          >
+            Review changes
+          </button>
+          <SaveConflictDialog open={reviewing} onOpenChange={setReviewing} />
+        </>
       )}
     </div>
   );
