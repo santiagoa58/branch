@@ -4,13 +4,14 @@ import "@xyflow/react/dist/style.css";
 
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useUIStore } from "@/store/uiStore";
 
 import { nodeTypes } from "@/components/nodes";
 import { edgeTypes } from "@/components/edges";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
 import { architectureNodeTypeSchema, groupNodeTypeSchema } from "@/schemas/diagram";
-import { paletteNodeTypeSchema } from "@/schemas/ui";
-import { ArchitectureNodeType, ArchitectureNode, GroupNodeType, GroupNodeData } from "@/types";
+import { paletteNodeTypeSchema, type PaletteNodeType } from "@/schemas/ui";
+import { ArchitectureNode, GroupNodeData } from "@/types";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { applyGroupCollapse } from "@/utils/groupRollup";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,44 @@ const MINIMAP_NODE_COLORS: Record<string, string> = Object.fromEntries(
     `var(${config.iconColor.replace("text-", "--color-")})`,
   ]),
 );
+
+/**
+ * Toolbar controls a phone doesn't need: pinch zooms, there's no keyboard, and presenting or
+ * importing happen on larger screens. Keyed to the top bar's own width, not the window's.
+ */
+const PHONE_HIDDEN = "@max-md:hidden";
+
+/** Builds the node a palette item creates; drop, keyboard quick-add and taps all share it. */
+function createPaletteNode(type: PaletteNodeType, position: { x: number; y: number }): Node {
+  if (type === "comment") {
+    return {
+      id: `comment-${Date.now()}`,
+      type: "comment",
+      position,
+      data: { text: "Add your note here...", color: "yellow", createdAt: new Date().toISOString() },
+    };
+  }
+  if (type.startsWith("group-")) {
+    const groupType = groupNodeTypeSchema.parse(type.slice("group-".length));
+    const group: Node<GroupNodeData> = {
+      id: `group-${Date.now()}`,
+      type: "group",
+      position,
+      zIndex: -1,
+      style: { width: 300, height: 250 },
+      data: { label: `New ${GROUP_TYPES_CONFIG[groupType].label}`, groupType, collapsed: false },
+    };
+    return group;
+  }
+  const nodeType = architectureNodeTypeSchema.parse(type);
+  const node: ArchitectureNode = {
+    id: `node-${Date.now()}`,
+    type: "architecture",
+    position,
+    data: { label: `New ${NODE_TYPES_CONFIG[nodeType].label}`, type: nodeType },
+  };
+  return node;
+}
 
 export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
@@ -160,83 +199,30 @@ export function DiagramEditor() {
     return () => document.removeEventListener("contextmenu", preventContextMenu);
   }, []);
 
-  // Helper function to add node at viewport center
+  // Add a palette component at the center of the visible canvas (keyboard quick-add and taps)
   const addNodeAtCenter = useCallback(
-    (type: ArchitectureNodeType | "comment" | `group-${GroupNodeType}`) => {
+    (type: PaletteNodeType) => {
       const bounds = reactFlowWrapper.current?.getBoundingClientRect();
       if (!bounds) {
         return;
       }
-
-      // Calculate center of viewport
-      const centerX = bounds.left + bounds.width / 2;
-      const centerY = bounds.top + bounds.height / 2;
-
       const position = screenToFlowPosition({
-        x: centerX,
-        y: centerY,
+        x: bounds.left + bounds.width / 2,
+        y: bounds.top + bounds.height / 2,
       });
-
-      // Check if it's a comment node
-      if (type === "comment") {
-        const newComment: Node = {
-          id: `comment-${Date.now()}`,
-          type: "comment",
-          position,
-          data: {
-            text: "Add your note here...",
-            color: "yellow",
-            createdAt: new Date().toISOString(),
-          },
-        };
-
-        addNode(newComment);
-        return;
-      }
-
-      // Check if it's a group type
-      if (type.startsWith("group-")) {
-        const groupType = groupNodeTypeSchema.parse(type.slice("group-".length));
-        const config = GROUP_TYPES_CONFIG[groupType];
-
-        const newGroup: Node<GroupNodeData> = {
-          id: `group-${Date.now()}`,
-          type: "group",
-          position,
-          zIndex: -1,
-          style: {
-            width: 300,
-            height: 250,
-          },
-          data: {
-            label: `New ${config.label}`,
-            groupType,
-            collapsed: false,
-          },
-        };
-
-        addNode(newGroup);
-        return;
-      }
-
-      // Regular architecture node
-      const nodeType = architectureNodeTypeSchema.parse(type);
-      const config = NODE_TYPES_CONFIG[nodeType];
-
-      const newNode: ArchitectureNode = {
-        id: `node-${Date.now()}`,
-        type: "architecture",
-        position,
-        data: {
-          label: `New ${config.label}`,
-          type: nodeType,
-        },
-      };
-
-      addNode(newNode);
+      addNode(createPaletteNode(type, position));
     },
     [screenToFlowPosition, addNode],
   );
+
+  // A palette item chosen by click or tap lands at the center of the view.
+  const pendingPaletteAdd = useUIStore((s) => s.pendingPaletteAdd);
+  useEffect(() => {
+    if (pendingPaletteAdd) {
+      addNodeAtCenter(pendingPaletteAdd);
+      useUIStore.getState().completePaletteAdd();
+    }
+  }, [pendingPaletteAdd, addNodeAtCenter]);
 
   // Handle drag over
   const onDragOver = useCallback((event: DragEvent) => {
@@ -255,70 +241,8 @@ export function DiagramEditor() {
       if (!parsedType.success) {
         return;
       }
-      const type = parsedType.data;
-
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      // Check if it's a comment node
-      if (type === "comment") {
-        const newComment: Node = {
-          id: `comment-${Date.now()}`,
-          type: "comment",
-          position,
-          data: {
-            text: "Add your note here...",
-            color: "yellow",
-            createdAt: new Date().toISOString(),
-          },
-        };
-
-        addNode(newComment);
-        return;
-      }
-
-      // Check if it's a group type
-      if (type.startsWith("group-")) {
-        const groupType = groupNodeTypeSchema.parse(type.slice("group-".length));
-        const config = GROUP_TYPES_CONFIG[groupType];
-
-        const newGroup: Node<GroupNodeData> = {
-          id: `group-${Date.now()}`,
-          type: "group",
-          position,
-          zIndex: -1,
-          style: {
-            width: 300,
-            height: 250,
-          },
-          data: {
-            label: `New ${config.label}`,
-            groupType,
-            collapsed: false,
-          },
-        };
-
-        addNode(newGroup);
-        return;
-      }
-
-      // Regular architecture node
-      const nodeType = architectureNodeTypeSchema.parse(type);
-      const config = NODE_TYPES_CONFIG[nodeType];
-
-      const newNode: ArchitectureNode = {
-        id: `node-${Date.now()}`,
-        type: "architecture",
-        position,
-        data: {
-          label: `New ${config.label}`,
-          type: nodeType,
-        },
-      };
-
-      addNode(newNode);
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      addNode(createPaletteNode(parsedType.data, position));
     },
     [screenToFlowPosition, addNode],
   );
@@ -696,6 +620,7 @@ export function DiagramEditor() {
             <Hand className="size-4" aria-hidden="true" />
           </ToolbarButton>
           <ToolbarButton
+            className={PHONE_HIDDEN}
             label="Laser pointer for presenting"
             shortcut="`"
             active={laserMode}
@@ -706,18 +631,37 @@ export function DiagramEditor() {
           >
             <Presentation className="size-4" aria-hidden="true" />
           </ToolbarButton>
-          <ToolbarDivider />
-          <ToolbarButton label="Zoom out" shortcut="−" onClick={() => void zoomOut()}>
+          <ToolbarDivider className={PHONE_HIDDEN} />
+          <ToolbarButton
+            className={PHONE_HIDDEN}
+            label="Zoom out"
+            shortcut="−"
+            onClick={() => void zoomOut()}
+          >
             <Minus className="size-4" aria-hidden="true" />
           </ToolbarButton>
-          <span className="text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1">
+          <span
+            className={cn(
+              "text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1",
+              PHONE_HIDDEN,
+            )}
+          >
             {zoom}%
           </span>
-          <ToolbarButton label="Zoom in" shortcut="+" onClick={() => void zoomIn()}>
+          <ToolbarButton
+            className={PHONE_HIDDEN}
+            label="Zoom in"
+            shortcut="+"
+            onClick={() => void zoomIn()}
+          >
             <Plus className="size-4" aria-hidden="true" />
           </ToolbarButton>
           <ToolbarDivider />
-          <ToolbarButton label="Import diagram" onClick={() => setShowImportDialog(true)}>
+          <ToolbarButton
+            className={PHONE_HIDDEN}
+            label="Import diagram"
+            onClick={() => setShowImportDialog(true)}
+          >
             <FileUp className="size-4" aria-hidden="true" />
           </ToolbarButton>
           <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
@@ -748,6 +692,7 @@ export function DiagramEditor() {
             <Route className="size-4" aria-hidden="true" />
           </ToolbarButton>
           <ToolbarButton
+            className={PHONE_HIDDEN}
             label="Keyboard shortcuts"
             shortcut="?"
             onClick={() => setShowShortcuts(true)}

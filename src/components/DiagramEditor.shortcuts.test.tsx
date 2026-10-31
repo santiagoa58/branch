@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactFlowProps, XYPosition } from "@xyflow/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
@@ -118,6 +118,24 @@ describe("DiagramEditor shortcut integration", () => {
       }),
     ]);
   });
+
+  it.each([
+    ["service", { label: "New Service", type: "service" }],
+    ["group-shard", { label: "New Shard", groupType: "shard", collapsed: false }],
+  ] as const)(
+    "adds a palette item chosen by click or tap at the view center (%s)",
+    (type, data) => {
+      mountEditor();
+
+      act(() => useUIStore.getState().requestPaletteAdd(type));
+
+      expect(flow.screenToFlowPosition).toHaveBeenCalledExactlyOnceWith({ x: 617, y: 409 });
+      expect(useDiagramStore.getState().nodes).toEqual([
+        expect.objectContaining({ position: { x: 240, y: 160 }, data }),
+      ]);
+      expect(useUIStore.getState().pendingPaletteAdd).toBeNull();
+    },
+  );
 
   it("toggles the simulation panel and real simulation mode with Shift+S without adding a service", () => {
     mountEditor();

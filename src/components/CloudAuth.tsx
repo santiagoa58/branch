@@ -377,26 +377,36 @@ export function RequireAuth() {
   return <UserWorkspace key={userId} ownerId={userId} />;
 }
 
-export function AccountControls() {
+const MENU_ITEM_CLASS =
+  "w-full rounded-md px-3 py-2 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50";
+
+/** Account and sign-out actions, inline in the navbar or as rows inside a menu. */
+export function AccountControls({ layout = "inline" }: { layout?: "inline" | "menu" }) {
   const { signOut, openUserProfile } = useClerk();
   const cloud = useCloudWorkspace();
   const pendingDeletes = useAnimationStore((state) => state.pendingDeletions.size);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   return (
-    <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+    <div
+      className={
+        layout === "menu"
+          ? "flex flex-col"
+          : "flex items-center gap-2 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400"
+      }
+    >
       <button
         type="button"
         disabled={cloud.locked}
         onClick={() => openUserProfile()}
-        className="hover:underline"
+        className={layout === "menu" ? MENU_ITEM_CLASS : "hover:underline"}
       >
         Account
       </button>
       <button
         type="button"
         disabled={leaving || cloud.locked || pendingDeletes > 0}
-        className="hover:underline disabled:opacity-50"
+        className={layout === "menu" ? MENU_ITEM_CLASS : "hover:underline disabled:opacity-50"}
         onClick={() => {
           if (
             cloudWorkspace.getState().locked ||

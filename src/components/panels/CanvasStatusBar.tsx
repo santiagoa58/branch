@@ -85,29 +85,30 @@ export function CanvasStatusBar() {
         <b className="font-semibold text-zinc-700 dark:text-zinc-300">{edges.length}</b> edges
       </span>
       {services > 0 && (
-        <>
+        <span className="hidden sm:contents">
           <Separator />
           <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             <b className="font-semibold text-zinc-700 dark:text-zinc-300">{services}</b> service
           </span>
-        </>
+        </span>
       )}
       {data > 0 && (
-        <>
+        <span className="hidden sm:contents">
           <Separator />
           <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             <b className="font-semibold text-zinc-700 dark:text-zinc-300">{data}</b> data
           </span>
-        </>
+        </span>
       )}
       {queues > 0 && (
-        <>
+        <span className="hidden sm:contents">
           <Separator />
           <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             <b className="font-semibold text-zinc-700 dark:text-zinc-300">{queues}</b> queue
           </span>
-        </>
+        </span>
       )}
+      {/* Type breakdowns are extra detail; phones keep the counts and health. */}
       <Separator />
       <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", HEALTH_COLOR[health])} />

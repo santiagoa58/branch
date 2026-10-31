@@ -238,8 +238,8 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
       {showStats && isRunning && <SimulationStats />}
 
       <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60 px-4 py-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 max-w-full">
-        {/* Simulation indicator */}
-        <div className="flex items-center gap-1.5">
+        {/* Simulation indicator — the toolbar already says Simulate on phones */}
+        <div className="hidden sm:flex items-center gap-1.5">
           <BoltIcon
             className={cn("w-4 h-4", isRunning ? "text-amber-500 animate-pulse" : "text-zinc-400")}
           />
@@ -248,15 +248,15 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
           </span>
         </div>
 
-        <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
+        <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
 
-        {/* Mode selector */}
-        <div className="flex gap-1">
+        {/* Mode selector: equal 2×2 grid on phones so no label wraps or stretches a button */}
+        <div className="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto">
           <button
             type="button"
             onClick={() => setMode("traffic")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+              "flex items-center justify-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-transparent text-xs font-medium transition-colors",
               mode === "traffic"
                 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -270,7 +270,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
             type="button"
             onClick={() => setMode("flow")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+              "flex items-center justify-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-transparent text-xs font-medium transition-colors",
               mode === "flow"
                 ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -284,7 +284,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
             type="button"
             onClick={() => setMode("failure")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+              "flex items-center justify-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-transparent text-xs font-medium transition-colors",
               mode === "failure"
                 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -298,7 +298,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
             type="button"
             onClick={() => setMode("chaos")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+              "flex items-center justify-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg border border-transparent text-xs font-medium transition-colors",
               mode === "chaos"
                 ? "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -310,7 +310,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
           </button>
         </div>
 
-        <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
+        <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
 
         {/* Playback controls */}
         <div className="flex items-center gap-1">
@@ -408,13 +408,13 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
         {/* Step controls (flow mode only) */}
         {mode === "flow" && (
           <>
-            <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
+            <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={handleToggleStepping}
                 className={cn(
-                  "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors",
+                  "whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors",
                   steppingMode
                     ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700"
                     : "text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -472,7 +472,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                 type="button"
                 onClick={toggleRoundTrip}
                 className={cn(
-                  "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
+                  "whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
                   roundTripEnabled
                     ? "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700"
                     : "text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -490,7 +490,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               onClick={handleShowSequence}
               disabled={!sourceNodeId}
               className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
+                "whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
                 !sourceNodeId
                   ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
                   : "text-teal-600 dark:text-teal-400 hover:bg-teal-100 dark:hover:bg-teal-900/30",
@@ -507,7 +507,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               onClick={() => setSaveFlowOpen(true)}
               disabled={!sourceNodeId}
               className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
+                "whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
                 !sourceNodeId
                   ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
                   : "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30",
@@ -523,7 +523,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
         {/* Chaos controls */}
         {mode === "chaos" && (
           <>
-            <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
+            <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
             <div className="flex items-center gap-1.5">
               {/* Sub-mode selector */}
               <select
@@ -587,7 +587,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
           </>
         )}
 
-        <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
+        <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
 
         {/* Speed selector */}
         <div className="flex items-center gap-1">
@@ -607,7 +607,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
           </select>
         </div>
 
-        <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
+        <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-zinc-800" />
 
         {/* Status text */}
         <span className="text-xs text-zinc-500 dark:text-zinc-400 flex-1 truncate min-w-40 text-center">

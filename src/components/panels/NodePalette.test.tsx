@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 import { GROUP_TYPES_CONFIG, NODE_TYPES_CONFIG } from "@/constants";
 import { NodePalette } from "./NodePalette";
+import { useUIStore } from "@/store/uiStore";
 
 afterEach(cleanup);
 
@@ -40,5 +41,14 @@ describe("architecture node palette", () => {
     fireEvent.dragStart(node, { dataTransfer });
     expect(payload.get("application/reactflow")).toBe("agent");
     expect(dataTransfer.effectAllowed).toBe("move");
+  });
+
+  it("adds a component by click or tap, since touch screens can't drag", () => {
+    render(<NodePalette />);
+    fireEvent.click(screen.getByRole("button", { name: "Add Relational Database" }));
+    expect(useUIStore.getState().pendingPaletteAdd).toBe("database");
+    fireEvent.click(screen.getByRole("button", { name: "Add Shard" }));
+    expect(useUIStore.getState().pendingPaletteAdd).toBe("group-shard");
+    useUIStore.setState({ pendingPaletteAdd: null });
   });
 });
