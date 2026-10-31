@@ -5,6 +5,7 @@ import { RollupEdgeData, EdgeProtocol } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
 
 import { useDiagramStore } from "@/store/diagramStore";
+import { useEdgeLabelPosition } from "@/hooks/useEdgeLabelPosition";
 
 /**
  * Synthetic aggregated edge shown when edges cross a collapsed group's
@@ -25,7 +26,7 @@ export function RollupEdge({
 
   const toggleGroupCollapse = useDiagramStore((s) => s.toggleGroupCollapse);
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, preferredLabelX, preferredLabelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -33,6 +34,8 @@ export function RollupEdge({
     targetY,
     targetPosition,
   });
+
+  const { labelRef, labelX, labelY } = useEdgeLabelPosition(preferredLabelX, preferredLabelY);
 
   const handleExpand = useCallback(
     (e: React.MouseEvent) => {
@@ -72,6 +75,7 @@ export function RollupEdge({
       />
       <EdgeLabelRenderer>
         <button
+          ref={labelRef}
           type="button"
           onClick={handleExpand}
           style={{
