@@ -5,42 +5,22 @@ import {
   architectureNodeTypeSchema,
   groupNodeTypeSchema,
   diagramDataSchema,
+  RETIRED_NODE_TYPES,
 } from "@/schemas/diagram";
 import type { ArchitectureNodeType, DiagramData } from "@/types";
 import type { z } from "zod";
 
-const originalTypes = [
-  "service",
-  "database",
-  "queue",
-  "cache",
-  "gateway",
-  "external",
-  "storage",
-  "client",
-  "lambda",
-  "loadbalancer",
-  "cdn",
-  "auth",
-  "container",
-  "dns",
-  "llm",
-  "vectordb",
-  "mlpipeline",
-  "embedding",
-  "secrets",
-  "eventbus",
-  "datalake",
-  "search",
-  "notification",
-] as const satisfies readonly ArchitectureNodeType[];
-
 const representativeTypes = [
+  "user",
   "webapp",
   "mobileapp",
+  "clientstorage",
+  "sdk",
+  "edgefunction",
   "bff",
   "worker",
-  "kubernetes",
+  "coordinator",
+  "server",
   "firewall",
   "graphdb",
   "etl",
@@ -49,10 +29,14 @@ const representativeTypes = [
   "guardrail",
   "inference",
   "tool",
-  "payment",
-  "identity",
+  "auth",
+  "external",
   "iot",
 ] as const satisfies readonly ArchitectureNodeType[];
+
+// Vendor names belong in a node's label or icon, never in the generic type's label.
+const VENDOR_NAMES =
+  /\b(postgres(ql)?|mysql|redis|rabbitmq|kafka|s3|dynamodb|mongodb|kubernetes|lambda)\b/i;
 
 describe("node catalog", () => {
   it("keeps the type union, schema, and category types aligned", () => {
@@ -74,14 +58,26 @@ describe("node catalog", () => {
     expect(new Set(NODE_CATEGORIES.map((category) => category.id)).size).toBe(
       NODE_CATEGORIES.length,
     );
-    expect(types.length - originalTypes.length).toBeGreaterThanOrEqual(45);
-    expect(types.length - originalTypes.length).toBeLessThanOrEqual(55);
   });
 
-  it.each(originalTypes)("retains the original %s identifier", (type) => {
-    expect(NODE_TYPES_CONFIG[type]).toBeDefined();
-    expect(architectureNodeTypeSchema.parse(type)).toBe(type);
+  it("gives every type a distinct, role-based label and description", () => {
+    const configs = Object.values(NODE_TYPES_CONFIG);
+    const labels = configs.map((config) => config.label.toLowerCase());
+    const descriptions = configs.map((config) => config.description.toLowerCase());
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(new Set(descriptions).size).toBe(descriptions.length);
+    for (const config of configs) {
+      expect(config.label, `${config.label} names a vendor`).not.toMatch(VENDOR_NAMES);
+    }
   });
+
+  it.each(Object.entries(RETIRED_NODE_TYPES))(
+    "no longer offers %s and maps it to %s",
+    (retired, replacement) => {
+      expect(architectureNodeTypeSchema.safeParse(retired).success).toBe(false);
+      expect(NODE_TYPES_CONFIG[replacement]).toBeDefined();
+    },
+  );
 
   it.each(architectureNodeTypeSchema.options)("provides a complete config for %s", (type) => {
     const config = NODE_TYPES_CONFIG[type];
@@ -193,5 +189,63 @@ describe("node catalog", () => {
 
   it("rejects unknown node types instead of silently coercing them", () => {
     expect(architectureNodeTypeSchema.safeParse("unknown-node").success).toBe(false);
+  });
+
+  it("rewrites retired node types when a saved diagram loads", () => {
+    const saved = {
+      nodes: [
+        {
+          id: "cluster",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { label: "Production cluster", type: "kubernetes" },
+        },
+        {
+          id: "pay",
+          type: "architecture",
+          position: { x: 200, y: 0 },
+          data: { label: "Stripe", type: "payment", description: "Card payments" },
+        },
+      ],
+      edges: [{ id: "e", source: "cluster", target: "pay", data: { protocol: "http" } }],
+    };
+    const parsed = diagramDataSchema.parse(saved);
+    expect(parsed.nodes.map((node) => ("type" in node.data ? node.data.type : null))).toEqual([
+      "server",
+      "external",
+    ]);
+    expect(parsed.nodes[1]?.data).toEqual({
+      label: "Stripe",
+      type: "external",
+      description: "Card payments",
+    });
+  });
+
+  it("turns a saved Microfrontend node into a Microfrontend group with its details", () => {
+    const decision = { choice: "Module federation", benefits: ["Teams deploy alone"] };
+    const parsed = diagramDataSchema.parse({
+      nodes: [
+        {
+          id: "checkout",
+          type: "architecture",
+          position: { x: 40, y: 60 },
+          data: { label: "Checkout", type: "microfrontend", description: "Cart and pay", decision },
+        },
+      ],
+      edges: [],
+    });
+    expect(parsed.nodes[0]).toMatchObject({
+      id: "checkout",
+      type: "group",
+      position: { x: 40, y: 60 },
+      zIndex: -1,
+      data: {
+        label: "Checkout",
+        groupType: "microfrontend",
+        collapsed: false,
+        description: "Cart and pay",
+        decision,
+      },
+    });
   });
 });

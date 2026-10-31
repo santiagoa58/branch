@@ -28,7 +28,7 @@ const TECH_RULES: Array<{
   { label: "AMQP", protocols: ["amqp"] },
   { label: "WebSocket", protocols: ["websocket"] },
   { label: "API Gateway", types: ["gateway"] },
-  { label: "AI/LLM", types: ["llm", "embedding", "mlpipeline", "vectordb"] },
+  { label: "AI/LLM", types: ["llm", "embedding", "inference", "agent", "vectordb"] },
   { label: "GraphQL", protocols: ["graphql"] },
   { label: "Lambda", types: ["lambda"] },
 ];

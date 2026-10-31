@@ -17,7 +17,7 @@ export const ciCd = defineTemplate({
     "cd",
     "deployments",
     "runners",
-    "kubernetes",
+    "server",
     "devops",
   ],
   highlights: ["Webhook triggers", "Autoscaling runners", "Progressive rollout"],
@@ -30,7 +30,7 @@ export const ciCd = defineTemplate({
     { id: "queue", type: "queue", label: "Job queue" },
     {
       id: "runner",
-      type: "container",
+      type: "server",
       label: "Ephemeral runners",
       in: "runners",
       attrs: [{ name: "Illustrative maximum job duration", value: "20", unit: "min" }],
@@ -38,7 +38,7 @@ export const ciCd = defineTemplate({
     { id: "artifacts", type: "storage", label: "Artifacts and caches" },
     { id: "registry", type: "storage", label: "Container registry" },
     { id: "logs", type: "logging", label: "Build logs" },
-    { id: "cluster", type: "kubernetes", label: "Production cluster" },
+    { id: "cluster", type: "server", label: "Production cluster" },
     { id: "chat", type: "notification", label: "Team notifications" },
   ],
   edges: [
@@ -479,7 +479,7 @@ export const multiplayerGame = defineTemplate({
   groups: [{ id: "fleet", type: "region", label: "Game server fleet" }],
   nodes: [
     { id: "player", type: "client", label: "Game client" },
-    { id: "auth", type: "identity", label: "Player accounts" },
+    { id: "auth", type: "auth", label: "Player accounts" },
     { id: "matchmaker", type: "service", label: "Matchmaker" },
     { id: "allocator", type: "service", label: "Server allocator", in: "fleet" },
     {

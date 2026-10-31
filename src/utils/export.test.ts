@@ -346,7 +346,7 @@ describe("export utilities", () => {
       exportAsMarkdown(data);
 
       const { content } = getCreatedBlob();
-      expect(content).toContain("| Group \\| west | VPC | Line 1<br>Line 2 |");
+      expect(content).toContain("| Group \\| west | Private Network | Line 1<br>Line 2 |");
       expect(content).toContain(
         "| API \\| public | Service | &lt;script&gt; &amp; \\*literal\\* |",
       );

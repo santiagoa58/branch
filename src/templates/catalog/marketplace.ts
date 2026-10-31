@@ -44,7 +44,7 @@ export const rideHailing = defineTemplate({
     { id: "pricing", type: "inference", label: "Dynamic pricing" },
     { id: "trips", type: "service", label: "Trip service" },
     { id: "tripdb", type: "database", label: "Trips" },
-    { id: "payments", type: "payment", label: "Payments" },
+    { id: "payments", type: "external", label: "Payments" },
     { id: "push", type: "notification", label: "Push notifications" },
   ],
   edges: [
@@ -225,7 +225,7 @@ export const foodDelivery = defineTemplate({
       type: "service",
       label: "Live tracking",
     },
-    { id: "payments", type: "payment", label: "Payments" },
+    { id: "payments", type: "external", label: "Payments" },
     { id: "push", type: "notification", label: "Notifications" },
   ],
   edges: [
@@ -386,7 +386,7 @@ export const bookingMarketplace = defineTemplate({
       label: "Listings and bookings",
       attrs: [{ name: "Illustrative reservation hold duration", value: "10", unit: "min" }],
     },
-    { id: "payments", type: "payment", label: "Payments and payouts" },
+    { id: "payments", type: "external", label: "Payments and payouts" },
     { id: "messages", type: "service", label: "Guest messaging" },
   ],
   edges: [

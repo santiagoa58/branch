@@ -42,7 +42,7 @@ export const cloudFileStorage = defineTemplate({
     },
     { id: "cdn", type: "cdn", label: "Download CDN" },
     { id: "gateway", type: "gateway", label: "API gateway", in: "platform" },
-    { id: "auth", type: "identity", label: "Accounts and OAuth", in: "platform" },
+    { id: "auth", type: "auth", label: "Accounts and OAuth", in: "platform" },
     {
       id: "metadata",
       type: "service",

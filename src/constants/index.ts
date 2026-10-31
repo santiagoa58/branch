@@ -31,8 +31,15 @@ import {
   ShareIcon,
   ChartBarIcon,
   WrenchScrewdriverIcon,
-  CreditCardIcon,
-  EnvelopeIcon,
+  UserCircleIcon,
+  DevicePhoneMobileIcon,
+  ComputerDesktopIcon,
+  CodeBracketIcon,
+  LockClosedIcon,
+  ClockIcon,
+  Square2StackIcon,
+  TableCellsIcon,
+  WindowIcon,
 } from "@heroicons/react/24/outline";
 
 // Node type configuration with colors and icons
@@ -52,7 +59,8 @@ export interface NodeTypeConfig {
   keywords?: readonly string[];
 }
 
-const ORIGINAL_NODE_TYPES_CONFIG = {
+// Complete, statically declared color presets; node types pick one so Tailwind discovers every class.
+const NODE_STYLE_PRESETS = {
   service: {
     label: "Service",
     description: "Microservice",
@@ -363,327 +371,473 @@ const ORIGINAL_NODE_TYPES_CONFIG = {
   },
 } satisfies Record<string, NodeTypeConfig>;
 
-// Reuse complete, statically declared styles so Tailwind can discover every class.
 function catalogNode(
-  preset: keyof typeof ORIGINAL_NODE_TYPES_CONFIG,
+  preset: keyof typeof NODE_STYLE_PRESETS,
   label: string,
   description: string,
   icon: NodeTypeConfig["icon"],
   keywords: readonly string[],
 ): NodeTypeConfig {
-  return { ...ORIGINAL_NODE_TYPES_CONFIG[preset], label, description, icon, keywords };
+  return { ...NODE_STYLE_PRESETS[preset], label, description, icon, keywords };
 }
 
+/**
+ * Every node type is a role, not a product: put the technology (Postgres, Kafka, Stripe) in the
+ * label or icon. Descriptions say when to use the type so similar roles stay distinguishable.
+ */
 export const NODE_TYPES_CONFIG: Record<ArchitectureNodeType, NodeTypeConfig> = {
-  ...ORIGINAL_NODE_TYPES_CONFIG,
-  webapp: catalogNode("client", "Web App", "Browser-based application", GlobeAltIcon, [
-    "frontend",
-    "browser",
-    "spa",
-    "ssr",
+  // Clients and people
+  user: catalogNode("client", "User", "A person or role using the system", UserCircleIcon, [
+    "person",
+    "actor",
+    "customer",
+    "admin",
   ]),
-  mobileapp: catalogNode("client", "Mobile App", "Native or hybrid mobile application", UserIcon, [
-    "frontend",
-    "ios",
-    "android",
-    "mobile",
-  ]),
-  component: catalogNode("client", "UI Component", "Reusable user interface component", CubeIcon, [
-    "frontend",
-    "ui",
-    "widget",
-    "design system",
-  ]),
-  microfrontend: catalogNode(
+  webapp: catalogNode(
     "client",
-    "Microfrontend",
-    "Independently deployed frontend module",
-    RectangleGroupIcon,
-    ["frontend", "module federation", "ui"],
+    "Web App",
+    "Browser app: SPA, server-rendered or static site",
+    GlobeAltIcon,
+    ["frontend", "browser", "spa", "ssr", "website"],
+  ),
+  mobileapp: catalogNode(
+    "client",
+    "Mobile App",
+    "Native or cross-platform phone app",
+    DevicePhoneMobileIcon,
+    ["frontend", "ios", "android", "react native"],
+  ),
+  client: catalogNode(
+    "client",
+    "Client App",
+    "Desktop, CLI, game or other non-browser client",
+    ComputerDesktopIcon,
+    ["desktop", "cli", "game client", "electron"],
+  ),
+  iot: catalogNode(
+    "external",
+    "Device",
+    "IoT sensor, smart device or embedded hardware",
+    SignalIcon,
+    ["iot", "sensor", "edge", "hardware"],
+  ),
+  // Inside a frontend app (in-process, not network hops)
+  component: catalogNode(
+    "client",
+    "UI Component",
+    "A piece of UI inside an app, such as a list or editor",
+    CubeIcon,
+    ["frontend", "ui", "widget", "design system"],
+  ),
+  statestore: catalogNode(
+    "cache",
+    "Client State",
+    "In-memory state shared across the UI, such as a store or query cache",
+    CircleStackIcon,
+    ["frontend", "state management", "redux", "zustand", "query cache"],
+  ),
+  clientstorage: catalogNode(
+    "database",
+    "Browser Storage",
+    "Data kept on the device: IndexedDB, local storage, Cache API",
+    ArchiveBoxIcon,
+    ["frontend", "indexeddb", "localstorage", "offline", "persistence"],
   ),
   router: catalogNode(
     "gateway",
-    "Router",
-    "Client-side navigation and route resolution",
+    "Client Router",
+    "Maps URLs to screens inside the app",
     ArrowsRightLeftIcon,
     ["frontend", "navigation", "routes"],
   ),
-  statestore: catalogNode("cache", "State Store", "Shared application state", CircleStackIcon, [
-    "frontend",
-    "state management",
-    "store",
-    "zustand",
-    "redux",
-    "pinia",
-  ]),
   serviceworker: catalogNode(
     "client",
     "Service Worker",
-    "Browser background tasks and offline caching",
+    "Background script for offline use, push and caching",
     ArrowPathIcon,
-    ["frontend", "offline", "pwa", "browser"],
+    ["frontend", "offline", "pwa", "web worker"],
+  ),
+  sdk: catalogNode(
+    "client",
+    "SDK / Library",
+    "Packaged code other apps embed or import",
+    CodeBracketIcon,
+    ["frontend", "library", "package", "component library", "embed"],
+  ),
+  // Edge and traffic
+  dns: catalogNode("dns", "DNS", "Resolves domain names to addresses", GlobeAmericasIcon, [
+    "domain",
+    "routing",
+    "geo dns",
+  ]),
+  cdn: catalogNode(
+    "cdn",
+    "CDN",
+    "Caches static and media content close to users",
+    GlobeAmericasIcon,
+    ["edge", "cache", "static assets", "media delivery"],
+  ),
+  edgefunction: catalogNode(
+    "cdn",
+    "Edge Function",
+    "Code that runs at CDN edge locations",
+    BoltIcon,
+    ["edge", "middleware", "workers", "lambda@edge"],
+  ),
+  loadbalancer: catalogNode(
+    "loadbalancer",
+    "Load Balancer",
+    "Spreads traffic across instances (L4/L7, ingress)",
+    ArrowsRightLeftIcon,
+    ["ingress", "reverse proxy", "traffic", "l7"],
+  ),
+  gateway: catalogNode(
+    "gateway",
+    "API Gateway",
+    "One entry for APIs and sockets: auth, routing and limits",
+    GlobeAltIcon,
+    ["api", "entrypoint", "websocket gateway", "routing"],
   ),
   bff: catalogNode(
     "service",
     "Backend for Frontend",
-    "Client-specific API aggregation",
+    "API shaped for one client app",
     ServerStackIcon,
-    ["frontend", "backend", "bff", "aggregation"],
+    ["bff", "aggregation", "graphql"],
   ),
-  worker: catalogNode("service", "Worker", "Background job processing", CpuChipIcon, [
+  ratelimiter: catalogNode(
+    "gateway",
+    "Rate Limiter",
+    "Caps requests per user, key or tenant",
+    ShieldCheckIcon,
+    ["throttling", "quota", "admission control"],
+  ),
+  proxy: catalogNode(
+    "loadbalancer",
+    "Proxy / Relay",
+    "Forwards traffic: forward or egress proxy, TURN relay",
+    ArrowsRightLeftIcon,
+    ["forward proxy", "egress", "turn", "relay"],
+  ),
+  // Compute
+  service: catalogNode("service", "Service", "Runs business logic behind an API", CpuChipIcon, [
+    "microservice",
     "backend",
+    "api",
+    "server",
+  ]),
+  worker: catalogNode("service", "Worker", "Processes background jobs or messages", CpuChipIcon, [
+    "background",
     "job",
     "consumer",
     "async",
   ]),
-  scheduler: catalogNode("lambda", "Scheduler", "Time-based job scheduling", ArrowPathIcon, [
-    "backend",
+  lambda: catalogNode(
+    "lambda",
+    "Serverless Function",
+    "Runs on demand and scales to zero",
+    BoltIcon,
+    ["lambda", "cloud function", "faas"],
+  ),
+  scheduler: catalogNode("lambda", "Scheduler", "Triggers jobs on a timer or cron", ClockIcon, [
     "cron",
     "timer",
     "scheduled jobs",
   ]),
   workflow: catalogNode(
     "service",
-    "Workflow",
-    "Durable multi-step task orchestration",
+    "Workflow Engine",
+    "Durable multi-step process with retries and timeouts",
     RectangleGroupIcon,
-    ["backend", "orchestration", "saga", "durable execution"],
+    ["orchestration", "saga", "temporal", "state machine"],
   ),
-  ratelimiter: catalogNode(
-    "gateway",
-    "Rate Limiter",
-    "Request throttling and quota enforcement",
-    ShieldCheckIcon,
-    ["backend", "throttling", "quota", "traffic"],
-  ),
-  webhook: catalogNode("eventbus", "Webhook", "Event-triggered HTTP callback", LinkIcon, [
-    "backend",
-    "callback",
-    "http",
-    "event",
-  ]),
-  server: catalogNode("container", "Server", "Physical or virtual compute host", ServerStackIcon, [
-    "infrastructure",
-    "vm",
-    "host",
-    "compute",
-  ]),
-  kubernetes: catalogNode("container", "Kubernetes", "Container orchestration platform", CubeIcon, [
-    "infrastructure",
-    "k8s",
-    "orchestration",
-    "pods",
-  ]),
-  ingress: catalogNode(
-    "gateway",
-    "Ingress",
-    "Inbound application traffic routing",
-    ArrowsRightLeftIcon,
-    ["infrastructure", "routing", "entrypoint", "k8s"],
-  ),
-  proxy: catalogNode(
-    "loadbalancer",
-    "Proxy",
-    "Forward or reverse traffic proxy",
-    ArrowsRightLeftIcon,
-    ["infrastructure", "reverse proxy", "forward proxy"],
-  ),
-  firewall: catalogNode(
+  coordinator: catalogNode(
     "auth",
-    "Firewall",
-    "Network traffic filtering and protection",
-    ShieldCheckIcon,
-    ["infrastructure", "security", "waf", "network"],
+    "Coordination Service",
+    "Locks, leader election, config and service discovery",
+    LockClosedIcon,
+    ["etcd", "zookeeper", "consul", "distributed lock", "service discovery"],
   ),
-  vpn: catalogNode("auth", "VPN", "Encrypted private network tunnel", KeyIcon, [
-    "infrastructure",
-    "tunnel",
-    "network",
-    "security",
-  ]),
+  server: catalogNode(
+    "container",
+    "Compute Host",
+    "VM, container host or Kubernetes node pool",
+    ServerStackIcon,
+    ["vm", "host", "kubernetes", "container", "node pool"],
+  ),
+  // Messaging and events
+  queue: catalogNode(
+    "queue",
+    "Message Queue",
+    "Holds work items until a consumer takes them",
+    QueueListIcon,
+    ["rabbitmq", "sqs", "broker", "jobs"],
+  ),
+  eventbus: catalogNode(
+    "eventbus",
+    "Pub/Sub",
+    "Fans each event out to many subscribers",
+    ShareIcon,
+    ["event bus", "topic", "sns", "eventbridge"],
+  ),
+  stream: catalogNode(
+    "eventbus",
+    "Event Stream",
+    "Ordered, replayable log of events (Kafka, Kinesis)",
+    SignalIcon,
+    ["kafka", "kinesis", "log", "streaming"],
+  ),
+  webhook: catalogNode(
+    "eventbus",
+    "Webhook",
+    "HTTP callback sent between systems when events happen",
+    LinkIcon,
+    ["callback", "http", "event"],
+  ),
+  notification: catalogNode(
+    "notification",
+    "Notification Service",
+    "Sends push, email and SMS to people",
+    BellAlertIcon,
+    ["push", "email", "sms", "fan-out"],
+  ),
+  // Data and storage
+  database: catalogNode(
+    "database",
+    "Relational Database",
+    "SQL tables with transactions and joins",
+    CircleStackIcon,
+    ["sql", "postgres", "mysql", "rdbms"],
+  ),
   nosql: catalogNode(
     "database",
-    "NoSQL Database",
-    "Document or key-value database",
+    "Document / Key-Value Store",
+    "Flexible records looked up by key",
     CircleStackIcon,
-    ["data", "document", "key value", "nonrelational"],
+    ["nosql", "dynamodb", "mongodb", "cassandra", "key value"],
+  ),
+  cache: catalogNode("cache", "Cache", "Fast in-memory copy of hot data", BoltIcon, [
+    "redis",
+    "memcached",
+    "in-memory",
+  ]),
+  storage: catalogNode(
+    "storage",
+    "Object Storage",
+    "Files and blobs stored by key (S3, GCS)",
+    ArchiveBoxIcon,
+    ["s3", "blob", "files", "bucket"],
+  ),
+  search: catalogNode(
+    "search",
+    "Search Index",
+    "Full-text and filtered search",
+    MagnifyingGlassCircleIcon,
+    ["elasticsearch", "opensearch", "full text"],
+  ),
+  vectordb: catalogNode(
+    "vectordb",
+    "Vector Database",
+    "Similarity search over embeddings",
+    CubeTransparentIcon,
+    ["embeddings", "pgvector", "pinecone", "ann"],
   ),
   graphdb: catalogNode(
     "database",
     "Graph Database",
-    "Relationship-oriented data storage",
+    "Data navigated through relationships",
     ShareIcon,
-    ["data", "graph", "relationships", "vertices"],
+    ["graph", "neo4j", "relationships"],
   ),
   timeseries: catalogNode(
     "database",
     "Time Series Database",
-    "Timestamped measurements and events",
+    "Measurements recorded over time",
     ChartBarIcon,
-    ["data", "temporal", "measurements", "tsdb"],
+    ["tsdb", "metrics", "timescale", "influx"],
   ),
   warehouse: catalogNode(
     "datalake",
     "Data Warehouse",
-    "Structured analytical data storage",
+    "SQL analytics over large history",
     InboxStackIcon,
-    ["data", "analytics", "olap", "bi"],
+    ["olap", "bi", "snowflake", "bigquery"],
   ),
-  etl: catalogNode("datalake", "ETL Pipeline", "Extract, transform, and load data", ArrowPathIcon, [
-    "data",
-    "elt",
-    "transformation",
-    "ingestion",
+  datalake: catalogNode(
+    "datalake",
+    "Data Lake",
+    "Raw and curated files for analytics",
+    InboxStackIcon,
+    ["lake", "parquet", "big data"],
+  ),
+  etl: catalogNode(
+    "datalake",
+    "Data Pipeline",
+    "Batch or stream processing jobs (ETL, Spark, Flink)",
+    ArrowPathIcon,
+    ["etl", "elt", "spark", "flink", "transformation"],
+  ),
+  backup: catalogNode(
+    "storage",
+    "Backup",
+    "Snapshots for restore and disaster recovery",
+    ArchiveBoxIcon,
+    ["restore", "snapshot", "disaster recovery"],
+  ),
+  // Identity and security
+  auth: catalogNode("auth", "Identity & Auth", "Sign-in, tokens, SSO and permissions", KeyIcon, [
+    "oauth",
+    "oidc",
+    "sso",
+    "saml",
+    "identity",
+    "mfa",
   ]),
-  stream: catalogNode(
-    "eventbus",
-    "Data Stream",
-    "Continuous event and data processing",
-    SignalIcon,
-    ["data", "streaming", "realtime", "events"],
+  secrets: catalogNode(
+    "secrets",
+    "Secrets Manager",
+    "Stores keys, passwords and certificates",
+    KeyIcon,
+    ["vault", "kms", "credentials"],
   ),
-  backup: catalogNode("storage", "Backup", "Recovery snapshots and archived data", ArchiveBoxIcon, [
-    "data",
-    "restore",
-    "snapshot",
-    "disaster recovery",
+  firewall: catalogNode(
+    "auth",
+    "Firewall / WAF",
+    "Blocks unwanted network or HTTP traffic",
+    ShieldCheckIcon,
+    ["waf", "security", "network"],
+  ),
+  vpn: catalogNode("auth", "VPN", "Encrypted link between private networks", KeyIcon, [
+    "tunnel",
+    "site-to-site",
+    "network",
   ]),
-  logging: catalogNode(
-    "search",
-    "Logging",
-    "Centralized log collection and analysis",
-    QueueListIcon,
-    ["observability", "logs", "audit", "diagnostics"],
-  ),
-  metrics: catalogNode(
-    "search",
-    "Metrics",
-    "Operational measurements and dashboards",
-    ChartBarIcon,
-    ["observability", "monitoring", "telemetry", "dashboard"],
-  ),
-  tracing: catalogNode("search", "Tracing", "Distributed request and span tracking", ShareIcon, [
+  // Observability
+  logging: catalogNode("search", "Logs", "Collects and searches log lines", QueueListIcon, [
     "observability",
-    "trace",
+    "audit",
+    "diagnostics",
+  ]),
+  metrics: catalogNode("search", "Metrics", "Numeric measurements and dashboards", ChartBarIcon, [
+    "observability",
+    "monitoring",
+    "prometheus",
+  ]),
+  tracing: catalogNode("search", "Traces", "Follows one request across services", ShareIcon, [
+    "observability",
     "spans",
     "apm",
+    "opentelemetry",
   ]),
   alerting: catalogNode(
     "notification",
-    "Alerting",
-    "Incident detection and escalation",
+    "Alerting / On-call",
+    "Detects problems and pages people",
     BellAlertIcon,
-    ["observability", "incident", "on call", "alarms"],
+    ["observability", "incident", "pager"],
   ),
-  agent: catalogNode("llm", "AI Agent", "Model-driven planning and task execution", SparklesIcon, [
+  // AI and machine learning
+  llm: catalogNode("llm", "LLM", "Large language model, hosted API or self-run", SparklesIcon, [
+    "ai",
+    "gpt",
+    "claude",
+    "language model",
+  ]),
+  inference: catalogNode(
+    "llm",
+    "Model Serving",
+    "Hosts a trained model behind an endpoint",
+    BoltIcon,
+    ["ai", "prediction", "serving", "ranking model"],
+  ),
+  embedding: catalogNode(
+    "embedding",
+    "Embedding Model",
+    "Turns text or media into vectors",
+    CubeTransparentIcon,
+    ["ai", "vectors", "encoder"],
+  ),
+  agent: catalogNode("llm", "AI Agent", "Plans and calls tools to finish a task", SparklesIcon, [
     "ai",
     "autonomous",
-    "planning",
     "tool calling",
   ]),
   retriever: catalogNode(
     "vectordb",
     "Retriever",
-    "Fetch relevant context for model input",
+    "Finds relevant context for a model",
     MagnifyingGlassCircleIcon,
-    ["ai", "rag", "retrieval", "context"],
+    ["ai", "rag", "retrieval"],
   ),
   reranker: catalogNode(
     "embedding",
     "Reranker",
-    "Reorder retrieved results by relevance",
+    "Reorders retrieved results by relevance",
     ArrowsRightLeftIcon,
-    ["ai", "rag", "ranking", "relevance"],
+    ["ai", "rag", "ranking"],
   ),
   prompt: catalogNode(
     "llm",
-    "Prompt",
-    "Model instructions and context template",
+    "Prompt Registry",
+    "Versioned prompts and templates",
     ChatBubbleBottomCenterTextIcon,
-    ["ai", "template", "instructions", "context"],
+    ["ai", "template", "instructions"],
   ),
   guardrail: catalogNode(
     "auth",
     "Guardrail",
-    "Model input and output safety checks",
+    "Checks model input and output for safety",
     ShieldCheckIcon,
-    ["ai", "safety", "validation", "moderation"],
+    ["ai", "safety", "moderation"],
+  ),
+  tool: catalogNode("llm", "AI Tool", "An action an agent can call", WrenchScrewdriverIcon, [
+    "ai",
+    "function calling",
+    "mcp",
+  ]),
+  evaluation: catalogNode(
+    "mlpipeline",
+    "Evaluation",
+    "Measures model quality against test sets",
+    ChartBarIcon,
+    ["ai", "benchmark", "evals"],
+  ),
+  training: catalogNode(
+    "mlpipeline",
+    "Training Pipeline",
+    "Trains and fine-tunes models",
+    ArrowPathIcon,
+    ["ai", "ml pipeline", "fine tuning"],
   ),
   modelregistry: catalogNode(
     "mlpipeline",
     "Model Registry",
-    "Versioned model artifacts and lifecycle",
+    "Versioned models and their promotion",
     ArchiveBoxIcon,
-    ["ai", "mlops", "model versions", "artifacts"],
+    ["ai", "mlops", "artifacts"],
   ),
   featurestore: catalogNode(
     "vectordb",
     "Feature Store",
-    "Shared online and offline ML features",
+    "Features shared by training and serving",
     CircleStackIcon,
-    ["ai", "ml", "features", "feature engineering"],
+    ["ai", "ml", "features"],
   ),
-  training: catalogNode(
-    "mlpipeline",
-    "Training",
-    "Model training and fine-tuning jobs",
-    ArrowPathIcon,
-    ["ai", "ml", "fine tuning", "learning"],
-  ),
-  inference: catalogNode("llm", "Inference", "Model serving and prediction endpoint", BoltIcon, [
-    "ai",
-    "prediction",
-    "serving",
-    "runtime",
-  ]),
   gpu: catalogNode(
     "mlpipeline",
-    "GPU Compute",
-    "Accelerated training and inference compute",
+    "GPU Pool",
+    "Accelerators for training and inference",
     CpuChipIcon,
-    ["ai", "accelerator", "gpu", "compute"],
+    ["ai", "accelerator", "gpu"],
   ),
-  evaluation: catalogNode(
-    "mlpipeline",
-    "Evaluation",
-    "Model quality and behavior assessment",
-    ChartBarIcon,
-    ["ai", "benchmark", "evals", "quality"],
+  // Systems you don't run
+  external: catalogNode(
+    "external",
+    "Third-party Service",
+    "A system you don't run: payments, email, maps, partners",
+    CloudIcon,
+    ["external", "saas", "payment", "stripe", "email provider", "partner api"],
   ),
-  tool: catalogNode(
-    "llm",
-    "AI Tool",
-    "Callable capability exposed to an agent",
-    WrenchScrewdriverIcon,
-    ["ai", "function calling", "mcp", "action"],
-  ),
-  payment: catalogNode("external", "Payment", "Payment processing and settlement", CreditCardIcon, [
-    "integration",
-    "billing",
-    "checkout",
-    "transactions",
-  ]),
-  email: catalogNode(
-    "notification",
-    "Email",
-    "Transactional and outbound email delivery",
-    EnvelopeIcon,
-    ["integration", "mail", "smtp", "delivery"],
-  ),
-  identity: catalogNode(
-    "auth",
-    "Identity Directory",
-    "User directory and identity federation",
-    UserIcon,
-    ["integration", "directory", "sso", "federation"],
-  ),
-  iot: catalogNode("external", "IoT Device", "Connected sensor or edge device", SignalIcon, [
-    "integration",
-    "sensor",
-    "device",
-    "telemetry",
-    "edge",
-  ]),
 };
 
 // Edge styles by protocol (legacy - kept for reference)
@@ -732,7 +886,7 @@ export const PROTOCOL_CONFIG: Record<
     color: { primary: "#3b82f6", secondary: "#60a5fa" }, // Blue
     style: { strokeWidth: 2 },
     requestResponse: true,
-    defaultForNodes: ["service", "gateway", "external", "client"],
+    defaultForNodes: ["service", "gateway", "external", "client", "webapp", "mobileapp", "bff"],
   },
   grpc: {
     label: "gRPC",
@@ -754,6 +908,35 @@ export const PROTOCOL_CONFIG: Record<
     color: { primary: "#8b5cf6", secondary: "#a78bfa" }, // Purple
     style: { strokeDasharray: "3 3", animated: true },
     requestResponse: true,
+  },
+  sse: {
+    label: "Server-Sent Events",
+    group: "standard",
+    color: { primary: "#a855f7", secondary: "#c084fc" }, // Purple
+    style: { strokeDasharray: "6 3", animated: true },
+    requestResponse: false,
+  },
+  webrtc: {
+    label: "WebRTC",
+    group: "standard",
+    color: { primary: "#0ea5e9", secondary: "#38bdf8" }, // Sky
+    style: { strokeDasharray: "1 3", animated: true, strokeWidth: 2 },
+    requestResponse: false,
+  },
+  udp: {
+    label: "UDP",
+    group: "standard",
+    color: { primary: "#0891b2", secondary: "#22d3ee" }, // Cyan
+    style: { strokeDasharray: "1 4", strokeWidth: 2 },
+    requestResponse: false,
+  },
+  inapp: {
+    label: "In-app call",
+    group: "standard",
+    color: { primary: "#71717a", secondary: "#a1a1aa" }, // Zinc
+    style: { strokeDasharray: "2 3", strokeWidth: 1.5 },
+    requestResponse: true,
+    defaultForNodes: ["component", "statestore", "clientstorage", "router", "serviceworker", "sdk"],
   },
   tcp: {
     label: "TCP",
@@ -796,6 +979,14 @@ export const PROTOCOL_CONFIG: Record<
     requestResponse: false,
     defaultForNodes: ["eventbus"],
   },
+  mqtt: {
+    label: "MQTT",
+    group: "messaging",
+    color: { primary: "#22c55e", secondary: "#4ade80" }, // Green
+    style: { strokeDasharray: "3 3", animated: true },
+    requestResponse: false,
+    defaultForNodes: ["iot"],
+  },
   sns: {
     label: "SNS/Push",
     group: "messaging",
@@ -830,6 +1021,13 @@ export const PROTOCOL_CONFIG: Record<
     style: { strokeWidth: 2 },
     requestResponse: true,
     defaultForNodes: ["storage", "datalake"],
+  },
+  replication: {
+    label: "Replication",
+    group: "data",
+    color: { primary: "#64748b", secondary: "#94a3b8" }, // Slate
+    style: { strokeDasharray: "8 4", animated: true },
+    requestResponse: false,
   },
   vector: {
     label: "Vector Search",
@@ -875,7 +1073,7 @@ export const PROTOCOL_CONFIG: Record<
     color: { primary: "#d946ef", secondary: "#e879f9" }, // Fuchsia
     style: { strokeDasharray: "3 3", animated: true },
     requestResponse: true,
-    defaultForNodes: ["llm", "embedding", "mlpipeline"],
+    defaultForNodes: ["llm", "embedding", "inference", "reranker"],
   },
 };
 
@@ -907,41 +1105,59 @@ export const GROUP_TYPES_CONFIG: Record<
     defaultLabel: string;
   }
 > = {
-  vpc: {
-    label: "VPC",
-    description: "Virtual Private Cloud",
-    icon: CloudIcon,
-    defaultLabel: "VPC",
-  },
-  cluster: {
-    label: "Cluster",
-    description: "Service Cluster",
-    icon: ServerStackIcon,
-    defaultLabel: "Cluster",
-  },
   region: {
     label: "Region",
-    description: "Cloud Region",
+    description: "A geographic cloud region or data center",
     icon: GlobeAmericasIcon,
     defaultLabel: "Region",
   },
+  vpc: {
+    label: "Private Network",
+    description: "A VPC that isolates your services from the internet",
+    icon: CloudIcon,
+    defaultLabel: "Private network",
+  },
   subnet: {
     label: "Subnet",
-    description: "Network Subnet",
+    description: "A network segment inside a private network",
     icon: RectangleGroupIcon,
     defaultLabel: "Subnet",
   },
+  cluster: {
+    label: "Cluster",
+    description: "Compute that runs services together, such as Kubernetes",
+    icon: ServerStackIcon,
+    defaultLabel: "Cluster",
+  },
+  replicaset: {
+    label: "Replica Set",
+    description: "Copies of the same data or service, such as a primary and replicas",
+    icon: Square2StackIcon,
+    defaultLabel: "Replica set",
+  },
+  shard: {
+    label: "Shard",
+    description: "One partition of the data, usually with its own replicas",
+    icon: TableCellsIcon,
+    defaultLabel: "Shard",
+  },
   boundary: {
-    label: "Boundary",
-    description: "Logical, trust, data, or deployment boundary",
+    label: "Trust Boundary",
+    description: "Where ownership or trust changes: a team, tenant or third party",
     icon: CubeTransparentIcon,
-    defaultLabel: "Boundary",
+    defaultLabel: "Trust boundary",
+  },
+  microfrontend: {
+    label: "Microfrontend",
+    description: "An independently deployed part of a frontend",
+    icon: RectangleGroupIcon,
+    defaultLabel: "Microfrontend",
   },
   view: {
-    label: "Screen / View",
-    description: "Frontend page, screen, or application view",
-    icon: RectangleGroupIcon,
-    defaultLabel: "View",
+    label: "Screen",
+    description: "A page or screen inside a frontend app",
+    icon: WindowIcon,
+    defaultLabel: "Screen",
   },
 };
 

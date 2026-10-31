@@ -19,11 +19,8 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 ### Core Diagramming
 
 - **Drag & Drop Interface** — Add components from the palette to the canvas
-- **20+ Node Types** — Services, databases, queues, caches, gateways, storage, clients, and more
-- **Cloud Infrastructure** — Lambda, Load Balancer, CDN, Auth Provider, Container, DNS
-- **AI/ML Components** — LLM, Vector DB, ML Pipeline, Embedding
-- **Cloud Services** — Secrets Manager, Event Bus, Data Lake, Search, Notifications
-- **Group Containers** — Organize with VPCs, Clusters, Regions, and Subnets
+- **Role-based components** — 66 node types in ten categories, from users and apps through the edge, compute, messaging and data to AI. Each type is a role (Relational Database, Message Queue), and the technology goes in its label or icon.
+- **Groups** — Regions, private networks, subnets, clusters, replica sets, shards, trust boundaries, microfrontends and screens
 - **Starter templates** — 26 searchable, decision-first architectures inspired by familiar products such as Google Drive, Slack, Uber, Stripe and YouTube. Filter by category, preview a template, then start from it or add it to an existing diagram. Choices, benefits, drawbacks, alternatives and example quantities are illustrative starting points—not verified descriptions of those products' internal systems or measured production workloads.
 - **Decision-first details** — Document the chosen approach, a one-sentence why, benefits, drawbacks, options considered and what would make you revisit it, for components, groups, and connections. Put implementation names in a component label or its choice rather than a dedicated Technology field.
 - **Architecture attributes** — Capture named values with optional explicit units, such as `Latency budget: 25 ms`, `Throughput: 100 requests/s`, or `Replicas: 3 replicas`. New numeric entries require a unit (including `count` for counts); descriptive values can remain unitless.
@@ -184,27 +181,27 @@ The API tests apply the real migration to an embedded PostgreSQL-compatible engi
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut                                 | Action                                    |
-| ---------------------------------------- | ----------------------------------------- |
-| `V`                                      | Select mode                               |
-| `H`                                      | Pan mode                                  |
-| `Cmd/Ctrl + C`                           | Copy selected                             |
-| `Cmd/Ctrl + V`                           | Paste                                     |
-| `Cmd/Ctrl + D`                           | Duplicate selected                        |
-| `Cmd/Ctrl + L`                           | Auto format                               |
-| `Delete / Backspace`                     | Delete selected (with shatter animation)  |
-| `Cmd/Ctrl + Z`                           | Undo                                      |
-| `Cmd/Ctrl + Shift + Z` or `Cmd/Ctrl + Y` | Redo                                      |
-| `Cmd/Ctrl + A`                           | Select all visible nodes                  |
-| `Cmd/Ctrl + K`                           | Search nodes                              |
-| `[`                                      | Toggle left panel                         |
-| `]`                                      | Toggle right panel                        |
-| `Shift + Click`                          | Add to selection                          |
-| `Shift + S`                              | Toggle simulation panel                   |
-| `N`                                      | Add a comment node                        |
-| `Shift + V / K / R / N`                  | Add a VPC / cluster / region / subnet     |
-| `?`                                      | Show keyboard shortcuts                   |
-| `Escape`                                 | Close a canvas overlay or clear selection |
+| Shortcut                                 | Action                                            |
+| ---------------------------------------- | ------------------------------------------------- |
+| `V`                                      | Select mode                                       |
+| `H`                                      | Pan mode                                          |
+| `Cmd/Ctrl + C`                           | Copy selected                                     |
+| `Cmd/Ctrl + V`                           | Paste                                             |
+| `Cmd/Ctrl + D`                           | Duplicate selected                                |
+| `Cmd/Ctrl + L`                           | Auto format                                       |
+| `Delete / Backspace`                     | Delete selected (with shatter animation)          |
+| `Cmd/Ctrl + Z`                           | Undo                                              |
+| `Cmd/Ctrl + Shift + Z` or `Cmd/Ctrl + Y` | Redo                                              |
+| `Cmd/Ctrl + A`                           | Select all visible nodes                          |
+| `Cmd/Ctrl + K`                           | Search nodes                                      |
+| `[`                                      | Toggle left panel                                 |
+| `]`                                      | Toggle right panel                                |
+| `Shift + Click`                          | Add to selection                                  |
+| `Shift + S`                              | Toggle simulation panel                           |
+| `N`                                      | Add a comment node                                |
+| `Shift + V / K / R / N`                  | Add a private network / cluster / region / subnet |
+| `?`                                      | Show keyboard shortcuts                           |
+| `Escape`                                 | Close a canvas overlay or clear selection         |
 
 Shortcuts apply in the diagram editor, not in inputs, text editors, dropdowns, or open dialogs. Held keys do not repeatedly create or delete components. On macOS use Command; on Windows and Linux use Ctrl.
 
@@ -212,67 +209,65 @@ Shortcuts apply in the diagram editor, not in inputs, text editors, dropdowns, o
 
 ### Nodes
 
-| Type                     | Description                          |
-| ------------------------ | ------------------------------------ |
-| **Core**                 |                                      |
-| Service                  | Microservice or API component        |
-| Database                 | SQL/NoSQL data storage               |
-| Queue                    | Message queue (RabbitMQ, Kafka, SQS) |
-| Cache                    | In-memory store (Redis, Memcached)   |
-| Gateway                  | API Gateway                          |
-| External                 | Third-party service                  |
-| Storage                  | Object storage (S3, Azure Blob)      |
-| Client                   | Web, mobile, or desktop app          |
-| **Cloud Infrastructure** |                                      |
-| Lambda                   | Serverless function                  |
-| Load Balancer            | Traffic distribution                 |
-| CDN                      | Edge delivery network                |
-| Auth Provider            | Identity & access management         |
-| Container                | Docker/Pod                           |
-| DNS                      | Domain routing                       |
-| **AI/ML**                |                                      |
-| LLM                      | Large language model                 |
-| Vector DB                | Embeddings store                     |
-| ML Pipeline              | Training/inference pipeline          |
-| Embedding                | Vector encoder                       |
-| **Cloud Services**       |                                      |
-| Secrets                  | Secrets manager                      |
-| Event Bus                | Event broker                         |
-| Data Lake                | Big data storage                     |
-| Search                   | Search engine                        |
-| Notification             | Push/alert service                   |
+Types are roles, so the palette describes what each one is for. Put the technology (PostgreSQL, Kafka, Stripe) in the node's label, decision or icon.
+
+| Category              | Types                                                                                                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clients & People      | User, Web App, Mobile App, Client App, Device                                                                                                                                                 |
+| Inside the Frontend   | UI Component, Client State, Browser Storage, Client Router, Service Worker, SDK / Library                                                                                                     |
+| Edge & Traffic        | DNS, CDN, Edge Function, Load Balancer, API Gateway, Backend for Frontend, Rate Limiter, Proxy / Relay                                                                                        |
+| Compute               | Service, Worker, Serverless Function, Scheduler, Workflow Engine, Coordination Service, Compute Host                                                                                          |
+| Messaging & Events    | Message Queue, Pub/Sub, Event Stream, Webhook, Notification Service                                                                                                                           |
+| Data & Storage        | Relational Database, Document / Key-Value Store, Cache, Object Storage, Search Index, Vector Database, Graph Database, Time Series Database, Data Warehouse, Data Lake, Data Pipeline, Backup |
+| Identity & Security   | Identity & Auth, Secrets Manager, Firewall / WAF, VPN                                                                                                                                         |
+| Observability         | Logs, Metrics, Traces, Alerting / On-call                                                                                                                                                     |
+| AI & Machine Learning | LLM, Model Serving, Embedding Model, AI Agent, Retriever, Reranker, Prompt Registry, Guardrail, AI Tool, Evaluation, Training Pipeline, Model Registry, Feature Store, GPU Pool               |
+| Third-party           | Third-party Service (payments, email, maps, partner APIs)                                                                                                                                     |
+
+Diagrams saved with retired types load with their replacement: Ingress → Load Balancer, Container and Kubernetes → Compute Host, Identity Directory → Identity & Auth, Payment and Email → Third-party Service, ML Pipeline → Training Pipeline, and a Microfrontend node becomes a Microfrontend group.
 
 ### Groups
 
-| Type    | Description                      |
-| ------- | -------------------------------- |
-| VPC     | Virtual Private Cloud boundary   |
-| Cluster | Kubernetes or container cluster  |
-| Region  | Cloud provider geographic region |
-| Subnet  | Network subnet                   |
+| Type            | Use it for                                                       |
+| --------------- | ---------------------------------------------------------------- |
+| Region          | A geographic cloud region or data center                         |
+| Private Network | A VPC that isolates your services from the internet              |
+| Subnet          | A network segment inside a private network                       |
+| Cluster         | Compute that runs services together, such as Kubernetes          |
+| Replica Set     | Copies of the same data or service, such as primary and replicas |
+| Shard           | One partition of the data, usually with its own replicas         |
+| Trust Boundary  | Where ownership or trust changes: a team, tenant or third party  |
+| Microfrontend   | An independently deployed part of a frontend                     |
+| Screen          | A page or screen inside a frontend app                           |
 
 ### Edge Protocols
 
-| Protocol      | Style                    | Group     |
-| ------------- | ------------------------ | --------- |
-| HTTP/REST     | Solid blue               | Standard  |
-| gRPC          | Dashed green             | Standard  |
-| GraphQL       | Solid pink               | Standard  |
-| WebSocket     | Dashed purple, animated  | Standard  |
-| TCP           | Thick cyan               | Standard  |
-| AMQP          | Dashed amber, animated   | Messaging |
-| RabbitMQ      | Dashed amber, animated   | Messaging |
-| Kafka         | Dashed red, animated     | Messaging |
-| EventBridge   | Dashed orange, animated  | Messaging |
-| SNS/Push      | Dashed rose, animated    | Messaging |
-| SQL/Database  | Solid yellow             | Data      |
-| Redis         | Dashed red               | Data      |
-| S3/Blob       | Solid emerald            | Data      |
-| Vector Search | Dashed teal              | Data      |
-| Search        | Dashed amber             | Data      |
-| OAuth/OIDC    | Dashed violet            | Auth      |
-| DNS           | Dashed lime              | Auth      |
-| AI Inference  | Dashed fuchsia, animated | AI/ML     |
+| Protocol           | Style                             | Group     |
+| ------------------ | --------------------------------- | --------- |
+| HTTP/REST          | Solid blue                        | Standard  |
+| gRPC               | Dashed green                      | Standard  |
+| GraphQL            | Solid pink                        | Standard  |
+| WebSocket          | Dashed purple, animated           | Standard  |
+| Server-Sent Events | Dashed purple, animated           | Standard  |
+| WebRTC             | Dotted sky, animated              | Standard  |
+| UDP                | Dotted cyan                       | Standard  |
+| In-app call        | Thin dotted zinc (no network hop) | Standard  |
+| TCP                | Thick cyan                        | Standard  |
+| AMQP               | Dashed amber, animated            | Messaging |
+| RabbitMQ           | Dashed amber, animated            | Messaging |
+| Kafka              | Dashed red, animated              | Messaging |
+| EventBridge        | Dashed orange, animated           | Messaging |
+| MQTT               | Dashed green, animated            | Messaging |
+| SNS/Push           | Dashed rose, animated             | Messaging |
+| SQL/Database       | Solid yellow                      | Data      |
+| Redis              | Dashed red                        | Data      |
+| S3/Blob            | Solid emerald                     | Data      |
+| Replication        | Long-dashed slate, animated       | Data      |
+| Vector Search      | Dashed teal                       | Data      |
+| Search             | Dashed amber                      | Data      |
+| OAuth/OIDC         | Dashed violet                     | Auth      |
+| DNS                | Dashed lime                       | Auth      |
+| AI Inference       | Dashed fuchsia, animated          | AI/ML     |
 
 ### Data Contract Formats
 
