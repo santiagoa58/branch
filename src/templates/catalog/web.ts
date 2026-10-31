@@ -171,7 +171,7 @@ export const b2bSaas = defineTemplate({
     },
     {
       id: "sso",
-      type: "identity",
+      type: "auth",
       label: "SSO",
     },
     {
@@ -195,10 +195,10 @@ export const b2bSaas = defineTemplate({
     { id: "audit", type: "logging", label: "Audit log", in: "app" },
     {
       id: "billing",
-      type: "payment",
+      type: "external",
       label: "Billing provider",
     },
-    { id: "email", type: "email", label: "Transactional email" },
+    { id: "email", type: "external", label: "Transactional email" },
     { id: "analytics", type: "metrics", label: "Product analytics" },
   ],
   edges: [

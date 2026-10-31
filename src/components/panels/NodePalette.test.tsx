@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vite-plus/test";
-import { NODE_TYPES_CONFIG } from "@/constants";
+import { GROUP_TYPES_CONFIG, NODE_TYPES_CONFIG } from "@/constants";
 import { NodePalette } from "./NodePalette";
 
 afterEach(cleanup);
@@ -9,7 +9,8 @@ describe("architecture node palette", () => {
   it("exposes every configured architecture node", () => {
     const { container } = render(<NodePalette />);
     expect(container.querySelectorAll('[draggable="true"]')).toHaveLength(
-      Object.keys(NODE_TYPES_CONFIG).length + 7,
+      // Every node type, every group type, and the comment note.
+      Object.keys(NODE_TYPES_CONFIG).length + Object.keys(GROUP_TYPES_CONFIG).length + 1,
     );
     for (const config of Object.values(NODE_TYPES_CONFIG)) {
       expect(screen.getAllByText(config.label).length).toBeGreaterThan(0);

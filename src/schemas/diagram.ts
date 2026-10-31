@@ -3,83 +3,94 @@ import { Position as ReactFlowPosition } from "@xyflow/react";
 import type { DiagramData } from "@/types";
 
 export const architectureNodeTypeSchema = z.enum([
-  "service",
-  "database",
-  "queue",
-  "cache",
-  "gateway",
-  "external",
-  "storage",
-  "client",
-  "lambda",
-  "loadbalancer",
-  "cdn",
-  "auth",
-  "container",
-  "dns",
-  "llm",
-  "vectordb",
-  "mlpipeline",
-  "embedding",
-  "secrets",
-  "eventbus",
-  "datalake",
-  "search",
-  "notification",
+  "user",
   "webapp",
   "mobileapp",
+  "client",
+  "iot",
   "component",
-  "microfrontend",
-  "router",
   "statestore",
+  "clientstorage",
+  "router",
   "serviceworker",
+  "sdk",
+  "dns",
+  "cdn",
+  "edgefunction",
+  "loadbalancer",
+  "gateway",
   "bff",
+  "ratelimiter",
+  "proxy",
+  "service",
   "worker",
+  "lambda",
   "scheduler",
   "workflow",
-  "ratelimiter",
-  "webhook",
+  "coordinator",
   "server",
-  "kubernetes",
-  "ingress",
-  "proxy",
-  "firewall",
-  "vpn",
+  "queue",
+  "eventbus",
+  "stream",
+  "webhook",
+  "notification",
+  "database",
   "nosql",
+  "cache",
+  "storage",
+  "search",
+  "vectordb",
   "graphdb",
   "timeseries",
   "warehouse",
+  "datalake",
   "etl",
-  "stream",
   "backup",
+  "auth",
+  "secrets",
+  "firewall",
+  "vpn",
   "logging",
   "metrics",
   "tracing",
   "alerting",
+  "llm",
+  "inference",
+  "embedding",
   "agent",
   "retriever",
   "reranker",
   "prompt",
   "guardrail",
+  "tool",
+  "evaluation",
+  "training",
   "modelregistry",
   "featurestore",
-  "training",
-  "inference",
   "gpu",
-  "evaluation",
-  "tool",
-  "payment",
-  "email",
-  "identity",
-  "iot",
+  "external",
 ]);
 
+/** Node types merged into a role-based type; documents using them are rewritten on load. */
+export const RETIRED_NODE_TYPES = {
+  ingress: "loadbalancer",
+  container: "server",
+  kubernetes: "server",
+  identity: "auth",
+  payment: "external",
+  email: "external",
+  mlpipeline: "training",
+} as const satisfies Record<string, z.infer<typeof architectureNodeTypeSchema>>;
+
 export const groupNodeTypeSchema = z.enum([
-  "vpc",
-  "cluster",
   "region",
+  "vpc",
   "subnet",
+  "cluster",
+  "replicaset",
+  "shard",
   "boundary",
+  "microfrontend",
   "view",
 ]);
 export const commentColorSchema = z.enum(["yellow", "blue", "green", "pink", "purple"]);
@@ -91,15 +102,21 @@ export const edgeProtocolSchema = z.enum([
   "grpc",
   "graphql",
   "websocket",
+  "sse",
+  "webrtc",
+  "udp",
+  "inapp",
   "tcp",
   "amqp",
   "rabbitmq",
   "kafka",
   "eventbridge",
+  "mqtt",
   "sns",
   "sql",
   "redis",
   "s3",
+  "replication",
   "vector",
   "search",
   "oauth",
@@ -341,11 +358,53 @@ export const commentNodeSchema = z
   })
   .strict();
 
-export const reactFlowNodeSchema = z.union([
-  architectureNodeSchema,
-  groupNodeSchema,
-  commentNodeSchema,
-]);
+const RETIRED_TYPE_REPLACEMENTS: ReadonlyMap<string, string> = new Map(
+  Object.entries(RETIRED_NODE_TYPES),
+);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Rewrites nodes saved with a retired type before validation. Merged types take their role-based
+ * replacement; a Microfrontend node becomes a Microfrontend group, keeping its label, description,
+ * decision and placement.
+ */
+function migrateRetiredNodeType(value: unknown): unknown {
+  if (!isRecord(value) || value["type"] !== "architecture" || !isRecord(value["data"])) {
+    return value;
+  }
+  const data = value["data"];
+  const type = data["type"];
+  if (type === "microfrontend") {
+    const { label, description, decision, parentId } = data;
+    return {
+      ...value,
+      type: "group",
+      zIndex: -1,
+      style: { width: 360, height: 240, ...(isRecord(value["style"]) ? value["style"] : {}) },
+      data: {
+        label,
+        groupType: "microfrontend",
+        collapsed: false,
+        ...(description === undefined ? {} : { description }),
+        ...(decision === undefined ? {} : { decision }),
+        ...(parentId === undefined ? {} : { parentId }),
+      },
+    };
+  }
+  const replacement = typeof type === "string" ? RETIRED_TYPE_REPLACEMENTS.get(type) : undefined;
+  if (replacement) {
+    return { ...value, data: { ...data, type: replacement } };
+  }
+  return value;
+}
+
+export const reactFlowNodeSchema = z.preprocess(
+  migrateRetiredNodeType,
+  z.union([architectureNodeSchema, groupNodeSchema, commentNodeSchema]),
+);
 
 export const architectureEdgeSchema = z
   .object({

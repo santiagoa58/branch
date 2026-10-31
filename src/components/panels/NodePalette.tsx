@@ -1,6 +1,10 @@
 import { useDragEvent } from "@/hooks/useDragEvent";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG, COMMENT_CONFIG } from "@/constants";
 import { NODE_CATEGORIES } from "@/constants/nodeCategories";
+import {
+  GROUP_SHORTCUTS as EDITOR_GROUP_SHORTCUTS,
+  QUICK_ADD_SHORTCUTS,
+} from "@/utils/editorShortcuts";
 import { ArchitectureNodeType, GroupNodeType } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -12,53 +16,17 @@ import {
 import { useState } from "react";
 import { useOnboardingStore } from "@/store/onboardingStore";
 
-// Keyboard shortcuts for nodes
-const NODE_SHORTCUTS: Partial<Record<ArchitectureNodeType, string>> = {
-  service: "S",
-  database: "D",
-  queue: "Q",
-  cache: "C",
-  gateway: "G",
-  external: "E",
-  storage: "T",
-  client: "L",
-  // Tier 1: Cloud Infrastructure
-  lambda: "F",
-  loadbalancer: "B",
-  cdn: "Y",
-  auth: "A",
-  container: "P",
-  dns: "Z",
-  // Tier 2: AI/ML
-  llm: "M",
-  vectordb: "X",
-  mlpipeline: "W",
-  embedding: "I",
-  // Tier 3: Cloud Services
-  secrets: "K",
-  eventbus: "U",
-  datalake: "J",
-  search: "R",
-  notification: "O",
-};
+// Shortcut badges come from the same list the editor's quick-add keys use.
+const NODE_SHORTCUTS: Partial<Record<string, string>> = Object.fromEntries(
+  QUICK_ADD_SHORTCUTS.map(({ key, nodeType }) => [nodeType, key.toUpperCase()]),
+);
 
-// Keyboard shortcuts for groups
-const GROUP_SHORTCUTS: Partial<Record<GroupNodeType, string>> = {
-  vpc: "Shift+V",
-  cluster: "Shift+K",
-  region: "Shift+R",
-  subnet: "Shift+N",
-};
+const GROUP_SHORTCUTS: Partial<Record<string, string>> = Object.fromEntries(
+  EDITOR_GROUP_SHORTCUTS.map(({ key, nodeType }) => [nodeType.slice("group-".length), key]),
+);
 
-// Infrastructure and logical containers
-const GROUP_CATEGORIES: GroupNodeType[] = [
-  "boundary",
-  "view",
-  "vpc",
-  "cluster",
-  "region",
-  "subnet",
-];
+// Ordered from physical placement (region, network) to logical and frontend structure.
+const GROUP_CATEGORIES = Object.keys(GROUP_TYPES_CONFIG) as GroupNodeType[];
 
 export function NodePalette() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,28 +143,11 @@ export function NodePalette() {
             <h3 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">
               {category}
             </h3>
-            {category === "Backend & Messaging" ? (
-              // Grid layout for compute nodes (more visual prominence)
-              <div className="grid grid-cols-2 gap-2">
-                {types.map((type) => (
-                  <GridDraggableNode key={type} type={type} />
-                ))}
-              </div>
-            ) : category === "External" ? (
-              // List layout for external services (detailed descriptions)
-              <div className="space-y-2">
-                {types.map((type) => (
-                  <ListDraggableNode key={type} type={type} />
-                ))}
-              </div>
-            ) : (
-              // List layout for data store and messaging
-              <div className="space-y-2">
-                {types.map((type) => (
-                  <ListDraggableNode key={type} type={type} />
-                ))}
-              </div>
-            )}
+            <div className="space-y-2">
+              {types.map((type) => (
+                <ListDraggableNode key={type} type={type} />
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -266,38 +217,6 @@ function GroupDraggableNode({ type }: { type: GroupNodeType }) {
       )}
       <Icon className="w-4 h-4 text-muted-foreground" />
       <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{config.label}</span>
-    </div>
-  );
-}
-
-function GridDraggableNode({ type }: { type: ArchitectureNodeType }) {
-  const config = NODE_TYPES_CONFIG[type];
-  const Icon = config.icon;
-  const { onDragStart } = useDragEvent(type);
-  const shortcut = NODE_SHORTCUTS[type];
-
-  return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      className="group cursor-grab active:cursor-grabbing bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg p-3 flex flex-col items-center gap-2 transition-all relative"
-    >
-      {shortcut && (
-        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded">
-            {shortcut}
-          </kbd>
-        </div>
-      )}
-      <div className={cn("p-2 rounded-md", config.bgClass)}>
-        <Icon
-          className={cn("w-4.5 h-4.5", config.iconColor, "group-hover:opacity-90")}
-          strokeWidth={1.5}
-        />
-      </div>
-      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200">
-        {config.label}
-      </span>
     </div>
   );
 }
