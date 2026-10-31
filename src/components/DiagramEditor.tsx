@@ -15,18 +15,11 @@ import { traceFlowPath } from "@/utils/graphTraversal";
 import { applyGroupCollapse } from "@/utils/groupRollup";
 import { cn } from "@/lib/utils";
 import {
-  CursorArrowRaysIcon,
-  HandRaisedIcon,
-  MinusIcon,
-  PlusIcon,
   ArrowDownTrayIcon,
   DocumentDuplicateIcon,
   ClipboardDocumentIcon,
-  ArrowUpTrayIcon,
-  BoltIcon,
   ArrowUpCircleIcon,
   ArrowDownCircleIcon,
-  PlayCircleIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import { exportSelectedAsSvg, exportSelectedAsPng } from "@/utils/export";
@@ -42,6 +35,19 @@ import { FlowsPanel } from "@/components/panels/FlowsPanel";
 import { ImportDialog } from "@/components/ui/ImportDialog";
 import { TemplateGalleryDialog } from "@/components/ui/TemplateGalleryDialog";
 import { LaserPointer } from "@/components/ui/LaserPointer";
+import { ToolbarButton, ToolbarDivider } from "@/components/ui/ToolbarButton";
+import {
+  Activity,
+  FileUp,
+  Hand,
+  Keyboard,
+  LayoutTemplate,
+  Minus,
+  MousePointer2,
+  Plus,
+  Presentation,
+  Route,
+} from "lucide-react";
 import { useSimulationAnimation } from "@/hooks/useSimulationAnimation";
 import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
 import { useChaosSimulation } from "@/hooks/useChaosSimulation";
@@ -654,161 +660,89 @@ export function DiagramEditor() {
         </>
       )}
 
-      {/* Toolbar Overlay */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border border-zinc-200 dark:border-zinc-800 rounded-full p-1.5 flex gap-1 shadow-lg shadow-black/20 dark:shadow-black/50 z-20">
-        <button
-          type="button"
+      {/* Toolbar Overlay: tools, zoom, then actions. Every control names itself and its shortcut. */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border border-zinc-200 dark:border-zinc-800 rounded-full p-1.5 flex items-center gap-1 shadow-lg shadow-black/20 dark:shadow-black/50 z-20">
+        <ToolbarButton
+          label="Select"
+          shortcut="V"
+          active={!panMode && !laserMode}
           onClick={() => {
             setPanMode(false);
             setLaserMode(false);
           }}
-          className={cn(
-            "p-2 rounded-full transition-colors",
-            !panMode && !laserMode
-              ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",
-          )}
-          title="Select (V)"
         >
-          <CursorArrowRaysIcon className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
+          <MousePointer2 className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Pan"
+          shortcut="H"
+          active={panMode}
           onClick={() => {
             setPanMode(true);
             setLaserMode(false);
           }}
-          className={cn(
-            "p-2 rounded-full transition-colors",
-            panMode
-              ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",
-          )}
-          title="Pan (H)"
         >
-          <HandRaisedIcon className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={laserMode ? "Disable laser pointer" : "Enable laser pointer"}
+          <Hand className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Laser pointer for presenting"
+          shortcut="`"
+          active={laserMode}
           onClick={() => {
             setLaserMode(!laserMode);
             setPanMode(false);
           }}
-          className={cn(
-            "p-2 rounded-full transition-colors",
-            laserMode
-              ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
-              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",
-          )}
-          title="Laser Pointer (`)"
         >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="3" />
-            <line x1="12" y1="3" x2="12" y2="6" />
-            <line x1="12" y1="18" x2="12" y2="21" />
-            <line x1="3" y1="12" x2="6" y2="12" />
-            <line x1="18" y1="12" x2="21" y2="12" />
-            <line x1="5.6" y1="5.6" x2="7.8" y2="7.8" />
-            <line x1="16.2" y1="16.2" x2="18.4" y2="18.4" />
-            <line x1="5.6" y1="18.4" x2="7.8" y2="16.2" />
-            <line x1="16.2" y1="7.8" x2="18.4" y2="5.6" />
-          </svg>
-        </button>
-        <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 my-auto mx-1" />
-        <button
-          type="button"
-          onClick={() => {
-            void zoomOut();
-          }}
-          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          title="Zoom Out"
-        >
-          <MinusIcon className="w-4 h-4" />
-        </button>
-        <span className="text-xs font-medium text-muted-foreground flex items-center px-2">
+          <Presentation className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarDivider />
+        <ToolbarButton label="Zoom out" shortcut="−" onClick={() => void zoomOut()}>
+          <Minus className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <span className="text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1">
           {zoom}%
         </span>
-        <button
-          type="button"
-          onClick={() => {
-            void zoomIn();
-          }}
-          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          title="Zoom In"
-        >
-          <PlusIcon className="w-4 h-4" />
-        </button>
-        <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 my-auto mx-1" />
-        <button
-          type="button"
-          onClick={() => setShowShortcuts(true)}
-          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          title="Keyboard Shortcuts (?)"
-        >
-          <span className="text-xs font-semibold">?</span>
-        </button>
-        <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 my-auto mx-1" />
-        <button
-          type="button"
-          onClick={() => setShowImportDialog(true)}
-          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          title="Import Diagram"
-        >
-          <ArrowUpTrayIcon className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowTemplateGallery(true)}
-          className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          title="Starter Templates"
-        >
-          <Squares2X2Icon className="w-4 h-4" />
-        </button>
-        <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 my-auto mx-1" />
-        <button
-          type="button"
-          onClick={() => {
-            setShowSimulationPanel((v) => !v);
-            if (!showSimulationPanel) {
-              simulationSetMode("flow");
-            } else {
-              simulationSetMode("idle");
-            }
-          }}
+        <ToolbarButton label="Zoom in" shortcut="+" onClick={() => void zoomIn()}>
+          <Plus className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarDivider />
+        <ToolbarButton label="Import diagram" onClick={() => setShowImportDialog(true)}>
+          <FileUp className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
+          <LayoutTemplate className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarDivider />
+        <ToolbarButton
+          label="Simulate requests and failures"
+          showLabel="Simulate"
+          shortcut="⇧S"
+          active={showSimulationPanel}
           className={cn(
-            "p-2 rounded-full transition-colors",
-            showSimulationPanel
-              ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
-              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",
             onboardingActiveStep === "run-flow-sim" &&
               "onboarding-pulse text-amber-600 dark:text-amber-400",
           )}
-          title="Simulation Mode (Shift+S)"
+          onClick={() => {
+            setShowSimulationPanel((v) => !v);
+            simulationSetMode(showSimulationPanel ? "idle" : "flow");
+          }}
         >
-          <BoltIcon className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
+          <Activity className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Saved request flows"
+          active={showFlowsPanel}
           onClick={() => setShowFlowsPanel((v) => !v)}
-          className={cn(
-            "p-2 rounded-full transition-colors",
-            showFlowsPanel
-              ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
-              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",
-          )}
-          title="Saved Flows"
         >
-          <PlayCircleIcon className="w-4 h-4" />
-        </button>
+          <Route className="size-4" aria-hidden="true" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Keyboard shortcuts"
+          shortcut="?"
+          onClick={() => setShowShortcuts(true)}
+        >
+          <Keyboard className="size-4" aria-hidden="true" />
+        </ToolbarButton>
       </div>
 
       {/* Import Dialog */}
