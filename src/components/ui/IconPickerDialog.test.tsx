@@ -1,22 +1,27 @@
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { getCollections, getFeaturedCollections, searchIcons } from "@/services/iconify";
-import { notify } from "@/services/notify";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { iconLoaded } from "@iconify/react";
+import { getCollections, searchIcons } from "@/services/iconify";
 import { IconPickerDialog } from "./IconPickerDialog";
 
+const { previewLoads } = vi.hoisted(() => ({ previewLoads: new Map<string, () => void>() }));
+
 vi.mock("@iconify/react", () => ({
-  Icon: ({ icon }: { icon: string }) => <span aria-hidden="true" data-icon={icon} />,
+  iconLoaded: vi.fn<(icon: string) => boolean>(() => false),
+  Icon: ({ icon, onLoad }: { icon: string; onLoad?: (icon: string) => void }) => {
+    if (onLoad) {
+      previewLoads.set(icon, () => onLoad(icon));
+    }
+    return <span aria-hidden="true" data-icon={icon} />;
+  },
 }));
 
-vi.mock("@/services/iconify", () => ({
+vi.mock("@/services/iconify", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/iconify")>()),
   searchIcons: vi.fn<typeof searchIcons>(),
   getCollections: vi.fn<typeof getCollections>(),
-  getFeaturedCollections: vi.fn<typeof getFeaturedCollections>(),
-}));
-
-vi.mock("@/services/notify", () => ({
-  notify: { error: vi.fn<typeof notify.error>() },
 }));
 
 type PickerProps = ComponentProps<typeof IconPickerDialog>;
@@ -31,9 +36,15 @@ async function mount(overrides: Partial<PickerProps> = {}) {
   };
   const view = render(<IconPickerDialog {...props} />);
   await act(async () => {
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(50);
   });
   return { ...view, props };
+}
+
+function searchFor(value: string) {
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search icons" }), {
+    target: { value },
+  });
 }
 
 async function advanceSearch() {
@@ -52,14 +63,10 @@ function deferredSearch() {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.resetAllMocks();
-  vi.mocked(getCollections).mockResolvedValue([
-    { prefix: "logos", name: "SVG Logos", total: 100 },
-    { prefix: "devicon", name: "Devicon", total: 100 },
-    { prefix: "lucide", name: "Lucide", total: 100 },
-  ]);
-  vi.mocked(getFeaturedCollections).mockReturnValue(["logos", "devicon", "lucide"]);
-  vi.mocked(searchIcons).mockResolvedValue({ icons: [], total: 0 });
+  vi.clearAllMocks();
+  previewLoads.clear();
+  vi.mocked(iconLoaded).mockReturnValue(false);
+  vi.mocked(searchIcons).mockReset().mockResolvedValue({ icons: [], total: 0 });
 });
 
 afterEach(() => {
@@ -69,154 +76,242 @@ afterEach(() => {
 });
 
 describe("IconPickerDialog", () => {
-  it("browses recognizable brands in technology groups without a search", async () => {
+  it("browses named technologies immediately without searching or fetching collections", async () => {
     await mount();
 
+    expect(screen.getByRole("dialog", { name: "Choose an icon" })).toHaveAccessibleDescription(
+      /Browse popular technologies/,
+    );
     expect(
       within(screen.getByRole("region", { name: "Frontend" })).getByRole("button", {
-        name: "Select React (logos:react)",
+        name: "Select React",
       }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Select Node.js (logos:nodejs-icon)" }),
-    ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Select AWS (logos:aws)" })).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Select PostgreSQL (logos:postgresql)" }),
-    ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Select OpenAI (logos:openai-icon)" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Select Icon" })).toBeDisabled();
-
+    ).toHaveTextContent("React");
+    for (const name of ["Node.js", "AWS", "PostgreSQL", "OpenAI"]) {
+      expect(screen.getByRole("button", { name: `Select ${name}` })).toHaveTextContent(name);
+    }
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByText("logos:react")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use icon" })).toBeDisabled();
     await advanceSearch();
     expect(searchIcons).not.toHaveBeenCalled();
+    expect(getCollections).not.toHaveBeenCalled();
   });
 
-  it("selects a brand and sends its Iconify ID only on confirmation", async () => {
+  it("confirms a curated selection immediately without waiting for an icon load", async () => {
     const { props } = await mount();
-    const react = screen.getByRole("button", { name: "Select React (logos:react)" });
-
+    const react = screen.getByRole("button", { name: "Select React" });
     fireEvent.click(react);
     expect(react).toHaveAttribute("aria-pressed", "true");
     expect(props.onSelect).not.toHaveBeenCalled();
     expect(props.onClose).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Icon" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use icon" }));
     expect(props.onSelect).toHaveBeenCalledExactlyOnceWith("logos:react");
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("filters featured brands by collection and passes that filter to search", async () => {
+  it.each([
+    ["Postgres", "PostgreSQL", "postgresql"],
+    ["Node.js", "Node.js", "nodejs"],
+    ["node js", "Node.js", "nodejs"],
+    ["Amazon Web Services", "AWS", "aws"],
+    ["AWS", "AWS", "aws"],
+  ])("matches %s locally before the debounced catalog search", async (query, name, apiQuery) => {
     await mount();
-    const collection = screen.getByRole("combobox", { name: "Collection:" });
-    expect(collection).toBeEnabled();
-
-    fireEvent.change(collection, { target: { value: "devicon" } });
-    expect(screen.getByRole("button", { name: "Select Keras (devicon:keras)" })).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Select React (logos:react)" }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.change(collection, { target: { value: "" } });
-    expect(screen.getByRole("button", { name: "Select React (logos:react)" })).toBeVisible();
-
-    fireEvent.change(collection, { target: { value: "lucide" } });
-    expect(screen.getByText(/No featured icons in this collection/)).toBeVisible();
-    vi.mocked(searchIcons).mockResolvedValueOnce({ icons: ["lucide:server"], total: 1 });
-    fireEvent.change(screen.getByRole("textbox", { name: "Search icons" }), {
-      target: { value: "server" },
-    });
+    searchFor(query);
+    expect(screen.getByRole("button", { name: `Select ${name}` })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Select React" })).not.toBeInTheDocument();
+    expect(searchIcons).not.toHaveBeenCalled();
+    expect(screen.getByText("Searching the wider catalog…")).toBeVisible();
     await advanceSearch();
-
     expect(searchIcons).toHaveBeenCalledExactlyOnceWith(
-      "server",
-      "lucide",
+      apiQuery,
+      undefined,
       48,
       expect.any(AbortSignal),
     );
-    expect(screen.getByRole("button", { name: "Select lucide:server" })).toBeVisible();
   });
 
-  it.each([
-    { currentIcon: "logos:react", label: "Select React (logos:react)" },
-    { currentIcon: "logos:aws", label: "Select AWS (logos:aws)" },
-  ])(
-    "resets an unconfirmed selection to $currentIcon on reopening",
-    async ({ currentIcon, label }) => {
+  it.each(["logos:react", "logos:aws"])(
+    "resets the draft and query to currentIcon %s on reopening after cancel",
+    async (currentIcon) => {
       const { rerender, props } = await mount({ currentIcon: "logos:react" });
-      fireEvent.click(screen.getByRole("button", { name: "Select Node.js (logos:nodejs-icon)" }));
+      searchFor("node");
+      fireEvent.click(screen.getByRole("button", { name: "Select Node.js" }));
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
       expect(props.onSelect).not.toHaveBeenCalled();
-
+      expect(props.onClose).toHaveBeenCalledTimes(1);
       rerender(<IconPickerDialog {...props} isOpen={false} />);
-      expect(screen.queryByRole("textbox", { name: "Search icons" })).not.toBeInTheDocument();
-      await act(async () => {
-        rerender(
-          <IconPickerDialog
-            isOpen
-            onClose={props.onClose}
-            onSelect={props.onSelect}
-            {...(currentIcon ? { currentIcon } : {})}
-          />,
-        );
-      });
-
-      expect(
-        screen.getByRole("button", { name: "Select Node.js (logos:nodejs-icon)" }),
-      ).toHaveAttribute("aria-pressed", "false");
-      expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
-      fireEvent.click(screen.getByRole("button", { name: "Select Icon" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      rerender(
+        <IconPickerDialog
+          isOpen
+          onClose={props.onClose}
+          onSelect={props.onSelect}
+          {...(currentIcon ? { currentIcon } : {})}
+        />,
+      );
+      expect(screen.getByRole("searchbox")).toHaveValue("");
+      expect(screen.getByRole("button", { name: "Select Node.js" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      const name = currentIcon === "logos:react" ? "React" : "AWS";
+      expect(screen.getByRole("button", { name: `Select ${name}` })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Use icon" }));
       expect(props.onSelect).toHaveBeenCalledExactlyOnceWith(currentIcon);
     },
   );
 
-  it("clears an unconfirmed selection when reopened without a current icon", async () => {
+  it("clears a draft when reopened without a current icon", async () => {
     const { rerender, props } = await mount({ currentIcon: "logos:react" });
-    fireEvent.click(screen.getByRole("button", { name: "Select Node.js (logos:nodejs-icon)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Node.js" }));
     rerender(<IconPickerDialog {...props} isOpen={false} />);
-    await act(async () => {
-      rerender(<IconPickerDialog isOpen onClose={props.onClose} onSelect={props.onSelect} />);
-    });
-
+    rerender(<IconPickerDialog isOpen onClose={props.onClose} onSelect={props.onSelect} />);
     expect(screen.getByText("No icon selected")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Select Icon" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Select Node.js (logos:nodejs-icon)" }),
-    ).toHaveAttribute("aria-pressed", "false");
-    expect(props.onSelect).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Use icon" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select Node.js" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
-  it("ignores an older response that resolves after the latest search", async () => {
+  it("debounces typing, cancels requests, and ignores stale results", async () => {
     const older = deferredSearch();
     const latest = deferredSearch();
     vi.mocked(searchIcons).mockReturnValueOnce(older.promise).mockReturnValueOnce(latest.promise);
-    await mount();
-    const search = screen.getByRole("textbox", { name: "Search icons" });
-
-    fireEvent.change(search, { target: { value: "react" } });
+    const { unmount } = await mount();
+    searchFor("net");
+    searchFor("network");
     await advanceSearch();
     expect(searchIcons).toHaveBeenCalledTimes(1);
     const olderSignal = vi.mocked(searchIcons).mock.calls[0]?.[3];
     expect(olderSignal?.aborted).toBe(false);
 
-    fireEvent.change(search, { target: { value: "docker" } });
+    searchFor("server");
     expect(olderSignal?.aborted).toBe(true);
     await advanceSearch();
+    await act(async () => latest.resolve({ icons: ["lucide:server"], total: 1 }));
+    expect(screen.getByRole("button", { name: "Select Server" })).toHaveTextContent("Server");
+    await act(async () => older.resolve({ icons: ["lucide:network"], total: 99 }));
+    expect(screen.queryByRole("button", { name: "Select Network" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Server" })).toBeVisible();
+    unmount();
+    expect(vi.mocked(searchIcons).mock.calls[1]?.[3]?.aborted).toBe(true);
+  });
+
+  it("cancels on close and never runs a pending debounce after unmount", async () => {
+    const pending = deferredSearch();
+    vi.mocked(searchIcons).mockReturnValueOnce(pending.promise);
+    const { rerender, props, unmount } = await mount();
+    searchFor("server");
+    await advanceSearch();
+    rerender(<IconPickerDialog {...props} isOpen={false} />);
+    expect(vi.mocked(searchIcons).mock.calls[0]?.[3]?.aborted).toBe(true);
+    await act(async () => pending.resolve({ icons: ["lucide:server"], total: 1 }));
+    rerender(<IconPickerDialog {...props} />);
+    searchFor("network");
+    unmount();
+    await advanceSearch();
+    expect(searchIcons).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps local matches usable after an offline error and supports retry", async () => {
+    vi.mocked(searchIcons)
+      .mockRejectedValueOnce(new Error("Unable to search. Check your connection."))
+      .mockResolvedValueOnce({ icons: ["logos:postgresql", "devicon:postgresql-plain"], total: 2 });
+    const { props } = await mount();
+    searchFor("Postgres");
+    await advanceSearch();
+    expect(screen.getByRole("alert")).toHaveTextContent("Check your connection");
+    fireEvent.click(screen.getByRole("button", { name: "Select PostgreSQL" }));
+    expect(screen.getByRole("button", { name: "Use icon" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry search" }));
+    await advanceSearch();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Select PostgreSQL" })).toHaveLength(2);
+    expect(screen.queryByText("devicon:postgresql-plain")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Use icon" }));
+    expect(props.onSelect).toHaveBeenCalledExactlyOnceWith("logos:postgresql");
+  });
+
+  it("clears stale remote results immediately and returns to curated browsing when cleared", async () => {
+    vi.mocked(searchIcons).mockResolvedValueOnce({ icons: ["lucide:server"], total: 1 });
+    await mount();
+    searchFor("server");
+    await advanceSearch();
+    expect(screen.getByRole("button", { name: "Select Server" })).toBeVisible();
+    searchFor("no such technology");
+    expect(screen.queryByRole("button", { name: "Select Server" })).not.toBeInTheDocument();
+    await advanceSearch();
+    expect(screen.getByText(/No icons found/)).toBeVisible();
+    searchFor("   ");
+    expect(screen.getByRole("button", { name: "Select React" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "More icons" })).not.toBeInTheDocument();
+    await advanceSearch();
     expect(searchIcons).toHaveBeenCalledTimes(2);
+  });
 
-    await act(async () => {
-      latest.resolve({ icons: ["logos:docker-icon"], total: 1 });
-      await latest.promise;
+  it("requires a remote preview to load, ignores another selection's late load, and offers retry", async () => {
+    vi.mocked(searchIcons).mockResolvedValueOnce({
+      icons: ["lucide:server", "lucide:network"],
+      total: 2,
     });
-    expect(screen.getByRole("button", { name: "Select logos:docker-icon" })).toBeVisible();
+    const { props } = await mount();
+    searchFor("server");
+    await advanceSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Select Network" }));
+    const oldLoad = previewLoads.get("lucide:network");
+    fireEvent.click(screen.getByRole("button", { name: "Select Server" }));
+    const confirm = screen.getByRole("button", { name: "Use icon" });
+    expect(confirm).toBeDisabled();
+    act(() => oldLoad?.());
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(props.onSelect).not.toHaveBeenCalled();
 
-    // Deliberately resolve despite cancellation: the component must guard stale results too.
-    await act(async () => {
-      older.resolve({ icons: ["logos:react"], total: 99 });
-      await older.promise;
+    await act(async () => vi.advanceTimersByTimeAsync(8000));
+    expect(screen.getByRole("alert")).toHaveTextContent("Icon preview could not load");
+    fireEvent.click(screen.getByRole("button", { name: "Retry preview" }));
+    expect(screen.getByText("Loading icon preview…")).toBeVisible();
+    expect(confirm).toBeDisabled();
+    act(() => previewLoads.get("lucide:server")?.());
+    expect(confirm).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(confirm);
+    expect(props.onSelect).toHaveBeenCalledExactlyOnceWith("lucide:server");
+  });
+
+  it("supports cached remote current icons without a loading delay", async () => {
+    vi.mocked(iconLoaded).mockImplementation((id) => id === "lucide:server");
+    await mount({ currentIcon: "lucide:server" });
+    expect(screen.getByRole("button", { name: "Use icon" })).toBeEnabled();
+    expect(screen.queryByText("Loading icon preview…")).not.toBeInTheDocument();
+  });
+
+  it("focuses search, traps keyboard focus, selects by keyboard, and cancels with Escape", async () => {
+    const { props } = await mount();
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Select React" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Select React" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    screen.getByRole("button", { name: "Close" }).focus();
+    await user.tab();
+    await waitFor(() => {
+      expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
     });
-    expect(screen.getByRole("button", { name: "Select logos:docker-icon" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Select logos:react" })).not.toBeInTheDocument();
-    expect(screen.getByText("Found 1 icon")).toBeVisible();
-    expect(notify.error).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onSelect).not.toHaveBeenCalled();
   });
 });

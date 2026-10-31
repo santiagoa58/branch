@@ -3,6 +3,7 @@
  * Wrapper for the Iconify Search API to find and browse icons
  */
 
+import { TECHNOLOGY_ICON_GROUPS, type TechnologyIconGroup } from "@/constants/technologyIcons";
 import {
   iconifyCollectionSchema,
   iconifyCollectionsResponseSchema,
@@ -16,6 +17,59 @@ export type IconifyCollectionsResponse = Record<string, IconifyCollection>;
 export type { IconifyCollection };
 
 const ICONIFY_API_BASE = "https://api.iconify.design";
+const technologyIcons = TECHNOLOGY_ICON_GROUPS.flatMap((group) => group.icons);
+
+function normalizeName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** Local metadata remains searchable even when the Iconify API is unavailable. */
+export function searchTechnologyIcons(query: string): readonly TechnologyIconGroup[] {
+  const terms = query.trim().split(/\s+/).map(normalizeName).filter(Boolean);
+  return TECHNOLOGY_ICON_GROUPS.map((group) => ({
+    ...group,
+    icons: group.icons.filter((icon) => {
+      const text = normalizeName(
+        [icon.name, icon.id, group.name, ...(icon.aliases ?? [])].join(" "),
+      );
+      return terms.every((term) => text.includes(term));
+    }),
+  })).filter((group) => group.icons.length > 0);
+}
+
+/** Translate familiar brand aliases without requiring Iconify search syntax. */
+export function normalizeIconSearchQuery(query: string): string {
+  const normalized = normalizeName(query);
+  const match = technologyIcons.find((icon) =>
+    [icon.name, ...(icon.aliases ?? [])].some((name) => normalizeName(name) === normalized),
+  );
+  return match ? normalizeName(match.name) : query.trim();
+}
+
+/** Prefer brand spelling; fall back to readable words for wider catalog results. */
+export function getIconDisplayName(iconId: string): string {
+  const known = technologyIcons.find((icon) => icon.id === iconId);
+  if (known) {
+    return known.name;
+  }
+  const name = (iconId.split(":").pop() ?? iconId).replace(
+    /(?:-(?:icon|original|plain|wordmark|line|fill|filled|outline|rounded|sharp|bold|duotone|linear|color|dark|light))+$/,
+    "",
+  );
+  const brand = technologyIcons.find((icon) =>
+    [
+      icon.name,
+      icon.id
+        .split(":")
+        .pop()
+        ?.replace(/-icon$/, "") ?? "",
+      ...(icon.aliases ?? []),
+    ].some((candidate) => normalizeName(candidate) === normalizeName(name)),
+  );
+  return (
+    brand?.name ?? name.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+}
 
 export const ALLOWED_ICON_COLLECTIONS: readonly string[] = [
   "logos",

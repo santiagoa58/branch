@@ -4,7 +4,10 @@ import {
   ALLOWED_ICON_COLLECTIONS,
   getCollections,
   getFeaturedCollections,
+  getIconDisplayName,
+  normalizeIconSearchQuery,
   searchIcons,
+  searchTechnologyIcons,
 } from "./iconify";
 
 const fetcher = vi.fn<typeof fetch>();
@@ -174,6 +177,43 @@ describe("Iconify search", () => {
   it("surfaces network failures", async () => {
     fetcher.mockRejectedValueOnce(new TypeError("Offline"));
     await expect(searchIcons("react")).rejects.toThrow("internet connection");
+  });
+});
+
+describe("plain language icon search", () => {
+  it.each([
+    ["Postgres", "logos:postgresql", "postgresql"],
+    ["Node.js", "logos:nodejs-icon", "nodejs"],
+    ["node js", "logos:nodejs-icon", "nodejs"],
+    ["Amazon Web Services", "logos:aws", "aws"],
+    ["AWS", "logos:aws", "aws"],
+    ["GCP", "logos:google-cloud", "googlecloud"],
+  ])("matches %s locally and translates it for catalog search", (query, id, apiQuery) => {
+    expect(
+      searchTechnologyIcons(query).flatMap((group) => group.icons.map((icon) => icon.id)),
+    ).toContain(id);
+    expect(normalizeIconSearchQuery(query)).toBe(apiQuery);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("browses all groups for empty searches and matches categories and ID syntax locally", () => {
+    expect(searchTechnologyIcons("  ")).toEqual(TECHNOLOGY_ICON_GROUPS);
+    expect(searchTechnologyIcons("frontend")).toEqual([TECHNOLOGY_ICON_GROUPS[0]]);
+    expect(searchTechnologyIcons("logos:postgresql")[0]?.icons[0]?.name).toBe("PostgreSQL");
+    expect(searchTechnologyIcons("unknown technology")).toEqual([]);
+    expect(normalizeIconSearchQuery("  network server  ")).toBe("network server");
+    expect(normalizeIconSearchQuery("lucide:server")).toBe("lucide:server");
+  });
+
+  it.each([
+    ["logos:nodejs-icon", "Node.js"],
+    ["devicon:postgresql-plain", "PostgreSQL"],
+    ["simple-icons:amazonwebservices", "AWS"],
+    ["logos:aws", "AWS"],
+    ["solar:database-bold-duotone", "Database"],
+    ["lucide:network-server", "Network Server"],
+  ])("labels %s as %s without surfacing its raw ID", (id, name) => {
+    expect(getIconDisplayName(id)).toBe(name);
   });
 });
 
