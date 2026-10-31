@@ -96,23 +96,24 @@ export function ProjectsPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="min-h-14 border-b border-border flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-background/80 backdrop-blur-md">
-        <Brand />
-        <div className="flex items-center gap-2">
+      <header className="min-h-14 border-b border-border flex items-center justify-between gap-3 px-4 py-2 bg-background/80 backdrop-blur-md">
+        <Brand compact />
+        <div className="flex shrink-0 items-center gap-2">
           <AccountControls />
           <ThemeToggle />
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            aria-label="New project"
+            className="flex items-center gap-2 whitespace-nowrap rounded-md bg-primary p-2 sm:px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <PlusIcon className="size-4" />
-            New project
+            <span className="hidden sm:inline">New project</span>
           </button>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold text-balance">Projects</h1>
@@ -195,8 +196,9 @@ export function ProjectsPage() {
                 aria-label={project.name}
                 className="rounded-xl border border-border bg-card p-4"
               >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-                  <div className="min-w-0 flex-1">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                  {/* The name keeps a usable width; the actions wrap below it on narrow screens. */}
+                  <div className="min-w-0 flex-1 basis-56">
                     {editingProject?.id === project.id ? (
                       <form
                         className="flex flex-wrap items-center gap-2"
@@ -231,7 +233,7 @@ export function ProjectsPage() {
                         </button>
                       </form>
                     ) : (
-                      <h2 className="flex items-center gap-2 text-base font-semibold">
+                      <h2 className="flex min-w-0 items-center gap-2 text-base font-semibold">
                         <FolderIcon
                           aria-hidden="true"
                           className="size-4 shrink-0 text-muted-foreground"
@@ -239,11 +241,11 @@ export function ProjectsPage() {
                         />
                         <Link
                           to={`/projects/${project.id}`}
-                          className="truncate rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                          className="min-w-0 truncate rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                         >
                           {project.name}
                         </Link>
-                        <span className="text-xs font-normal text-muted-foreground">
+                        <span className="shrink-0 whitespace-nowrap text-xs font-normal text-muted-foreground">
                           {project.diagrams.length}{" "}
                           {project.diagrams.length === 1 ? "diagram" : "diagrams"}
                         </span>
@@ -255,12 +257,12 @@ export function ProjectsPage() {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setDiagramProject(project)}
                       aria-label={`New diagram in ${project.name}`}
-                      className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-accent transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-ring"
+                      className="flex items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-accent transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-ring"
                     >
                       <PlusIcon className="size-4" />
                       New diagram
