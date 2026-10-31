@@ -61,6 +61,22 @@ const decisions = {
     [["Raw JSON files", "Slow and costly queries"]],
     ["Queries mostly filter by other fields"],
   ),
+  ingest: decide(
+    "API Gateway in front of Kinesis",
+    "Producers send events over HTTPS with auth instead of holding stream credentials.",
+    ["Stream credentials never leave AWS"],
+    ["Gateway request size and rate limits apply"],
+    [["Producers write to Kinesis directly", "Every SDK would need IAM credentials"]],
+    ["Producers move inside the same AWS account"],
+  ),
+  "athena-api": decide(
+    "Athena through its IAM-authenticated API",
+    "Dashboards query with signed AWS API calls rather than a database connection.",
+    ["Access is governed by IAM policies"],
+    ["Query latency includes API and queueing overhead"],
+    [["Expose a SQL endpoint", "Needs a running database reachable from outside"]],
+    ["Dashboards need sub-second interactive queries"],
+  ),
   athena: decide(
     "Athena for on-demand SQL",
     "Analysts query occasionally, so paying per query beats a running warehouse.",
@@ -84,9 +100,10 @@ const data = {
     "data-analytics-pipeline",
     [
       archNode("producers", "external", "App Events", 0, 280),
-      groupNode("region", "region", "Analytics Region", 240, 40, 980, 560),
+      archNode("ingest", "gateway", "Ingest API", 230, 280),
+      groupNode("region", "region", "Analytics Region", 470, 40, 980, 560),
       groupNode("subnet", "subnet", "Ingest Subnet", 40, 70, 580, 420, { parentId: "region" }),
-      archNode("stream", "queue", "Kinesis Stream", 40, 60, {
+      archNode("stream", "stream", "Kinesis Stream", 40, 60, {
         parentId: "subnet",
         attributes: [{ name: "Illustrative stream retention", value: "24", unit: "h" }],
       }),
@@ -103,17 +120,23 @@ const data = {
       archNode("athena", "service", "Athena", 680, 220, {
         parentId: "region",
       }),
-      archNode("dashboard", "client", "BI Dashboard", 1290, 300),
+      archNode("athena-api", "gateway", "Athena API endpoint", 1520, 300),
+      archNode("dashboard", "client", "BI Dashboard", 1760, 300),
     ],
     decisions,
   ),
   edges: [
-    archEdge("e-producers-stream", "producers", "stream", { protocol: "http", async: true }),
+    archEdge("e-producers-ingest", "producers", "ingest", { protocol: "http", async: true }),
+    archEdge("e-ingest-stream", "ingest", "stream", { protocol: "http", async: true }),
     archEdge("e-stream-raw", "stream", "raw", { protocol: "s3", async: true, label: "firehose" }),
     archEdge("e-stream-etl", "stream", "etl", { protocol: "kafka", async: true, label: "consume" }),
     archEdge("e-etl-lake", "etl", "lake", { protocol: "s3", label: "parquet write" }),
     archEdge("e-athena-lake", "athena", "lake", { protocol: "sql", label: "query" }),
-    archEdge("e-dashboard-athena", "dashboard", "athena", { protocol: "http" }),
+    archEdge("e-dashboard-athena-api", "dashboard", "athena-api", { protocol: "http" }),
+    archEdge("e-athena-api-athena", "athena-api", "athena", {
+      protocol: "http",
+      label: "signed query",
+    }),
   ],
   flows: [
     {

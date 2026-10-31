@@ -53,9 +53,11 @@ export const videoStreaming = defineTemplate({
       label: "Playback events",
     },
     { id: "lake", type: "datalake", label: "Analytics lake" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
+    { id: "collector", type: "service", label: "Playback event collector" },
   ],
   edges: [
-    { from: "studio", to: "upload", protocol: "http", method: "POST", label: "resumable upload" },
+    { from: "studio", to: "gateway", protocol: "http", method: "POST", label: "resumable upload" },
     { from: "upload", to: "raw", protocol: "s3" },
     { from: "upload", to: "jobs", protocol: "amqp", async: true },
     { from: "jobs", to: "transcoder", protocol: "amqp", async: true },
@@ -64,7 +66,7 @@ export const videoStreaming = defineTemplate({
     { from: "catalog", to: "catalogdb", protocol: "sql" },
     {
       from: "viewer",
-      to: "catalog",
+      to: "gateway",
       protocol: "http",
       method: "GET",
       response: {
@@ -75,8 +77,11 @@ export const videoStreaming = defineTemplate({
     { from: "catalog", to: "recs", protocol: "inference" },
     { from: "viewer", to: "cdn", protocol: "http", label: "video segments" },
     { from: "cdn", to: "segments", protocol: "s3" },
-    { from: "viewer", to: "views", protocol: "http", async: true, label: "watch events" },
     { from: "views", to: "lake", protocol: "kafka", async: true },
+    { from: "gateway", to: "upload", protocol: "http", label: "resumable upload" },
+    { from: "gateway", to: "catalog", protocol: "http" },
+    { from: "gateway", to: "collector", protocol: "http", label: "watch events" },
+    { from: "collector", to: "views", protocol: "kafka", async: true },
   ],
   decisions: {
     ingest: decide(
@@ -199,6 +204,22 @@ export const videoStreaming = defineTemplate({
       [["Analytics in the catalog database", "Scans would compete with playback reads"]],
       ["Dashboards need sub-second freshness"],
     ),
+    gateway: decide(
+      "API gateway for studio and player calls",
+      "Creators and viewers hit different services but share auth and rate limits.",
+      ["One public API surface for two apps"],
+      ["Gateway outages stop both uploads and playback starts"],
+      [["Separate public endpoints per service", "Each service repeats auth and abuse protection"]],
+      ["Uploads need a dedicated high-bandwidth endpoint"],
+    ),
+    collector: decide(
+      "Playback event collector",
+      "Players send bursts of watch events that need validation before they reach Kafka.",
+      ["Malformed events never reach the stream", "Devices never hold broker credentials"],
+      ["Another service on the hot event path"],
+      [["Players write to Kafka directly", "Exposes broker credentials to every device"]],
+      ["Event volume suits a managed ingestion service"],
+    ),
   },
   flow: {
     name: "Publish a video",
@@ -250,19 +271,21 @@ export const musicStreaming = defineTemplate({
     { id: "history", type: "stream", label: "Listening events" },
     { id: "features", type: "featurestore", label: "Taste profiles" },
     { id: "mixes", type: "inference", label: "Daily mixes model" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
-    { from: "app", to: "bff", protocol: "graphql" },
+    { from: "app", to: "gateway", protocol: "graphql" },
     { from: "bff", to: "catalog", protocol: "grpc" },
     { from: "catalog", to: "catalogdb", protocol: "sql" },
     { from: "bff", to: "playlists", protocol: "grpc" },
     { from: "playlists", to: "playlistdb", protocol: "tcp" },
     { from: "bff", to: "license", protocol: "oauth", label: "playback token" },
     { from: "app", to: "cdn", protocol: "http", label: "encrypted audio" },
-    { from: "app", to: "history", protocol: "http", async: true, label: "track played" },
     { from: "history", to: "features", protocol: "kafka", async: true },
     { from: "bff", to: "mixes", protocol: "inference" },
     { from: "mixes", to: "features", protocol: "http" },
+    { from: "gateway", to: "bff", protocol: "graphql" },
+    { from: "bff", to: "history", protocol: "kafka", async: true, label: "track played" },
   ],
   decisions: {
     app: decide(
@@ -353,6 +376,14 @@ export const musicStreaming = defineTemplate({
       [["Editorial playlists only", "Doesn't scale to every listener's taste"]],
       ["Listeners prefer human-curated playlists"],
     ),
+    gateway: decide(
+      "API gateway in front of the BFF",
+      "Player apps need one TLS endpoint with auth and per-account limits before GraphQL.",
+      ["Abuse is stopped before GraphQL resolvers run"],
+      ["Adds a hop before every screen load"],
+      [["Expose the BFF publicly", "GraphQL servers would handle raw internet traffic"]],
+      ["The BFF runs on a managed GraphQL edge"],
+    ),
   },
   flow: {
     name: "Play a track",
@@ -407,18 +438,22 @@ export const videoConferencing = defineTemplate({
     { id: "recorder", type: "worker", label: "Recording bot", in: "media" },
     { id: "recordings", type: "storage", label: "Recordings" },
     { id: "calendar", type: "external", label: "Calendar provider" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
+    { id: "siglb", type: "loadbalancer", label: "Signaling load balancer" },
   ],
   edges: [
-    { from: "client", to: "meetings", protocol: "http", method: "POST", label: "join meeting" },
+    { from: "client", to: "gateway", protocol: "http", method: "POST", label: "join meeting" },
     { from: "meetings", to: "meetingdb", protocol: "sql" },
     { from: "meetings", to: "calendar", protocol: "oauth", async: true },
-    { from: "client", to: "signaling", protocol: "websocket", label: "SDP and ICE" },
+    { from: "client", to: "siglb", protocol: "websocket", label: "SDP and ICE" },
     { from: "signaling", to: "sfu", protocol: "grpc", label: "allocate room" },
-    { from: "client", to: "sfu", protocol: "tcp", label: "SRTP media" },
+    { from: "client", to: "sfu", protocol: "webrtc", label: "SRTP media" },
     { from: "client", to: "turn", protocol: "tcp", label: "relay fallback" },
     { from: "turn", to: "sfu", protocol: "tcp" },
     { from: "sfu", to: "recorder", protocol: "tcp" },
     { from: "recorder", to: "recordings", protocol: "s3" },
+    { from: "gateway", to: "meetings", protocol: "http", label: "join meeting" },
+    { from: "siglb", to: "signaling", protocol: "websocket" },
   ],
   decisions: {
     media: decide(
@@ -500,6 +535,32 @@ export const videoConferencing = defineTemplate({
       ["Access links must expire to protect privacy"],
       [["Store in the meetings database", "Large files bloat backups"]],
       ["Recordings need in-app editing"],
+    ),
+    gateway: decide(
+      "API gateway for meeting APIs",
+      "Joining and scheduling are plain HTTPS requests that need auth and limits.",
+      ["One authenticated entry for meeting APIs"],
+      ["Separate from the realtime signaling path"],
+      [
+        [
+          "Clients call the meetings service directly",
+          "Auth and abuse checks spread into the service",
+        ],
+      ],
+      ["Meeting APIs join a larger platform gateway"],
+    ),
+    siglb: decide(
+      "Load balancer for signaling sockets",
+      "Signaling sockets must spread across servers and survive a server restart.",
+      ["Sockets rebalance when servers scale"],
+      ["Long-lived sockets make draining servers slow"],
+      [
+        [
+          "Clients connect to one signaling server",
+          "A single server becomes the limit and failure point",
+        ],
+      ],
+      ["Signaling moves into the SFU process"],
     ),
   },
   flow: {

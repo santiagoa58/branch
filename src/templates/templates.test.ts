@@ -12,6 +12,7 @@ import {
   designDecisionSchema,
 } from "@/schemas/diagram";
 import { decide } from "./reasoning";
+import { findIngressBypasses } from "@/utils/designRules";
 import { DECISION_LIMITS } from "@/components/ui/DesignDecisionEditor";
 import { defineTemplate, type TemplateSpec } from "./define";
 import type { ArchitectureNodeData, DesignDecision } from "@/types";
@@ -200,6 +201,18 @@ describe.each(DIAGRAM_TEMPLATES.map((t) => [t.name, t] as const))(
         expect(itemAt(second.edges, index).data?.decision).toEqual(original.data?.decision);
         expect(original.data?.decision?.reason).not.toBe(clonedDecision.reason);
       }
+    });
+
+    it("reaches internal components only through an entry point", () => {
+      const label = (id: string) => {
+        const value = nodes.find((node) => node.id === id)?.data["label"];
+        return typeof value === "string" ? value : id;
+      };
+      expect(
+        findIngressBypasses(nodes, edges).map(
+          ({ source, target }) => `${label(source)} → ${label(target)}`,
+        ),
+      ).toEqual([]);
     });
 
     it("includes at least one playable flow", () => {

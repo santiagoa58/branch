@@ -40,12 +40,13 @@ export const ciCd = defineTemplate({
     { id: "logs", type: "logging", label: "Build logs" },
     { id: "cluster", type: "server", label: "Production cluster" },
     { id: "chat", type: "notification", label: "Team notifications" },
+    { id: "gateway", type: "gateway", label: "Public webhook endpoint" },
   ],
   edges: [
     { from: "dev", to: "git", protocol: "http", label: "git push" },
     {
       from: "git",
-      to: "webhook",
+      to: "gateway",
       protocol: "http",
       method: "POST",
       request: {
@@ -61,6 +62,7 @@ export const ciCd = defineTemplate({
     { from: "runner", to: "logs", protocol: "http", async: true },
     { from: "runner", to: "cluster", protocol: "http", label: "rolling deploy" },
     { from: "scheduler", to: "chat", protocol: "http", async: true },
+    { from: "gateway", to: "webhook", protocol: "http" },
   ],
   decisions: {
     runners: decide(
@@ -159,6 +161,14 @@ export const ciCd = defineTemplate({
       [["Email notifications", "Slow and easy to miss"]],
       ["Teams use a dashboard instead"],
     ),
+    gateway: decide(
+      "Public endpoint for git webhooks",
+      "The git host must reach CI over the internet without exposing the scheduler.",
+      ["Scheduler stays private"],
+      ["Needs signature checks and replay protection"],
+      [["Expose the webhook receiver directly", "Receiver handles raw internet traffic"]],
+      ["CI moves inside the git host"],
+    ),
   },
   flow: {
     name: "Ship a commit",
@@ -208,6 +218,8 @@ export const observability = defineTemplate({
     { id: "rules", type: "alerting", label: "Alert evaluator" },
     { id: "pager", type: "notification", label: "On-call paging" },
     { id: "dashboards", type: "webapp", label: "Dashboards" },
+    { id: "queryapi", type: "gateway", label: "Query API" },
+    { id: "query", type: "service", label: "Query service" },
   ],
   edges: [
     { from: "agents", to: "intake", protocol: "grpc", label: "OTLP" },
@@ -217,9 +229,11 @@ export const observability = defineTemplate({
     { from: "buffer", to: "traces", protocol: "kafka", async: true },
     { from: "rules", to: "metrics", protocol: "http", label: "evaluate every minute" },
     { from: "rules", to: "pager", protocol: "http", async: true },
-    { from: "dashboards", to: "metrics", protocol: "http" },
-    { from: "dashboards", to: "logs", protocol: "search" },
-    { from: "dashboards", to: "traces", protocol: "http" },
+    { from: "dashboards", to: "queryapi", protocol: "http" },
+    { from: "queryapi", to: "query", protocol: "http" },
+    { from: "query", to: "metrics", protocol: "http" },
+    { from: "query", to: "logs", protocol: "search" },
+    { from: "query", to: "traces", protocol: "http" },
   ],
   decisions: {
     storage: decide(
@@ -302,6 +316,22 @@ export const observability = defineTemplate({
       [["Separate tool per signal", "Context switching during incidents"]],
       ["A vendor UI covers everything"],
     ),
+    queryapi: decide(
+      "API gateway for dashboard queries",
+      "Expensive queries need auth and per-user limits before reaching storage.",
+      ["Runaway queries are throttled"],
+      ["Adds a hop to every panel load"],
+      [["Dashboards call the query service directly", "No place to throttle heavy users"]],
+      ["Dashboards become internal-only behind a VPN"],
+    ),
+    query: decide(
+      "Query service across signals",
+      "Dashboards ask one service that fans out to the metrics, log and trace stores.",
+      ["Stores can change without changing dashboards"],
+      ["Fan-out queries are as slow as the slowest store"],
+      [["Dashboards query each store", "Every store exposed to browsers"]],
+      ["One store holds all signals"],
+    ),
   },
   flow: {
     name: "Ingest telemetry",
@@ -354,6 +384,7 @@ export const iotTelemetry = defineTemplate({
     { id: "api", type: "service", label: "Home API" },
     { id: "app", type: "mobileapp", label: "Home app" },
     { id: "push", type: "notification", label: "Alerts" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
     {
@@ -372,9 +403,10 @@ export const iotTelemetry = defineTemplate({
     { from: "stream", to: "rules", protocol: "kafka", async: true },
     { from: "rules", to: "broker", protocol: "tcp", label: "command" },
     { from: "rules", to: "push", protocol: "sns", async: true },
-    { from: "app", to: "api", protocol: "http" },
+    { from: "app", to: "gateway", protocol: "http" },
     { from: "api", to: "tsdb", protocol: "sql" },
     { from: "api", to: "broker", protocol: "tcp", label: "set target" },
+    { from: "gateway", to: "api", protocol: "http" },
   ],
   decisions: {
     device: decide(
@@ -449,6 +481,14 @@ export const iotTelemetry = defineTemplate({
       [["App talks MQTT directly", "Hard to secure per-user access"]],
       ["Commands need lower latency"],
     ),
+    gateway: decide(
+      "API gateway for the home app",
+      "Phone requests need user auth before reading history or commanding devices.",
+      ["Device commands checked against home ownership early"],
+      ["A hop on every command"],
+      [["App calls the Home API directly", "Auth spread into every service"]],
+      ["The app talks MQTT through the broker instead"],
+    ),
   },
   flow: {
     name: "Report a reading",
@@ -496,16 +536,18 @@ export const multiplayerGame = defineTemplate({
       label: "Leaderboards",
     },
     { id: "telemetry", type: "stream", label: "Gameplay events" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
     { from: "player", to: "auth", protocol: "oauth" },
-    { from: "player", to: "matchmaker", protocol: "websocket", label: "find match" },
+    { from: "player", to: "gateway", protocol: "websocket", label: "find match" },
     { from: "matchmaker", to: "allocator", protocol: "grpc" },
     { from: "allocator", to: "server", protocol: "grpc", label: "start session" },
-    { from: "player", to: "server", protocol: "tcp", label: "UDP game state", latencyMs: 30 },
+    { from: "player", to: "server", protocol: "udp", label: "UDP game state", latencyMs: 30 },
     { from: "server", to: "profiles", protocol: "http", label: "match results" },
     { from: "server", to: "leaderboard", protocol: "redis" },
     { from: "server", to: "telemetry", protocol: "kafka", async: true },
+    { from: "gateway", to: "matchmaker", protocol: "websocket", label: "find match" },
   ],
   decisions: {
     fleet: decide(
@@ -579,6 +621,14 @@ export const multiplayerGame = defineTemplate({
       ["High event volume costs"],
       [["Sample matches only", "Misses rare exploits"]],
       ["Analytics needs drop to summary stats"],
+    ),
+    gateway: decide(
+      "API gateway for matchmaking",
+      "Players need auth and rate limits before joining the match queue.",
+      ["Bots are throttled before the matchmaker"],
+      ["Socket traffic adds gateway load"],
+      [["Players connect to the matchmaker directly", "Matchmaker handles raw internet traffic"]],
+      ["Matchmaking moves to a platform service"],
     ),
   },
   flow: {

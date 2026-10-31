@@ -30,7 +30,7 @@ export const urlShortener = defineTemplate({
     },
     {
       id: "edge",
-      type: "lambda",
+      type: "edgefunction",
       label: "Edge redirect",
     },
     {
@@ -41,11 +41,12 @@ export const urlShortener = defineTemplate({
     },
     { id: "clicks", type: "stream", label: "Click events" },
     { id: "warehouse", type: "warehouse", label: "Click analytics" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
     {
       from: "creator",
-      to: "api",
+      to: "gateway",
       protocol: "http",
       method: "POST",
       request: { name: "CreateLink", fields: { url: "string", alias: "string?" } },
@@ -58,6 +59,7 @@ export const urlShortener = defineTemplate({
     { from: "edge", to: "store", protocol: "http", label: "cache miss" },
     { from: "edge", to: "clicks", protocol: "kafka", async: true },
     { from: "clicks", to: "warehouse", protocol: "kafka", async: true },
+    { from: "gateway", to: "api", protocol: "http" },
   ],
   decisions: {
     creator: decide(
@@ -132,6 +134,19 @@ export const urlShortener = defineTemplate({
       [["Counters in Redis", "No breakdowns by dimension"]],
       ["Only total click counts matter"],
     ),
+    gateway: decide(
+      "API gateway for link management",
+      "Creating links needs auth and abuse limits that the redirect path must not pay for.",
+      ["Redirects stay on the fast edge path"],
+      ["Two public entry points to secure"],
+      [
+        [
+          "Serve the dashboard API from the edge function",
+          "Edge runtimes are a poor fit for auth and abuse checks",
+        ],
+      ],
+      ["Link creation moves to partner integrations only"],
+    ),
   },
   flow: {
     name: "Follow a link",
@@ -199,11 +214,12 @@ export const b2bSaas = defineTemplate({
       label: "Billing provider",
     },
     { id: "email", type: "external", label: "Transactional email" },
-    { id: "analytics", type: "metrics", label: "Product analytics" },
+    { id: "analytics", type: "external", label: "Product analytics" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
     { from: "web", to: "sso", protocol: "oauth" },
-    { from: "web", to: "api", protocol: "graphql" },
+    { from: "web", to: "gateway", protocol: "graphql" },
     { from: "api", to: "db", protocol: "sql", label: "scoped by tenant" },
     { from: "api", to: "cache", protocol: "redis" },
     { from: "api", to: "jobs", protocol: "amqp", async: true },
@@ -211,8 +227,15 @@ export const b2bSaas = defineTemplate({
     { from: "worker", to: "email", protocol: "http" },
     { from: "api", to: "audit", protocol: "kafka", async: true },
     { from: "api", to: "billing", protocol: "http", label: "seat changes" },
-    { from: "billing", to: "api", protocol: "http", async: true, label: "subscription webhook" },
+    {
+      from: "billing",
+      to: "gateway",
+      protocol: "http",
+      async: true,
+      label: "subscription webhook",
+    },
     { from: "web", to: "analytics", protocol: "http", async: true },
+    { from: "gateway", to: "api", protocol: "http", label: "GraphQL and webhooks" },
   ],
   decisions: {
     app: decide(
@@ -311,6 +334,14 @@ export const b2bSaas = defineTemplate({
       [["Query production tables", "Slow and incomplete"]],
       ["Customers forbid usage tracking"],
     ),
+    gateway: decide(
+      "API gateway for app and webhook traffic",
+      "Browser GraphQL calls and billing webhooks both need auth before reaching the API.",
+      ["Webhook signatures checked at the edge"],
+      ["A hop on every API call"],
+      [["Expose the API directly", "Auth and webhook checks live in app code"]],
+      ["Webhook volume needs its own endpoint"],
+    ),
   },
   flow: {
     name: "Sign in and work",
@@ -357,16 +388,18 @@ export const jamstackSite = defineTemplate({
     { id: "build", type: "worker", label: "Build pipeline" },
     { id: "forms", type: "lambda", label: "Form handler" },
     { id: "crm", type: "external", label: "CRM" },
+    { id: "hooks", type: "gateway", label: "Deploy hook endpoint" },
   ],
   edges: [
     { from: "visitor", to: "dns", protocol: "dns" },
     { from: "visitor", to: "edge", protocol: "http" },
     { from: "edge", to: "pages", protocol: "http", label: "revalidate" },
     { from: "pages", to: "cms", protocol: "graphql" },
-    { from: "cms", to: "build", protocol: "http", async: true, label: "publish webhook" },
+    { from: "cms", to: "hooks", protocol: "http", async: true, label: "publish webhook" },
     { from: "build", to: "edge", protocol: "http", label: "deploy" },
-    { from: "visitor", to: "forms", protocol: "http", method: "POST" },
+    { from: "edge", to: "forms", protocol: "http", method: "POST" },
     { from: "forms", to: "crm", protocol: "http", async: true },
+    { from: "hooks", to: "build", protocol: "http", label: "publish webhook" },
   ],
   decisions: {
     visitor: decide(
@@ -432,6 +465,14 @@ export const jamstackSite = defineTemplate({
       ["CRM API limits and outages"],
       [["Email form submissions", "Leads get lost in inboxes"]],
       ["Marketing switches CRMs"],
+    ),
+    hooks: decide(
+      "Authenticated deploy hook",
+      "The CMS triggers builds through a public hook instead of reaching the build system.",
+      ["Build system stays private"],
+      ["Hook URLs are secrets that can leak"],
+      [["CMS calls the build pipeline directly", "Exposes the build system to the internet"]],
+      ["Builds run inside the CMS vendor"],
     ),
   },
   flow: {
