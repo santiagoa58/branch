@@ -117,6 +117,36 @@ export const simulationSpeedSchema = z.union([
   z.literal(4),
 ]);
 
+export const architectureAttributeSchema = z
+  .object({
+    name: z.string().refine((name) => name.trim().length > 0, "Enter an attribute name."),
+    value: z.string().refine((value) => value.trim().length > 0, "Enter an attribute value."),
+    unit: z
+      .string()
+      .min(1, "Enter a unit or leave the unit field empty.")
+      .max(64, "Use a unit of at most 64 characters.")
+      .refine((unit) => unit.trim() === unit, "Remove spaces around the unit.")
+      .regex(/^[^\p{Cc}\p{Cf}]+$/u, "Use a unit without control characters.")
+      .exactOptional(),
+  })
+  .strict();
+
+// Editor input is stricter than stored data so legacy unitless numbers remain readable.
+export const architectureAttributeInputSchema = architectureAttributeSchema.superRefine(
+  (attribute, ctx) => {
+    if (
+      !attribute.unit &&
+      /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(attribute.value.trim())
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["unit"],
+        message: "Choose an explicit unit for a numeric value, such as ms, count, or replicas.",
+      });
+    }
+  },
+);
+
 export const designDecisionSchema = z
   .object({
     reason: z.string().exactOptional(),
@@ -135,6 +165,7 @@ export const architectureNodeDataSchema = z
     port: z.string().exactOptional(),
     status: nodeStatusSchema.exactOptional(),
     metadata: z.record(z.string(), z.string()).exactOptional(),
+    attributes: z.array(architectureAttributeSchema).exactOptional(),
     decision: designDecisionSchema.exactOptional(),
     parentId: z.string().exactOptional(),
     healthCheckUrl: z.string().exactOptional(),
@@ -422,6 +453,7 @@ export type EdgeProtocol = z.infer<typeof edgeProtocolSchema>;
 export type HttpMethod = z.infer<typeof httpMethodSchema>;
 export type DataFormat = z.infer<typeof dataFormatSchema>;
 export type SimulationSpeed = z.infer<typeof simulationSpeedSchema>;
+export type ArchitectureAttribute = z.infer<typeof architectureAttributeSchema>;
 export type ArchitectureNodeData = z.infer<typeof architectureNodeDataSchema>;
 export type GroupNodeData = z.infer<typeof groupNodeDataSchema>;
 export type CommentNodeData = z.infer<typeof commentNodeDataSchema>;
