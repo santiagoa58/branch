@@ -1,102 +1,269 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import type { KeyboardEvent } from "react";
+import type { ArchitectureAttribute } from "@/types";
+import { architectureAttributeInputSchema } from "@/schemas/diagram";
+import { cn } from "@/lib/utils";
 
 interface ArchitectureFactsEditorProps {
-  metadata: Record<string, string>;
-  onChange: (next: Record<string, string>) => void;
+  attributes: ArchitectureAttribute[];
+  onChange: (next: ArchitectureAttribute[]) => void;
 }
 
-/** Editable architecture decisions shared by frontend, backend and infrastructure nodes. */
-export function ArchitectureFactsEditor({ metadata, onChange }: ArchitectureFactsEditorProps) {
-  const [key, setKey] = useState("");
-  const [value, setValue] = useState("");
-  const [error, setError] = useState("");
+const inputClassName =
+  "w-full min-w-0 rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const buttonClassName =
+  "rounded border border-border px-2 py-1 text-sm font-semibold text-foreground hover:bg-accent active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const suggestedUnits = [
+  "ms",
+  "s",
+  "min",
+  "h",
+  "days",
+  "B",
+  "KB",
+  "MB",
+  "GB",
+  "MiB",
+  "GiB",
+  "%",
+  "requests/s",
+  "messages/s",
+  "count",
+  "replicas",
+  "partitions",
+  "connections",
+];
 
-  const add = () => {
-    const name = key.trim();
-    if (!name) {
-      setError("Enter an attribute name.");
-      return;
+const keyboardSafety = {
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+    event.stopPropagation();
+    if (
+      event.key === "Enter" &&
+      !event.nativeEvent.isComposing &&
+      event.target instanceof HTMLInputElement
+    ) {
+      event.preventDefault();
     }
-    if (Object.keys(metadata).some((existing) => existing.toLowerCase() === name.toLowerCase())) {
-      setError("An attribute with that name already exists.");
-      return;
+  },
+  onKeyUp: (event: KeyboardEvent<HTMLElement>) => event.stopPropagation(),
+};
+
+function AttributeRow({
+  attribute,
+  unitsId,
+  onChange,
+  onRemove,
+}: {
+  attribute: ArchitectureAttribute;
+  unitsId: string;
+  onChange: (next: ArchitectureAttribute) => void;
+  onRemove: () => void;
+}) {
+  const [draft, setDraft] = useState({
+    source: attribute,
+    value: attribute.value,
+    unit: attribute.unit ?? "",
+    error: "",
+  });
+  const errorId = useId();
+
+  if (
+    draft.source.name !== attribute.name ||
+    draft.source.value !== attribute.value ||
+    draft.source.unit !== attribute.unit
+  ) {
+    setDraft({ source: attribute, value: attribute.value, unit: attribute.unit ?? "", error: "" });
+  }
+  const { value, unit, error } = draft;
+
+  const update = (nextValue: string, nextUnit: string) => {
+    const result = architectureAttributeInputSchema.safeParse({
+      name: attribute.name,
+      value: nextValue,
+      ...(nextUnit.trim() ? { unit: nextUnit.trim() } : {}),
+    });
+    setDraft({
+      source: attribute,
+      value: nextValue,
+      unit: nextUnit,
+      error: result.success
+        ? ""
+        : (result.error.issues[0]?.message ?? "Check the attribute fields."),
+    });
+    if (result.success) {
+      onChange(result.data);
     }
-    onChange({ ...metadata, [name]: value.trim() });
-    setKey("");
-    setValue("");
-    setError("");
   };
 
   return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Architecture attributes
-        </h3>
-        <p className="text-[10px] text-muted-foreground mt-1">
-          TTLs, partitions, consistency, retries, state, capacity, or design decisions. The first
-          three attributes appear on the node.
-        </p>
-      </div>
-      {Object.entries(metadata).map(([name, current]) => (
-        <div className="flex items-center gap-1.5" key={name}>
-          <span title={name} className="text-[10px] flex-1 min-w-0 truncate text-foreground">
-            {name}
-          </span>
+    <fieldset className="min-w-0 rounded border border-border p-2">
+      <legend className="max-w-full truncate px-1 text-xs font-semibold text-foreground">
+        {attribute.name}
+      </legend>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="min-w-0 text-xs text-muted-foreground">
+          Value
           <input
-            aria-label={`Value for ${name}`}
-            value={current}
-            onChange={(event) => onChange({ ...metadata, [name]: event.target.value })}
-            onKeyDown={(event) => event.stopPropagation()}
-            className="w-24 min-w-0 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-foreground"
+            {...keyboardSafety}
+            aria-label={`Value for ${attribute.name}`}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
+            value={value}
+            onChange={(event) => update(event.target.value, unit)}
+            className={inputClassName}
           />
-          <button
-            type="button"
-            aria-label={`Remove ${name}`}
-            onClick={() =>
-              onChange(Object.fromEntries(Object.entries(metadata).filter(([k]) => k !== name)))
-            }
-            className="px-1 text-xs text-muted-foreground hover:text-red-600"
-          >
-            ×
-          </button>
-        </div>
-      ))}
-      <div className="flex gap-1.5">
-        <input
-          aria-label="Attribute key"
-          value={key}
-          placeholder="Key"
-          onChange={(event) => {
-            setKey(event.target.value);
-            setError("");
-          }}
-          onKeyDown={(event) => event.stopPropagation()}
-          className="min-w-0 flex-1 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-foreground"
-        />
-        <input
-          aria-label="Attribute value"
-          value={value}
-          placeholder="Value"
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => {
-            event.stopPropagation();
-            if (event.key === "Enter") {
-              add();
-            }
-          }}
-          className="w-20 min-w-0 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-xs text-foreground"
-        />
+        </label>
+        <label className="min-w-0 text-xs text-muted-foreground">
+          Unit
+          <input
+            {...keyboardSafety}
+            aria-label={`Unit for ${attribute.name}`}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
+            value={unit}
+            list={unitsId}
+            placeholder="None for text"
+            onChange={(event) => update(value, event.target.value)}
+            className={inputClassName}
+          />
+        </label>
       </div>
       {error && (
-        <p role="alert" className="text-[10px] text-red-600">
+        <p id={errorId} role="alert" className="mt-1 text-xs text-destructive">
           {error}
         </p>
       )}
       <button
         type="button"
+        {...keyboardSafety}
+        aria-label={`Remove ${attribute.name}`}
+        onClick={onRemove}
+        className={cn(buttonClassName, "mt-2")}
+      >
+        Remove
+      </button>
+    </fieldset>
+  );
+}
+
+/** Unit-aware facts shared by frontend, backend and infrastructure nodes. */
+export function ArchitectureFactsEditor({ attributes, onChange }: ArchitectureFactsEditorProps) {
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+  const [unit, setUnit] = useState("");
+  const [error, setError] = useState("");
+  const id = useId();
+  const unitsId = `${id}-units`;
+  const errorId = `${id}-error`;
+  const helpId = `${id}-help`;
+
+  const add = () => {
+    const result = architectureAttributeInputSchema.safeParse({
+      name: name.trim(),
+      value: value.trim(),
+      ...(unit.trim() ? { unit: unit.trim() } : {}),
+    });
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? "Check the attribute fields.");
+      return;
+    }
+    if (
+      attributes.some(
+        (attribute) => attribute.name.trim().toLowerCase() === result.data.name.toLowerCase(),
+      )
+    ) {
+      setError("An attribute with that name already exists.");
+      return;
+    }
+    onChange([...attributes, result.data]);
+    setName("");
+    setValue("");
+    setUnit("");
+    setError("");
+  };
+
+  const addOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      add();
+    }
+  };
+
+  return (
+    <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-2">
+      <div>
+        <h3 id={`${id}-heading`} className="text-xs font-semibold text-muted-foreground">
+          Architecture attributes
+        </h3>
+        <p id={helpId} className="mt-1 text-xs text-muted-foreground">
+          Give numeric values a unit, including count or replicas. Leave units empty for textual
+          policies. The first three attributes appear on the node.
+        </p>
+      </div>
+      <datalist id={unitsId}>
+        {suggestedUnits.map((suggestion) => (
+          <option key={suggestion} value={suggestion}>
+            {suggestion}
+          </option>
+        ))}
+      </datalist>
+      {attributes.map((attribute, index) => (
+        <AttributeRow
+          key={attribute.name}
+          attribute={attribute}
+          unitsId={unitsId}
+          onChange={(next) =>
+            onChange(
+              attributes.map((current, currentIndex) => (currentIndex === index ? next : current)),
+            )
+          }
+          onRemove={() => onChange(attributes.filter((_, currentIndex) => currentIndex !== index))}
+        />
+      ))}
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { label: "Name", value: name, setValue: setName },
+          { label: "Value", value, setValue },
+          { label: "Unit", value: unit, setValue: setUnit },
+        ].map((field) => (
+          <label
+            key={field.label}
+            className={cn(
+              "min-w-0 text-xs text-muted-foreground",
+              field.label === "Name" && "col-span-2",
+            )}
+          >
+            {field.label}
+            <input
+              {...keyboardSafety}
+              aria-label={`Attribute ${field.label.toLowerCase()}`}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${helpId} ${errorId}` : helpId}
+              value={field.value}
+              list={field.label === "Unit" ? unitsId : undefined}
+              onChange={(event) => {
+                field.setValue(event.target.value);
+                setError("");
+              }}
+              onKeyDown={(event) => {
+                keyboardSafety.onKeyDown(event);
+                addOnEnter(event);
+              }}
+              className={inputClassName}
+            />
+          </label>
+        ))}
+      </div>
+      {error && (
+        <p id={errorId} role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+      <button
+        {...keyboardSafety}
+        type="button"
         onClick={add}
-        className="self-start rounded border border-zinc-200 dark:border-zinc-800 px-2 py-1 text-xs text-foreground"
+        className={cn(buttonClassName, "self-start")}
       >
         Add attribute
       </button>

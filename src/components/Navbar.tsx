@@ -13,7 +13,6 @@ import {
   Squares2X2Icon,
   RectangleStackIcon,
   SparklesIcon,
-  HeartIcon,
   ChevronRightIcon,
   ClockIcon,
   BookmarkIcon,
@@ -36,7 +35,6 @@ import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { LoadingIndicator } from "@/components/ui/loading";
-import { ArchitectureNodeData } from "@/types";
 
 export function Navbar() {
   const cloud = useCloudWorkspace();
@@ -49,8 +47,7 @@ export function Navbar() {
     enabled: !!projectId,
   });
 
-  const { undo, redo, canUndo, canRedo, nodes, runAllHealthChecks, healthCheckResults } =
-    useDiagramStore();
+  const { undo, redo, canUndo, canRedo } = useDiagramStore();
 
   const { leftPanelVisible, rightPanelVisible, toggleLeftPanel, toggleRightPanel } = useUIStore();
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
@@ -61,7 +58,6 @@ export function Navbar() {
   const [selectedExportFormat, setSelectedExportFormat] = useState<"png" | "svg" | "pdf" | "json">(
     "png",
   );
-  const [isTestingHealth, setIsTestingHealth] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -111,56 +107,6 @@ export function Navbar() {
       setTimeout(() => setCopiedLink(false), 2000);
     } catch (error) {
       console.error("Failed to copy link:", error);
-    }
-  };
-
-  const handleTestHealth = async () => {
-    // Count nodes with health check URLs
-    const healthCheckNodes = nodes.filter(
-      (n) => n.type === "architecture" && (n.data as ArchitectureNodeData).healthCheckUrl,
-    );
-
-    if (healthCheckNodes.length === 0) {
-      notify.warning({
-        title: "No health checks configured",
-        message: "Add health check URLs to nodes in the Properties panel",
-        duration: 4000,
-      });
-      return;
-    }
-
-    setIsTestingHealth(true);
-
-    try {
-      await runAllHealthChecks();
-
-      // Count results
-      const healthyCount = Object.values(healthCheckResults).filter(
-        (r) => r.status === "healthy",
-      ).length;
-      const totalCount = healthCheckNodes.length;
-
-      if (healthyCount === totalCount) {
-        notify.success({
-          title: `All ${totalCount} services healthy ✓`,
-          duration: 4000,
-        });
-      } else {
-        const unhealthyCount = totalCount - healthyCount;
-        notify.error({
-          title: `${unhealthyCount}/${totalCount} services unhealthy`,
-          message: "Check the Properties panel for details",
-          duration: 5000,
-        });
-      }
-    } catch {
-      notify.error({
-        title: "Health check failed",
-        message: "An unexpected error occurred",
-        duration: 4000,
-      });
-    } finally {
-      setIsTestingHealth(false);
     }
   };
 
@@ -353,24 +299,6 @@ export function Navbar() {
             </div>
           )}
         </div>
-
-        {/* Test Health Button */}
-        <Tooltip content="Run health checks">
-          <button
-            type="button"
-            onClick={() => {
-              void handleTestHealth();
-            }}
-            disabled={isTestingHealth}
-            className="bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 p-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isTestingHealth ? (
-              <LoadingIndicator className="size-3.5" />
-            ) : (
-              <HeartIcon className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </Tooltip>
 
         <output
           className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400"

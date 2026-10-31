@@ -8,6 +8,8 @@ import {
 import { ArchitectureEdgeData, DataContract } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
+import { hasDesignDecision } from "@/utils/designDecision";
+import { DesignDecisionSummary } from "@/components/ui/DesignDecisionSummary";
 import { CodeEditor } from "@/components/ui/CodeEditor";
 
 interface EdgeDetailsDialogProps {
@@ -35,9 +37,7 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
   const isAsync = data?.async ?? false;
   const isBidirectional = data?.bidirectional ?? false;
   const isAnimated = data?.animated ?? false;
-  const hasDecision = Object.values(data?.decision ?? {}).some(
-    (value) => typeof value === "string" && value.trim().length > 0,
-  );
+  const hasDecision = hasDesignDecision(data?.decision);
 
   return (
     <Dialog
@@ -101,16 +101,9 @@ export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDi
           </Row>
         </Section>
 
-        {hasDecision && data?.decision && (
-          <Section title="Design reasoning & tradeoffs">
-            {data.decision.reason && <Row label="Why">{data.decision.reason}</Row>}
-            {data.decision.alternatives && (
-              <Row label="Alternatives">{data.decision.alternatives}</Row>
-            )}
-            {data.decision.tradeoffs && <Row label="Tradeoffs">{data.decision.tradeoffs}</Row>}
-            {data.decision.assumptions && (
-              <Row label="Assumptions">{data.decision.assumptions}</Row>
-            )}
+        {hasDecision && (
+          <Section title="Decision">
+            <DesignDecisionSummary value={data?.decision} compact />
           </Section>
         )}
 

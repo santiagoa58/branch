@@ -38,7 +38,6 @@ import { ProtocolLegend } from "@/components/panels/ProtocolLegend";
 import { NodeDetailPopup } from "@/components/panels/NodeDetailPopup";
 import { CanvasStatusBar } from "@/components/panels/CanvasStatusBar";
 import { SpotlightSearch } from "@/components/panels/SpotlightSearch";
-import { TagFilter } from "@/components/panels/TagFilter";
 import { FlowsPanel } from "@/components/panels/FlowsPanel";
 import { ImportDialog } from "@/components/ui/ImportDialog";
 import { TemplateGalleryDialog } from "@/components/ui/TemplateGalleryDialog";
@@ -897,7 +896,6 @@ export function DiagramEditor() {
       {/* Canvas overlays — diagram info, protocol legend, node detail, status bar */}
       <DiagramInfoCard />
       <ProtocolLegend />
-      <TagFilter />
       <NodeDetailPopup />
       <CanvasStatusBar />
       <SpotlightSearch />

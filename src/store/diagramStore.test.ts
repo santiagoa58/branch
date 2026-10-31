@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vite-plus/test";
 import { useDiagramStore } from "@/store/diagramStore";
+import { useAnimationStore } from "@/store/animationStore";
+import { useSimulationStore } from "@/store/simulationStore";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { applyGroupCollapse } from "@/utils/groupRollup";
 import { Node, Edge } from "@xyflow/react";
 
@@ -35,6 +38,119 @@ describe("diagramStore", () => {
       expect(state.selectedEdgeId).toBeNull();
       expect(state.clipboard.nodes).toEqual([]);
       expect(state.clipboard.edges).toEqual([]);
+    });
+  });
+
+  describe("retired health monitoring", () => {
+    it("has no health results or health actions", () => {
+      const state = useDiagramStore.getState();
+      for (const key of [
+        "healthCheckResults",
+        "runNodeHealthCheck",
+        "runAllHealthChecks",
+        "clearHealthResults",
+        "getNodeHealthResult",
+      ]) {
+        expect(state).not.toHaveProperty(key);
+      }
+    });
+
+    it("round trips deprecated document fields without issuing health requests", () => {
+      const fetcher = vi.spyOn(globalThis, "fetch");
+      try {
+        const data = {
+          nodes: [
+            {
+              id: "legacy",
+              type: "architecture",
+              position: { x: 0, y: 0 },
+              data: {
+                label: "Legacy service",
+                type: "service",
+                healthCheckUrl: "https://example.com/health",
+                status: "warning",
+                port: "3000",
+                technology: "Node.js",
+                tags: ["critical"],
+                iconColor: "#123456",
+                accentColor: "#234567",
+                backgroundColor: "#345678",
+              },
+            },
+          ],
+          edges: [
+            {
+              id: "legacy-edge",
+              source: "legacy",
+              target: "legacy",
+              data: { protocol: "http", tags: ["critical"] },
+            },
+          ],
+          flows: [],
+        };
+
+        useDiagramStore.getState().hydrateDiagram(data);
+
+        expect(useDiagramStore.getState().exportDiagram()).toEqual(data);
+        expect(fetcher).not.toHaveBeenCalled();
+      } finally {
+        fetcher.mockRestore();
+      }
+    });
+  });
+
+  describe("resetDiagramState", () => {
+    it("clears private document and ephemeral state without scheduling a save", () => {
+      const schedule = vi.spyOn(cloudWorkspace, "schedule").mockImplementation(() => {});
+      try {
+        const node: Node = {
+          id: "private",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { label: "Private", type: "service" },
+        };
+        const edge: Edge = { id: "private-edge", source: "private", target: "private" };
+        useDiagramStore.setState({
+          nodes: [node],
+          edges: [edge],
+          flows: [
+            {
+              id: "private-flow",
+              name: "Private flow",
+              sourceNodeId: "private",
+              edgeIds: ["private-edge"],
+              createdAt: "2026-10-30T12:00:00.000Z",
+            },
+          ],
+          clipboard: { nodes: [node], edges: [edge] },
+          selectedNodeId: node.id,
+          selectedEdgeId: edge.id,
+          history: [{ nodes: [node], edges: [edge] }],
+          historyIndex: 0,
+        });
+        useSimulationStore.getState().setMode("failure");
+        useSimulationStore.getState().toggleNodeFailure(node.id);
+        useAnimationStore.setState({ pendingDeletions: new Set([node.id]) });
+
+        useDiagramStore.getState().resetDiagramState();
+
+        expect(useDiagramStore.getState()).toMatchObject({
+          nodes: [],
+          edges: [],
+          flows: [],
+          clipboard: { nodes: [], edges: [] },
+          selectedNodeId: null,
+          selectedEdgeId: null,
+          history: [],
+          historyIndex: -1,
+        });
+        expect(useSimulationStore.getState()).toMatchObject({ mode: "idle", failedNodeIds: [] });
+        expect(useAnimationStore.getState().pendingDeletions.size).toBe(0);
+        expect(schedule).not.toHaveBeenCalled();
+      } finally {
+        schedule.mockRestore();
+        useDiagramStore.getState().resetDiagramState();
+      }
     });
   });
 

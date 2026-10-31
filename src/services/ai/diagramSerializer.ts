@@ -1,6 +1,23 @@
-import { DiagramData } from "@/types";
+import { ArchitectureAttribute, DesignDecision, DiagramData } from "@/types";
 import { SerializedDiagram } from "@/types/ai";
 import { architectureNodeDataSchema, groupNodeDataSchema } from "@/schemas/diagram";
+import { formatArchitectureAttribute, getNodeAttributes } from "@/utils/architectureAttributes";
+import { getDecisionRows } from "@/utils/designDecision";
+
+// Keep decision context in the existing prompt description without changing the serialized API shape.
+function describeDetails(
+  data: { description?: string; decision?: DesignDecision },
+  attributes: ArchitectureAttribute[] = [],
+): { description?: string } {
+  const lines = data.description !== undefined ? [data.description] : [];
+  for (const [label, value] of getDecisionRows(data.decision)) {
+    lines.push(`${label}: ${value}`);
+  }
+  for (const attribute of attributes) {
+    lines.push(`Attribute — ${attribute.name}: ${formatArchitectureAttribute(attribute)}`);
+  }
+  return lines.length > 0 ? { description: lines.join("\n") } : {};
+}
 
 /**
  * Convert DiagramData to a serialized format optimized for AI prompts
@@ -30,7 +47,7 @@ export function serializeDiagram(diagram: DiagramData): SerializedDiagram {
         return {
           ...baseData,
           label: data.label,
-          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...describeDetails(data, getNodeAttributes(data)),
           ...(data.technology !== undefined ? { technology: data.technology } : {}),
           ...(data.port !== undefined ? { port: data.port } : {}),
         };
@@ -47,7 +64,7 @@ export function serializeDiagram(diagram: DiagramData): SerializedDiagram {
           ...baseData,
           label: data.label,
           groupType: data.groupType,
-          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...describeDetails(data),
         };
       }
     }
@@ -74,7 +91,7 @@ export function serializeDiagram(diagram: DiagramData): SerializedDiagram {
       target: edge.target,
       ...(edge.data?.protocol !== undefined ? { protocol: edge.data.protocol } : {}),
       ...(edge.data?.method !== undefined ? { method: edge.data.method } : {}),
-      ...(edge.data?.description !== undefined ? { description: edge.data.description } : {}),
+      ...describeDetails(edge.data ?? {}),
     };
   });
 

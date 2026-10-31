@@ -8,6 +8,10 @@ import {
 } from "@/schemas/ai";
 import { serializeDiagram, diagramToText } from "../diagramSerializer";
 
+const decisionGuidance = `Use the documented choice, why, benefits, drawbacks, options considered, and revisit triggers for components, groups, and connections as design context. Treat revisit triggers as stated assumptions, not verified facts; template examples are illustrative, not claims about a real product's infrastructure.
+When proposing component details, use decision fields shaped as {choice, reason, benefits: string[], drawbacks: string[], considered: {option, whyNot?}[], revisitWhen: string[]}, keeping each item to one short phrase, and attributes shaped as {name, value, unit?}. Preserve explicit units; numeric attributes need a unit such as ms, requests/s, count, or replicas. Never infer units for legacy unitless values.
+Put implementation names in component labels or decision.choice, not dedicated technology or port properties. Do not recommend status, healthCheckUrl, tags, or custom color controls; legacy values are compatibility data, not active editor controls.`;
+
 export class OpenAIProvider implements AIProvider {
   name = "OpenAI";
   private client: OpenAI;
@@ -26,6 +30,8 @@ export class OpenAIProvider implements AIProvider {
     const diagramText = diagramToText(serialized);
 
     const systemPrompt = `You are an expert cloud architect and system designer. Review the following microservices architecture diagram and provide a comprehensive analysis.
+
+${decisionGuidance}
 
 Analyze for:
 - Single points of failure
@@ -90,6 +96,8 @@ Return your analysis as JSON with this exact structure:
 
     const systemPrompt = `You are an expert system architect. Analyze this architecture diagram and suggest missing connections based on common patterns.
 
+${decisionGuidance}
+
 Look for:
 - Services without database connections
 - API gateways not connected to services
@@ -141,11 +149,15 @@ Return a JSON object with this exact structure:
 
 Include:
 - Architecture Overview (purpose, key components)
-- Component Descriptions (what each service/database does)
+- Component Descriptions (responsibility and chosen approach)
+- Design Decisions for components, groups, and connections (choice, why, benefits, drawbacks, options considered, revisit triggers)
+- Architecture Attributes (preserve names, values, and explicit units)
 - Data Flow (how information flows through the system)
 - Integration Points (external services, APIs)
 - Deployment Considerations
-- Technology Stack
+- Implementation Choices (only those supported by labels or documented decisions)
+
+${decisionGuidance}
 
 Write in clear, professional language suitable for technical documentation.`;
 
@@ -180,6 +192,8 @@ Answer questions about:
 - Component suggestions
 - How to improve the architecture
 - Explanations of the current design
+
+${decisionGuidance}
 
 Be concise and helpful. When suggesting changes, be specific about components and connections.
 

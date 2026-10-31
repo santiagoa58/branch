@@ -647,6 +647,219 @@ describe("import utilities", () => {
       expect(result.data?.nodes).toHaveLength(2);
     });
 
+    it("preserves legacy Technology/Port fields and empty cells without shifting columns", () => {
+      const result = parseMarkdown(`# Architecture Diagram
+
+## Components
+
+| Component | Type | Technology | Port | Description |
+|-----------|------|------------|------|-------------|
+| API | service | Node.js | 3000 | Public API |
+| Worker | service | | | Background jobs |
+| Cache | cache | - | - | - |
+
+## Connections
+
+| Source | Target | Protocol | Method | Description |
+|--------|--------|----------|--------|-------------|
+| API | Worker | http | | Calls worker |
+| Worker | Cache | redis | - | Cache lookup |`);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.nodes.map((node) => node.data)).toEqual([
+        {
+          label: "API",
+          type: "service",
+          technology: "Node.js",
+          port: "3000",
+          description: "Public API",
+        },
+        { label: "Worker", type: "service", description: "Background jobs" },
+        { label: "Cache", type: "cache" },
+      ]);
+      expect(result.data?.edges.map((edge) => edge.data)).toEqual([
+        { protocol: "http", description: "Calls worker" },
+        { protocol: "redis", description: "Cache lookup" },
+      ]);
+      expect(result.data?.edges.map((edge) => [edge.source, edge.target])).toEqual([
+        ["md-import-0", "md-import-1"],
+        ["md-import-1", "md-import-2"],
+      ]);
+    });
+
+    it("matches columns by header in the current layout, including CRLF and empty descriptions", () => {
+      const result = parseMarkdown(
+        `# Architecture Diagram
+
+## Components
+
+| Type | Description | Component |
+|:-----|:-----------:|----------:|
+| service | | API |
+| database | Storage | DB |
+
+## Connections
+
+| Target | Description | Source | Method | Protocol |
+|--------|-------------|--------|--------|----------|
+| DB | Query | API | | sql |`.replace(/\n/g, "\r\n"),
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data?.nodes.map((node) => node.data)).toEqual([
+        { label: "API", type: "service" },
+        { label: "DB", type: "database", description: "Storage" },
+      ]);
+      expect(result.data?.edges[0]?.data).toEqual({ protocol: "sql", description: "Query" });
+    });
+
+    it("reads earlier two-column attributes without inferring units", () => {
+      const result = parseMarkdown(`# Architecture Diagram
+
+## Components
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| API | service | - |
+
+## Architecture Details
+
+### Component: API
+
+| Decision | Details |
+|----------|---------|
+| Rationale | Preserve old reasoning |
+
+| Attribute | Value |
+|-----------|-------|
+| Budget | 25 ms |
+| Replicas | 3 |`);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.nodes[0]?.data).toEqual({
+        label: "API",
+        type: "service",
+        decision: { reason: "Preserve old reasoning" },
+        attributes: [
+          { name: "Budget", value: "25 ms" },
+          { name: "Replicas", value: "3" },
+        ],
+      });
+    });
+
+    it.each([
+      "| API | service |", // Missing description cell, not an empty cell.
+      "| API | unsupported | - |",
+      "| | service | Missing label |",
+    ])("rejects malformed component rows rather than silently omitting them: %s", (row) => {
+      const result = parseMarkdown(`## Components
+
+| Component | Type | Description |
+|-----------|------|-------------|
+${row}`);
+      expect(result.success).toBe(false);
+      expect(result.data).toBeUndefined();
+    });
+
+    it("imports one decision row per item into the structured sections", () => {
+      const result = parseMarkdown(`## Components
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| Cache | cache | - |
+
+## Architecture Details
+
+### Component: Cache
+
+| Decision | Details |
+|----------|---------|
+| Choice | Redis cache-aside |
+| Why | Reads repeat |
+| Benefit | Fewer database reads |
+| Benefit | Faster pages |
+| Drawback | Stale reads |
+| Considered | Read replicas — More to operate |
+| Revisit when | Reads must be current |`);
+      expect(result.success).toBe(true);
+      expect(result.data?.nodes[0]?.data["decision"]).toEqual({
+        choice: "Redis cache-aside",
+        reason: "Reads repeat",
+        benefits: ["Fewer database reads", "Faster pages"],
+        drawbacks: ["Stale reads"],
+        considered: [{ option: "Read replicas", whyNot: "More to operate" }],
+        revisitWhen: ["Reads must be current"],
+      });
+    });
+
+    it("does not confuse reasoning or attribute values with table headers", () => {
+      const result = parseMarkdown(`## Components
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| API | service | - |
+| Worker | service | - |
+
+## Architecture Details
+
+### Component: API
+
+| Decision | Details |
+|----------|---------|
+| Choice | attribute |
+| Alternatives | value |
+
+### Component: Worker
+
+| Attribute | Value | Unit |
+|-----------|-------|------|
+| Decision | Details | |`);
+      expect(result.success).toBe(true);
+      expect(result.data?.nodes.map((node) => node.data)).toEqual([
+        {
+          label: "API",
+          type: "service",
+          decision: { choice: "attribute", considered: [{ option: "value" }] },
+        },
+        { label: "Worker", type: "service", attributes: [{ name: "Decision", value: "Details" }] },
+      ]);
+    });
+
+    it("validates imported attribute units with the existing schema", () => {
+      const result = parseMarkdown(`## Components
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| API | service | - |
+
+## Architecture Details
+
+### Component: API
+
+| Attribute | Value | Unit |
+|-----------|-------|------|
+| Latency | 25 | ms<br>invalid |`);
+      expect(result.success).toBe(false);
+      expect(result.errors?.join(" ")).toContain("unit");
+    });
+
+    it("rejects ambiguous connection labels instead of attaching to the wrong component", () => {
+      const result = parseMarkdown(`## Components
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| API | service | First |
+| API | service | Second |
+
+## Connections
+
+| Source | Target | Protocol | Method | Description |
+|--------|--------|----------|--------|-------------|
+| API | API | http | GET | - |`);
+      expect(result.success).toBe(false);
+      expect(result.errors?.join(" ")).toContain("Ambiguous connection endpoint");
+    });
+
     it("should parse markdown with connections table", () => {
       const markdown = `# Architecture Diagram
 

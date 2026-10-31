@@ -1018,36 +1018,3 @@ export const COMMENT_CONFIG = {
     },
   } as Record<CommentColor, { bg: string; border: string; text: string; iconBg: string }>,
 } as const;
-
-// Health check configuration
-export const HEALTH_CHECK_CONFIG = {
-  timeout: 5000, // 5 seconds
-  expectedStatusCodes: [200, 201, 204] as number[],
-} as const;
-
-export const HEALTH_STATUS_STYLES = {
-  healthy: {
-    icon: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    text: "text-emerald-400",
-  },
-  unhealthy: {
-    icon: "text-red-400",
-    bg: "bg-red-500/10",
-    border: "border-red-500/20",
-    text: "text-red-400",
-  },
-  error: {
-    icon: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-    text: "text-amber-400",
-  },
-  loading: {
-    icon: "text-zinc-400",
-    bg: "bg-zinc-500/10",
-    border: "border-zinc-500/20",
-    text: "text-zinc-400",
-  },
-} as const;

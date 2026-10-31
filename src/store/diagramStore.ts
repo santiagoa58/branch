@@ -16,7 +16,6 @@ import { useSimulationStore } from "@/store/simulationStore";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { getDefaultProtocolForNode, MAX_HISTORY_LENGTH } from "@/constants";
 import { autoLayoutDiagram } from "@/utils/layout";
-import { checkHealth, HealthCheckResult } from "@/services/healthCheck";
 import { cloudWorkspace, setDiagramHydrator } from "@/services/cloudWorkspace";
 import { diagramDataSchema } from "@/schemas/diagram";
 
@@ -39,10 +38,6 @@ interface ClipboardState {
   edges: Edge[];
 }
 
-interface HealthCheckResults {
-  [nodeId: string]: HealthCheckResult & { timestamp: number; loading?: boolean };
-}
-
 interface DiagramStore {
   // State
   nodes: Node[];
@@ -59,9 +54,6 @@ interface DiagramStore {
   // History
   history: HistoryState[];
   historyIndex: number;
-
-  // Health check (transient state, not persisted)
-  healthCheckResults: HealthCheckResults;
 
   // Actions
   onNodesChange: (changes: NodeChange[]) => void;
@@ -99,14 +91,6 @@ interface DiagramStore {
 
   // Layout actions
   applyAutoLayout: () => boolean;
-
-  // Health check actions
-  runNodeHealthCheck: (nodeId: string) => Promise<void>;
-  runAllHealthChecks: () => Promise<void>;
-  clearHealthResults: () => void;
-  getNodeHealthResult: (
-    nodeId: string,
-  ) => (HealthCheckResult & { timestamp: number; loading?: boolean }) | null;
 
   // History actions
   undo: () => void;
@@ -154,7 +138,6 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   clipboard: { nodes: [], edges: [] },
   history: [],
   historyIndex: -1,
-  healthCheckResults: {},
 
   // Node changes (drag, select, etc.)
   onNodesChange: (changes) => {
@@ -896,7 +879,6 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       flows: data.flows ?? [],
       selectedNodeId: null,
       selectedEdgeId: null,
-      healthCheckResults: {},
       history: [{ nodes: data.nodes, edges: data.edges }],
       historyIndex: 0,
     });
@@ -945,7 +927,6 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       edges: [],
       flows: [],
       clipboard: { nodes: [], edges: [] },
-      healthCheckResults: {},
       selectedNodeId: null,
       selectedEdgeId: null,
       history: [],
@@ -1033,69 +1014,6 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     });
     debouncedSave(get().saveDiagram);
     return true;
-  },
-
-  // Health check actions
-  runNodeHealthCheck: async (nodeId: string) => {
-    const { nodes, healthCheckResults } = get();
-    const node = nodes.find((n) => n.id === nodeId);
-
-    if (!node || node.type !== "architecture") {
-      return;
-    }
-
-    const nodeData = node.data as ArchitectureNodeData;
-    const url = nodeData.healthCheckUrl;
-
-    if (!url) {
-      return;
-    }
-
-    // Set loading state
-    setIfEditable({
-      healthCheckResults: {
-        ...healthCheckResults,
-        [nodeId]: {
-          status: "error",
-          latency: 0,
-          timestamp: Date.now(),
-          loading: true,
-        },
-      },
-    });
-
-    // Perform health check
-    const result = await checkHealth(url);
-
-    // Update with result
-    setIfEditable({
-      healthCheckResults: {
-        ...get().healthCheckResults,
-        [nodeId]: {
-          ...result,
-          timestamp: Date.now(),
-          loading: false,
-        },
-      },
-    });
-  },
-
-  runAllHealthChecks: async () => {
-    const { nodes } = get();
-    const architectureNodes = nodes.filter(
-      (n) => n.type === "architecture" && (n.data as ArchitectureNodeData).healthCheckUrl,
-    );
-
-    // Run all checks in parallel
-    await Promise.all(architectureNodes.map((node) => get().runNodeHealthCheck(node.id)));
-  },
-
-  clearHealthResults: () => {
-    setIfEditable({ healthCheckResults: {} });
-  },
-
-  getNodeHealthResult: (nodeId: string) => {
-    return get().healthCheckResults[nodeId] || null;
   },
 }));
 

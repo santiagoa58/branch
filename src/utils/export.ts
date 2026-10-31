@@ -1,10 +1,12 @@
 import { toPng, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
-import type { DiagramData } from "@/types";
+import type { ArchitectureAttribute, DesignDecision, DiagramData } from "@/types";
 import { architectureNodeDataSchema, groupNodeDataSchema } from "@/schemas/diagram";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
 import { Node } from "@xyflow/react";
 import { SCHEMA_VERSION } from "./import";
+import { getNodeAttributes } from "./architectureAttributes";
+import { getDecisionRows } from "./designDecision";
 
 export interface ExportOptions {
   includeViewport?: boolean;
@@ -324,11 +326,50 @@ export async function exportAsPdf(
   pdf.save(`branch-diagram-${Date.now()}.pdf`);
 }
 
+function markdownCell(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/[\\`*_[\]|]/g, "\\$&")
+    .replace(/\r\n|\r|\n/g, "<br>");
+}
+
+function markdownDetails(
+  title: string,
+  decision?: DesignDecision,
+  attributes: ArchitectureAttribute[] = [],
+): string {
+  const fields = getDecisionRows(decision);
+
+  if (fields.length === 0 && attributes.length === 0) {
+    return "";
+  }
+
+  let md = `### ${markdownCell(title)}\n\n`;
+  if (fields.length > 0) {
+    md += "| Decision | Details |\n|----------|---------|\n";
+    for (const [name, value] of fields) {
+      md += `| ${name} | ${markdownCell(value)} |\n`;
+    }
+    md += "\n";
+  }
+  if (attributes.length > 0) {
+    md += "| Attribute | Value | Unit |\n|-----------|-------|------|\n";
+    for (const attribute of attributes) {
+      md += `| ${markdownCell(attribute.name)} | ${markdownCell(attribute.value)} | ${markdownCell(attribute.unit ?? "")} |\n`;
+    }
+    md += "\n";
+  }
+  return md;
+}
+
 // Export as Markdown
 export function exportAsMarkdown(data: DiagramData): void {
   const nodes = data.nodes;
   const edges = data.edges;
 
+  let details = "";
   let md = "# Architecture Diagram\n\n";
   md += `> Generated: ${new Date().toLocaleString()}\n\n`;
 
@@ -346,7 +387,8 @@ export function exportAsMarkdown(data: DiagramData): void {
       if (parsedData.success) {
         const groupData = parsedData.data;
         const config = GROUP_TYPES_CONFIG[groupData.groupType];
-        md += `| ${groupData.label} | ${config.label} | ${groupData.description ?? "-"} |\n`;
+        md += `| ${markdownCell(groupData.label)} | ${config.label} | ${markdownCell(groupData.description ?? "-")} |\n`;
+        details += markdownDetails(`Group: ${groupData.label}`, groupData.decision);
       }
     });
     md += "\n";
@@ -354,15 +396,20 @@ export function exportAsMarkdown(data: DiagramData): void {
 
   // Components section
   md += "## Components\n\n";
-  md += "| Component | Type | Technology | Port | Description |\n";
-  md += "|-----------|------|------------|------|-------------|\n";
+  md += "| Component | Type | Description |\n";
+  md += "|-----------|------|-------------|\n";
 
   regularNodes.forEach((node) => {
     const parsedData = architectureNodeDataSchema.safeParse(node.data);
     if (parsedData.success) {
       const nodeData = parsedData.data;
       const config = NODE_TYPES_CONFIG[nodeData.type];
-      md += `| ${nodeData.label} | ${config.label} | ${nodeData.technology ?? "-"} | ${nodeData.port ?? "-"} | ${nodeData.description ?? "-"} |\n`;
+      md += `| ${markdownCell(nodeData.label)} | ${config.label} | ${markdownCell(nodeData.description ?? "-")} |\n`;
+      details += markdownDetails(
+        `Component: ${nodeData.label}`,
+        nodeData.decision,
+        getNodeAttributes(nodeData),
+      );
     }
   });
 
@@ -383,10 +430,18 @@ export function exportAsMarkdown(data: DiagramData): void {
       const sourceName = typeof sourceLabel === "string" ? sourceLabel : edge.source;
       const targetName = typeof targetLabel === "string" ? targetLabel : edge.target;
 
-      md += `| ${sourceName} | ${targetName} | ${edgeData?.protocol || "-"} | ${edgeData?.method || "-"} | ${edgeData?.description || "-"} |\n`;
+      md += `| ${markdownCell(sourceName)} | ${markdownCell(targetName)} | ${edgeData?.protocol || "-"} | ${edgeData?.method || "-"} | ${markdownCell(edgeData?.description || "-")} |\n`;
+      details += markdownDetails(
+        `Connection: ${sourceName} → ${targetName} (${edgeData?.label || edge.id})`,
+        edgeData?.decision,
+      );
     });
 
     md += "\n";
+  }
+
+  if (details) {
+    md += `## Architecture Details\n\n${details}`;
   }
 
   // Architecture overview (Mermaid diagram)

@@ -1,5 +1,10 @@
 import type { ArchitectureEdge, ArchitectureNodeType, DiagramData, DiagramNode } from "@/types";
+import { NODE_TYPES_CONFIG } from "@/constants";
+import { parseDecisionRows } from "@/utils/designDecision";
 import {
+  architectureAttributeSchema,
+  architectureNodeDataSchema,
+  designDecisionSchema,
   architectureEdgeDataSchema,
   architectureNodeTypeSchema,
   diagramDataSchema,
@@ -160,74 +165,154 @@ export function appendDiagramData(
   };
 }
 
+function decodeMarkdownCell(value: string): string {
+  return value
+    .trim()
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/\\([\\`*_[\]|])/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function markdownColumns(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  const row = line.trim();
+  for (let index = 0; index < row.length; index++) {
+    const character = row[index];
+    if (character === "\\" && index + 1 < row.length) {
+      cell += character + row[++index];
+    } else if (character === "|") {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+  cells.push(cell);
+  if (row.startsWith("|")) {
+    cells.shift();
+  }
+  if (row.endsWith("|") && cell === "") {
+    cells.pop();
+  }
+  return cells;
+}
+
+function markdownSection(markdown: string, heading: string): string {
+  const section = markdown.split(/^## /m).find((part) => part.startsWith(`${heading}\n`));
+  return section?.slice(heading.length + 1) ?? "";
+}
+
+function markdownTable(section: string, column: string, companion: string): Map<string, string>[] {
+  const lines = section.split("\n");
+  const headerIndex = lines.findIndex((line, index) => {
+    if (!line.trim().startsWith("|")) {
+      return false;
+    }
+    const cells = markdownColumns(line).map((cell) => cell.trim().toLowerCase());
+    const separator = markdownColumns(lines[index + 1] ?? "");
+    return (
+      cells.includes(column) &&
+      cells.includes(companion) &&
+      separator.length === cells.length &&
+      separator.every((cell) => /^:?-+:?$/.test(cell.trim()))
+    );
+  });
+  if (headerIndex < 0) {
+    return [];
+  }
+  const headers = markdownColumns(lines[headerIndex] ?? "").map((cell) =>
+    cell.trim().toLowerCase(),
+  );
+
+  const rows: Map<string, string>[] = [];
+  for (const line of lines.slice(headerIndex + 2)) {
+    if (!line.trim().startsWith("|")) {
+      break;
+    }
+    const cells = markdownColumns(line);
+    if (cells.length !== headers.length) {
+      throw new Error(`Expected ${headers.length} columns in "${column}" table`);
+    }
+    rows.push(
+      new Map(headers.map((header, index) => [header, decodeMarkdownCell(cells[index] ?? "")])),
+    );
+  }
+  return rows;
+}
+
 // Parse Markdown export back to diagram data
 export function parseMarkdown(markdown: string): ImportResult {
   try {
     const nodes: DiagramNode[] = [];
     const edges: ArchitectureEdge[] = [];
 
-    // Extract components from markdown table
-    const componentTableMatch = markdown.match(
-      /## Components\n\n\| Component \|.*?\n\|[-\s|]+\n([\s\S]*?)(?=\n##|\n$)/,
+    markdown = markdown.replace(/\r\n?/g, "\n");
+    const configuredTypes = new Map(
+      Object.entries(NODE_TYPES_CONFIG).map(([type, config]) => [config.label.toLowerCase(), type]),
     );
-    const componentRows = componentTableMatch?.[1];
-    if (componentRows) {
-      const rows = componentRows.trim().split("\n");
-      rows.forEach((row, index) => {
-        const columns = row
-          .split("|")
-          .map((col) => col.trim())
-          .filter((col) => col);
-        const [label, typeStr, technology, port, description] = columns;
-        if (label && typeStr && technology) {
-          // Map type string to node type
-          const typeMap: Record<string, ArchitectureNodeType> = {
-            microservice: "service",
-            service: "service",
-            database: "database",
-            "sql database": "database",
-            "nosql database": "database",
-            "message queue": "queue",
-            queue: "queue",
-            cache: "cache",
-            "in-memory cache": "cache",
-            "api gateway": "gateway",
-            gateway: "gateway",
-            "load balancer": "gateway",
-            "external api": "external",
-            external: "external",
-            "third-party": "external",
-            "object storage": "storage",
-            storage: "storage",
-            "web client": "client",
-            "mobile client": "client",
-            client: "client",
-          };
+    const componentRows = markdownTable(
+      markdownSection(markdown, "Components"),
+      "component",
+      "type",
+    );
+    componentRows.forEach((row, index) => {
+      const label = row.get("component");
+      const typeStr = row.get("type");
+      const technology = row.get("technology");
+      const port = row.get("port");
+      const description = row.get("description");
+      if (!label || !typeStr) {
+        throw new Error("Each component row requires a Component and Type");
+      }
+      // Map type string to node type
+      const typeMap: Record<string, ArchitectureNodeType> = {
+        microservice: "service",
+        service: "service",
+        database: "database",
+        "sql database": "database",
+        "nosql database": "database",
+        "message queue": "queue",
+        queue: "queue",
+        cache: "cache",
+        "in-memory cache": "cache",
+        "api gateway": "gateway",
+        gateway: "gateway",
+        "load balancer": "gateway",
+        "external api": "external",
+        external: "external",
+        "third-party": "external",
+        "object storage": "storage",
+        storage: "storage",
+        "web client": "client",
+        "mobile client": "client",
+        client: "client",
+      };
 
-          const normalizedType = typeStr.toLowerCase();
-          const parsedType = architectureNodeTypeSchema.safeParse(
-            typeMap[normalizedType] ?? normalizedType,
-          );
-          if (!parsedType.success) {
-            throw new Error(`Unsupported component type "${typeStr}"`);
-          }
-          const nodeType = parsedType.data;
+      const normalizedType = typeStr.toLowerCase();
+      const parsedType = architectureNodeTypeSchema.safeParse(
+        configuredTypes.get(normalizedType) ?? typeMap[normalizedType] ?? normalizedType,
+      );
+      if (!parsedType.success) {
+        throw new Error(`Unsupported component type "${typeStr}"`);
+      }
+      const nodeType = parsedType.data;
 
-          nodes.push({
-            id: `md-import-${index}`,
-            type: "architecture",
-            position: { x: 100 + (index % 3) * 250, y: 100 + Math.floor(index / 3) * 180 },
-            data: {
-              label,
-              type: nodeType,
-              ...(technology !== "-" ? { technology } : {}),
-              ...(port && port !== "-" ? { port } : {}),
-              ...(description && description !== "-" ? { description } : {}),
-            },
-          });
-        }
+      nodes.push({
+        id: `md-import-${index}`,
+        type: "architecture",
+        position: { x: 100 + (index % 3) * 250, y: 100 + Math.floor(index / 3) * 180 },
+        data: {
+          label,
+          type: nodeType,
+          ...(technology && technology !== "-" ? { technology } : {}),
+          ...(port && port !== "-" ? { port } : {}),
+          ...(description && description !== "-" ? { description } : {}),
+        },
       });
-    }
+    });
 
     // Create node ID map for edge resolution
     const nodeNameToId = new Map<string, string>();
@@ -237,37 +322,83 @@ export function parseMarkdown(markdown: string): ImportResult {
       }
     });
 
-    // Extract connections from markdown table
-    const connectionTableMatch = markdown.match(
-      /## Connections\n\n\| Source \|.*?\n\|[-\s|]+\n([\s\S]*?)(?=\n##|\n$)/,
+    const connectionRows = markdownTable(
+      markdownSection(markdown, "Connections"),
+      "source",
+      "target",
     );
-    const connectionRows = connectionTableMatch?.[1];
-    if (connectionRows) {
-      const rows = connectionRows.trim().split("\n");
-      rows.forEach((row, index) => {
-        const columns = row
-          .split("|")
-          .map((col) => col.trim())
-          .filter((col) => col);
-        const [source, target, protocol, method, description] = columns;
-        if (source && target && protocol) {
-          const sourceId = nodeNameToId.get(source);
-          const targetId = nodeNameToId.get(target);
-
-          const edgeData = architectureEdgeDataSchema.parse({
-            ...(protocol && protocol !== "-" ? { protocol: protocol.toLowerCase() } : {}),
-            ...(method && method !== "-" ? { method } : {}),
-            ...(description && description !== "-" ? { description } : {}),
-          });
-
-          edges.push({
-            id: `md-edge-${index}`,
-            source: sourceId ?? source,
-            target: targetId ?? target,
-            type: "architecture",
-            data: edgeData,
-          });
+    connectionRows.forEach((row, index) => {
+      const source = row.get("source");
+      const target = row.get("target");
+      const protocol = row.get("protocol");
+      const method = row.get("method");
+      const description = row.get("description");
+      if (!source || !target) {
+        throw new Error("Each connection row requires a Source and Target");
+      }
+      for (const label of [source, target]) {
+        if (nodes.filter((node) => node.data["label"] === label).length > 1) {
+          throw new Error(
+            `Ambiguous connection endpoint "${label}"; use unique labels or JSON import`,
+          );
         }
+      }
+      const sourceId = nodeNameToId.get(source);
+      const targetId = nodeNameToId.get(target);
+
+      const edgeData = architectureEdgeDataSchema.parse({
+        ...(protocol && protocol !== "-" ? { protocol: protocol.toLowerCase() } : {}),
+        ...(method && method !== "-" ? { method } : {}),
+        ...(description && description !== "-" ? { description } : {}),
+      });
+
+      edges.push({
+        id: `md-edge-${index}`,
+        source: sourceId ?? source,
+        target: targetId ?? target,
+        type: "architecture",
+        data: edgeData,
+      });
+    });
+
+    // Component detail headings identify components by label, not by their regenerated IDs.
+    const details = markdownSection(markdown, "Architecture Details").split(/^### /m).slice(1);
+    for (const section of details) {
+      const heading = section.split("\n", 1)[0] ?? "";
+      if (!heading.startsWith("Component: ")) {
+        continue;
+      }
+      const label = decodeMarkdownCell(heading.slice("Component: ".length));
+      const matches = nodes.filter((node) => node.data["label"] === label);
+      if (matches.length !== 1) {
+        throw new Error(`Component details require a unique component label "${label}"`);
+      }
+      const node = matches[0];
+      if (!node) {
+        continue;
+      }
+      const decisionRows = markdownTable(section, "decision", "details");
+      const decision = parseDecisionRows(
+        decisionRows.map((row): [string, string] => [
+          row.get("decision") ?? "",
+          row.get("details") ?? "",
+        ]),
+      );
+      const attributeRows = markdownTable(section, "attribute", "value");
+      node.data = architectureNodeDataSchema.parse({
+        ...node.data,
+        ...(decisionRows.length > 0 ? { decision: designDecisionSchema.parse(decision) } : {}),
+        ...(attributeRows.length > 0
+          ? {
+              attributes: architectureAttributeSchema.array().parse(
+                attributeRows.map((row) => ({
+                  name: row.get("attribute"),
+                  value: row.get("value"),
+                  ...(row.get("unit") ? { unit: row.get("unit") } : {}),
+                })),
+              ),
+            }
+          : {}),
       });
     }
 
@@ -351,7 +482,10 @@ export function parseMarkdown(markdown: string): ImportResult {
     return {
       success: true,
       data: diagramData,
-      warnings: [`Imported ${nodes.length} nodes and ${edges.length} edges from markdown`],
+      warnings: [
+        `Imported ${nodes.length} nodes and ${edges.length} edges from markdown`,
+        "Markdown restores components, connections and component details, not group containers/hierarchy, connection decisions, original IDs, positions or advanced fields. Use JSON for a full-fidelity restore.",
+      ],
     };
   } catch (error) {
     return {
