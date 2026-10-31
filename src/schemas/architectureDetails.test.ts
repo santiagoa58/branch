@@ -21,7 +21,11 @@ describe("architecture details compatibility", () => {
       accentColor: "var(--accent)",
       backgroundColor: "transparent",
       metadata: { TTL: "60s", replicas: "3", policy: "eventual" },
-      decision: { reason: "Low latency", alternatives: "Polling", tradeoffs: "Memory" },
+      decision: {
+        reason: "Low latency",
+        considered: [{ option: "Polling" }],
+        drawbacks: ["Memory"],
+      },
     };
     expect(architectureNodeDataSchema.parse(legacy)).toEqual(legacy);
   });

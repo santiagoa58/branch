@@ -20,18 +20,6 @@ const structured: DesignDecision = {
 };
 
 describe("getDesignDecision", () => {
-  it("appends legacy paragraphs after structured items in the matching section", () => {
-    const view = getDesignDecision({
-      ...structured,
-      tradeoffs: " Legacy tradeoff ",
-      alternatives: "Legacy alternative",
-      assumptions: "Legacy assumption",
-    });
-    expect(view.drawbacks).toEqual(["Stale reads", "Legacy tradeoff"]);
-    expect(view.considered.at(-1)).toEqual({ option: "Legacy alternative" });
-    expect(view.revisitWhen).toEqual(["Reads must always be current", "Legacy assumption"]);
-  });
-
   it("returns copies so editing the view never mutates the stored decision", () => {
     const stored = structuredClone(structured);
     const view = getDesignDecision(stored);
@@ -48,10 +36,21 @@ describe("getDesignDecision", () => {
   });
 });
 
+describe("designDecisionSchema", () => {
+  it.each(["alternatives", "tradeoffs", "assumptions"])(
+    "rejects the retired %s paragraph field",
+    (field) => {
+      expect(designDecisionSchema.safeParse({ choice: "Redis", [field]: "text" }).success).toBe(
+        false,
+      );
+    },
+  );
+});
+
 describe("toDesignDecision", () => {
-  it("writes only the structured shape, omitting empty fields", () => {
+  it("omits empty fields when writing", () => {
     const written = toDesignDecision(
-      getDesignDecision({ choice: "Redis", tradeoffs: "Stale", assumptions: "" }),
+      getDesignDecision({ choice: "Redis", reason: "", drawbacks: ["Stale"], benefits: [] }),
     );
     expect(written).toEqual({ choice: "Redis", drawbacks: ["Stale"] });
     expect(designDecisionSchema.parse(written)).toEqual(written);
@@ -100,7 +99,6 @@ describe("getDocumentedDecision and hasDesignDecision", () => {
     [{}, false],
     [{ choice: " ", benefits: [""], considered: [{ option: "  " }] }, false],
     [{ revisitWhen: ["Traffic doubles"] }, true],
-    [{ tradeoffs: "Legacy only" }, true],
   ])("detects documented content in %j", (decision, expected) => {
     expect(hasDesignDecision(decision)).toBe(expected);
   });
@@ -123,20 +121,14 @@ describe("decision rows", () => {
     expect(parseDecisionRows(getDecisionRows(structured))).toEqual(structured);
   });
 
-  it("reads legacy row labels into the structured sections", () => {
+  it("ignores rows with labels it does not know, including retired paragraph labels", () => {
     expect(
       parseDecisionRows([
-        ["Rationale", "Reduce load"],
-        ["Tradeoffs", "Stale reads"],
-        ["Alternatives", "Replicas — cost more"],
-        ["Assumptions", "Reads tolerate lag"],
+        ["Why", "Reduce load"],
+        ["Rationale", "ignored"],
+        ["Tradeoffs", "ignored"],
         ["Unknown", "ignored"],
       ]),
-    ).toEqual({
-      reason: "Reduce load",
-      drawbacks: ["Stale reads"],
-      considered: [{ option: "Replicas", whyNot: "cost more" }],
-      revisitWhen: ["Reads tolerate lag"],
-    });
+    ).toEqual({ reason: "Reduce load" });
   });
 });

@@ -24,8 +24,8 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **AI/ML Components** — LLM, Vector DB, ML Pipeline, Embedding
 - **Cloud Services** — Secrets Manager, Event Bus, Data Lake, Search, Notifications
 - **Group Containers** — Organize with VPCs, Clusters, Regions, and Subnets
-- **Starter templates** — 26 searchable, decision-first architectures inspired by familiar products such as Google Drive, Slack, Uber, Stripe and YouTube. Filter by category, preview a template, then start from it or add it to an existing diagram. Choices, alternatives, tradeoffs, assumptions, and example quantities are illustrative starting points—not verified descriptions of those products' internal systems or measured production workloads.
-- **Decision-first details** — Document the choice, rationale, alternatives, tradeoffs, and assumptions for components, groups, and connections. Put implementation names in a component label or its choice rather than a dedicated Technology field.
+- **Starter templates** — 26 searchable, decision-first architectures inspired by familiar products such as Google Drive, Slack, Uber, Stripe and YouTube. Filter by category, preview a template, then start from it or add it to an existing diagram. Choices, benefits, drawbacks, alternatives and example quantities are illustrative starting points—not verified descriptions of those products' internal systems or measured production workloads.
+- **Decision-first details** — Document the chosen approach, a one-sentence why, benefits, drawbacks, options considered and what would make you revisit it, for components, groups, and connections. Put implementation names in a component label or its choice rather than a dedicated Technology field.
 - **Architecture attributes** — Capture named values with optional explicit units, such as `Latency budget: 25 ms`, `Throughput: 100 requests/s`, or `Replicas: 3 replicas`. New numeric entries require a unit (including `count` for counts); descriptive values can remain unitless.
 - **Icons** — Choose a recognizable symbol or product logo by searching in plain language, such as “database,” “message queue,” or “PostgreSQL.” Icons identify components; they do not report live health or deployment status. Node status, health-check URLs, ports, technology fields, tags, and custom color controls are no longer active node-detail controls.
 - **Auto format** — One click arranges components using their actual dimensions, fits nested groups around their contents, respects connections across groups, and packs disconnected sections. The result fits in view and can be undone in one step.
@@ -76,7 +76,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 
 - **Architecture Analysis** — AI-powered review with scoring and recommendations
 - **Connection Suggestions** — Smart protocol recommendations based on node types
-- **Documentation Generation** — Generate Markdown with decision context, alternatives, tradeoffs, assumptions, and architecture attributes with their units
+- **Documentation Generation** — Generate Markdown with decisions (one row per benefit, drawback, option considered and revisit trigger) and architecture attributes with their units
 - **Secure Key Storage** — API keys stored locally, never sent to servers
 - **Settings Panel** — Configure provider, model, and test connections
 
@@ -167,7 +167,7 @@ Navigation flushes pending edits. If saving fails, navigation stays blocked and 
 
 Import remains an explicit editor action that edits the active cloud document and schedules a save. URL parameters never implicitly load a document snapshot. Theme, panel preferences, onboarding progress and AI provider settings remain browser preferences; AI analysis caches now stay in memory.
 
-Decisions and attributes belong to the diagram and persist with cloud saves, version snapshots, and JSON backups. Existing documents remain compatible: legacy node `status`, `healthCheckUrl`, `technology`, `port`, `tags`, and color fields are retained losslessly even though their controls are removed. Legacy `metadata` remains readable as attributes; explicit attributes take precedence when names match, without deleting the old metadata or inventing units for existing values. Simulation failure/chaos state is separate and remains ephemeral.
+Decisions and attributes belong to the diagram and persist with cloud saves, version snapshots, and JSON backups. Existing documents remain compatible: legacy node `status`, `healthCheckUrl`, `technology`, `port`, `tags`, and color fields are retained losslessly even though their controls are removed. Legacy `metadata` remains readable as attributes; explicit attributes take precedence when names match, without deleting the old metadata or inventing units for existing values. Decisions use only the structured shape; the earlier paragraph fields (`alternatives`, `tradeoffs`, `assumptions`) are no longer accepted. Simulation failure/chaos state is separate and remains ephemeral.
 
 ### Validate and build
 
@@ -289,7 +289,7 @@ Shortcuts apply in the diagram editor, not in inputs, text editors, dropdowns, o
 
 Export supports JSON, PNG, SVG, PDF, and Markdown. JSON is the full-fidelity backup format and can include viewport, comments, metadata, and formatted output. It preserves both legacy fields and new decision/attribute data; use it to back up or move an editable diagram.
 
-Markdown is human-readable documentation with group/component/connection tables, decision details (choice, rationale, alternatives, tradeoffs, assumptions), architecture attributes including explicit units, and Mermaid output. Component tables no longer include Technology or Port columns: document implementation choices in labels or decisions. Multiline values and table separators are escaped for readable tables. Markdown is not a lossless backup format.
+Markdown is human-readable documentation with group/component/connection tables, decision details (one row each for the choice, why, every benefit, drawback, option considered and revisit trigger), architecture attributes including explicit units, and Mermaid output. Component tables no longer include Technology or Port columns: document implementation choices in labels or decisions. Multiline values and table separators are escaped for readable tables. Markdown is not a lossless backup format.
 
 The import dialog accepts JSON and Markdown through file selection or drag-and-drop, detects the format, previews content, and validates nodes, edges, protocols, and contracts. Errors block an import; warnings can be accepted.
 

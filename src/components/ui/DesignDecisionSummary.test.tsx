@@ -79,33 +79,13 @@ describe("DesignDecisionSummary", () => {
     }
   });
 
-  it("shows legacy paragraph decisions as items in the matching sections", () => {
-    render(
-      <DesignDecisionSummary
-        value={{
-          reason: "Reduce load",
-          tradeoffs: "Potential stale reads",
-          alternatives: "Replicas",
-          assumptions: "Reads tolerate a minute of lag",
-        }}
-      />,
+  it("keeps long items fully readable without truncation", () => {
+    const drawback = `Potential stale reads\n${"More invalidation work. ".repeat(30)}`.trim();
+    const { container } = render(
+      <DesignDecisionSummary value={{ drawbacks: [drawback] }} compact />,
     );
-    expect(
-      within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem"),
-    ).toHaveTextContent("Potential stale reads");
-    expect(
-      within(screen.getByRole("region", { name: "Considered instead" })).getByRole("listitem"),
-    ).toHaveTextContent("Replicas");
-    expect(
-      within(screen.getByRole("region", { name: "Revisit when" })).getByRole("listitem"),
-    ).toHaveTextContent("Reads tolerate a minute of lag");
-  });
-
-  it("keeps long legacy text fully readable without truncation", () => {
-    const tradeoffs = `Potential stale reads\n${"More invalidation work. ".repeat(30)}`.trim();
-    const { container } = render(<DesignDecisionSummary value={{ tradeoffs }} compact />);
     const item = within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem");
-    expect(item.textContent).toBe(tradeoffs);
+    expect(item.textContent).toBe(drawback);
     expect(item).toHaveClass("whitespace-pre-wrap", "wrap-anywhere");
     expect(
       container.querySelector(".line-clamp-2, .line-clamp-3, .truncate"),
