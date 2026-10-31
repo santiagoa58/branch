@@ -33,7 +33,7 @@ function App() {
   const locked = cloud.status === "loading" || cloud.locked;
   return (
     <ReactFlowProvider>
-      <div className="h-screen w-screen overflow-hidden flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-300 antialiased">
+      <div className="h-screen w-screen overflow-clip flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-300 antialiased">
         <CloudNavigationGuard />
         <Navbar />
         <CloudSaveError />
