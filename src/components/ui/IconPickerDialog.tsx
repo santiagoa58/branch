@@ -1,16 +1,21 @@
-import { useState, useEffect, useMemo } from "react";
-import { X, Search, Sparkles } from "lucide-react";
-import { LoadingState } from "@/components/ui/loading";
-import { Icon } from "@iconify/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Icon, iconLoaded } from "@iconify/react";
 import { cn } from "@/lib/utils";
 import {
+  getIconDisplayName,
+  normalizeIconSearchQuery,
   searchIcons,
-  getCollections,
-  getFeaturedCollections,
-  type IconifyCollection,
+  searchTechnologyIcons,
+  type IconifySearchResult,
 } from "@/services/iconify";
-import { notify } from "@/services/notify";
 import { TECHNOLOGY_ICON_GROUPS } from "@/constants/technologyIcons";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface IconPickerDialogProps {
   isOpen: boolean;
@@ -19,296 +24,278 @@ interface IconPickerDialogProps {
   currentIcon?: string;
 }
 
-export function IconPickerDialog({
-  isOpen,
-  onClose,
-  onSelect,
-  currentIcon,
-}: IconPickerDialogProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCollection, setSelectedCollection] = useState<string>("");
-  const [icons, setIcons] = useState<string[]>([]);
-  const [collections, setCollections] = useState<IconifyCollection[]>([]);
-  const [selectedIcon, setSelectedIcon] = useState<string>(currentIcon || "");
-  const [loading, setLoading] = useState(false);
-  const [loadingCollections, setLoadingCollections] = useState(false);
-  const [error, setError] = useState<string>("");
-  const [totalResults, setTotalResults] = useState(0);
+const curatedIds = new Set(
+  TECHNOLOGY_ICON_GROUPS.flatMap((group) => group.icons.map(({ id }) => id)),
+);
+const buttonClass =
+  "rounded-lg px-3 py-2 text-sm font-semibold transition-colors duration-300 hover:bg-accent active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
-  const [previousOpen, setPreviousOpen] = useState(isOpen);
-  if (previousOpen !== isOpen) {
-    setPreviousOpen(isOpen);
-    if (isOpen) {
-      setSelectedIcon(currentIcon || "");
-    }
-  }
+function SelectedIconPreview({
+  iconId,
+  onReady,
+}: {
+  iconId: string;
+  onReady: (iconId: string) => void;
+}) {
+  const trusted = curatedIds.has(iconId) || iconLoaded(iconId);
+  const [status, setStatus] = useState(trusted ? "ready" : "loading");
+  const [attempt, setAttempt] = useState(0);
 
-  // Cancel both the debounce and any in-flight request when the query changes.
   useEffect(() => {
-    if (!isOpen) {
+    if (trusted) {
       return;
     }
+    // Iconify has no error callback. Bound the wait and keep broken icons unconfirmable.
+    const timeout = setTimeout(() => {
+      setStatus((previous) => (previous === "loading" ? "error" : previous));
+    }, 8000);
+    return () => clearTimeout(timeout);
+  }, [trusted, attempt]);
 
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-border bg-background p-2">
+        <Icon
+          key={attempt}
+          icon={iconId}
+          aria-hidden="true"
+          className="size-8"
+          onLoad={() => {
+            setStatus("ready");
+            onReady(iconId);
+          }}
+        />
+      </div>
+      <div className="min-w-0 space-y-1">
+        <p className="truncate text-sm font-medium" title={iconId}>
+          {getIconDisplayName(iconId)}
+        </p>
+        {status === "loading" && (
+          <output className="block text-xs text-muted-foreground">Loading icon preview…</output>
+        )}
+        {status === "error" && (
+          <div role="alert" className="text-xs text-destructive">
+            <p>Icon preview could not load. Try again or choose another icon.</p>
+            <button
+              type="button"
+              className={cn(buttonClass, "mt-1 text-foreground")}
+              onClick={() => {
+                setStatus("loading");
+                setAttempt((previous) => previous + 1);
+              }}
+            >
+              Retry preview
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Mount a fresh session on every open so cancelling never retains a draft selection or query.
+export function IconPickerDialog(props: IconPickerDialogProps) {
+  return props.isOpen ? <IconPickerSession {...props} /> : null;
+}
+
+function IconPickerSession({ onClose, onSelect, currentIcon }: IconPickerDialogProps) {
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState(currentIcon ?? "");
+  const [loadedIcons, setLoadedIcons] = useState<ReadonlySet<string>>(() => new Set());
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<
+    (IconifySearchResult & { query: string; error: string }) | null
+  >(null);
+  const query = searchQuery.trim();
+  const localGroups = useMemo(() => searchTechnologyIcons(query), [query]);
+  const localIds = new Set(localGroups.flatMap((group) => group.icons.map(({ id }) => id)));
+  const remoteIcons = result?.query === query ? result.icons.filter((id) => !localIds.has(id)) : [];
+  const loading = !!query && result?.query !== query;
+  const error = result?.query === query ? result.error : "";
+  const canConfirm =
+    !!selectedIcon &&
+    (curatedIds.has(selectedIcon) || loadedIcons.has(selectedIcon) || iconLoaded(selectedIcon));
+
+  const handleReady = useCallback((iconId: string) => {
+    setLoadedIcons((previous) => new Set([...previous, iconId]));
+  }, []);
+
+  useEffect(() => {
+    if (!query) {
+      return;
+    }
     const controller = new AbortController();
-    const handleSearch = async () => {
-      setIcons([]);
-      setTotalResults(0);
-      setError("");
-      setLoading(!!searchQuery.trim());
-      if (!searchQuery.trim()) {
-        return;
-      }
-      try {
-        const result = await searchIcons(
-          searchQuery.trim(),
-          selectedCollection || undefined,
-          48,
-          controller.signal,
-        );
-        if (!controller.signal.aborted) {
-          setIcons(result.icons);
-          setTotalResults(result.total);
-        }
-      } catch (err) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        const errorMessage = err instanceof Error ? err.message : "Failed to search icons";
-        setError(errorMessage);
-        notify.error({ title: "Search failed", message: errorMessage });
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    const handler = setTimeout(() => void handleSearch(), 300);
+    const timer = setTimeout(() => {
+      void searchIcons(normalizeIconSearchQuery(query), undefined, 48, controller.signal)
+        .then((response) => {
+          if (!controller.signal.aborted) {
+            setResult({ ...response, query, error: "" });
+          }
+        })
+        .catch((cause: unknown) => {
+          if (!controller.signal.aborted) {
+            setResult({
+              query,
+              icons: [],
+              total: 0,
+              error:
+                cause instanceof Error ? cause.message : "The icon catalog could not be searched.",
+            });
+          }
+        });
+    }, 300);
     return () => {
-      clearTimeout(handler);
+      clearTimeout(timer);
       controller.abort();
     };
-  }, [searchQuery, selectedCollection, isOpen]);
+  }, [query, retry]);
 
-  // Load collections on mount
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    let active = true;
-    const loadCollections = async () => {
-      setLoadingCollections(true);
-      try {
-        const cols = await getCollections();
-        if (active) {
-          setCollections(cols);
-        }
-      } catch (err) {
-        console.error("Failed to load collections:", err);
-        // Non-critical, continue without collections
-      } finally {
-        if (active) {
-          setLoadingCollections(false);
-        }
-      }
-    };
-
-    void loadCollections();
-    return () => {
-      active = false;
-    };
-  }, [isOpen]);
-
-  const handleIconSelect = (iconId: string) => {
-    setSelectedIcon(iconId);
-  };
-
-  const handleConfirm = () => {
-    if (selectedIcon) {
-      onSelect(selectedIcon);
-      onClose();
-    }
-  };
-
-  const handleClose = () => {
-    onClose();
-  };
-
-  const featuredCollections = useMemo(() => {
-    const featured = getFeaturedCollections();
-    return collections.filter((col) => featured.includes(col.prefix));
-  }, [collections]);
-
-  const browsing = !searchQuery.trim();
-  const browseGroups = TECHNOLOGY_ICON_GROUPS.map((group) => ({
-    ...group,
-    icons: group.icons.filter(
-      (icon) => !selectedCollection || icon.id.startsWith(`${selectedCollection}:`),
-    ),
-  })).filter((group) => group.icons.length > 0);
-
-  const renderIconButton = (iconId: string, name = iconId) => (
+  const renderIconButton = (iconId: string, name = getIconDisplayName(iconId)) => (
     <button
       type="button"
       key={iconId}
-      onClick={() => handleIconSelect(iconId)}
-      aria-label={`Select ${name}${name === iconId ? "" : ` (${iconId})`}`}
+      onClick={() => setSelectedIcon(iconId)}
+      aria-label={`Select ${name}`}
       aria-pressed={selectedIcon === iconId}
       className={cn(
-        "aspect-square p-3 rounded-lg border-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        selectedIcon === iconId
-          ? "border-primary bg-accent"
-          : "border-zinc-200 dark:border-zinc-700",
+        "flex min-w-0 flex-col items-center justify-start gap-2 rounded-lg border p-3 text-xs transition-colors duration-300 hover:bg-accent active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        selectedIcon === iconId ? "border-primary bg-accent" : "border-border",
       )}
-      title={name === iconId ? iconId : `${name} (${iconId})`}
+      title={`${name} (${iconId})`}
     >
-      <Icon
-        icon={iconId}
-        aria-hidden="true"
-        className="w-full h-full text-zinc-700 dark:text-zinc-300"
-      />
+      <span aria-hidden="true" className="flex size-8 items-center justify-center">
+        <Icon icon={iconId} className="size-8" />
+      </span>
+      <span className="w-full break-words text-center text-pretty">{name}</span>
     </button>
   );
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div
-      data-editor-shortcuts="blocked"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
     >
-      <div className="relative w-full max-w-4xl max-h-[85vh] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-500" />
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Choose Icon</h2>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Close icon picker"
-            className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <X className="w-5 h-5 text-zinc-500" />
-          </button>
+      <DialogContent
+        data-editor-shortcuts="blocked"
+        initialFocus={searchRef}
+        className="flex max-h-[85vh] flex-col gap-4 sm:max-w-3xl"
+      >
+        <DialogHeader className="pr-8">
+          <DialogTitle className="text-lg font-semibold text-balance">Choose an icon</DialogTitle>
+          <DialogDescription className="text-pretty">
+            Browse popular technologies or search by name. Try Postgres, Node.js, or AWS.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          <label htmlFor="icon-picker-search" className="text-sm font-medium">
+            Search icons
+          </label>
+          <input
+            ref={searchRef}
+            id="icon-picker-search"
+            type="search"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              if (event.target.value.trim() !== query) {
+                setResult(null);
+              }
+            }}
+            placeholder="Search technologies and symbols"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
         </div>
 
-        {/* Search & Filters */}
-        <div className="p-4 space-y-3 border-b border-zinc-200 dark:border-zinc-800">
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              aria-label="Search icons"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search icons (e.g., database, kubernetes, docker)..."
-              className="w-full pl-10 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-zinc-900 dark:text-zinc-100"
-            />
-          </div>
-
-          {/* Collection Filter */}
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="icon-collection"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Collection:
-            </label>
-            <select
-              id="icon-collection"
-              value={selectedCollection}
-              onChange={(e) => setSelectedCollection(e.target.value)}
-              className="flex-1 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-zinc-900 dark:text-zinc-100"
-              disabled={loadingCollections}
-            >
-              <option value="">All Collections</option>
-              {featuredCollections.length > 0 && (
-                <optgroup label="Featured">
-                  {featuredCollections.map((col) => (
-                    <option key={col.prefix} value={col.prefix}>
-                      {col.name || col.prefix} ({col.total})
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {collections.length > featuredCollections.length && (
-                <optgroup label="All Collections">
-                  {collections.map((col) => (
-                    <option key={col.prefix} value={col.prefix}>
-                      {col.name || col.prefix} ({col.total})
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </div>
-
-          {/* Results count */}
-          {totalResults > 0 && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Found {totalResults.toLocaleString()} icon{totalResults !== 1 ? "s" : ""}
-              {icons.length < totalResults && ` (showing ${icons.length})`}
-            </p>
-          )}
-        </div>
-
-        {/* Icon Grid */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {browsing ? (
-            <div className="space-y-4">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Featured technology icons. Search for more brands and system symbols.
-              </p>
-              {browseGroups.length === 0 && (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  No featured icons in this collection. Search to explore it, or choose All
-                  Collections.
-                </p>
-              )}
-              {browseGroups.map((group) => (
-                <section key={group.name} aria-label={group.name} className="space-y-2">
-                  <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {group.name}
-                  </h3>
-                  <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-                    {group.icons.map((icon) => renderIconButton(icon.id, icon.name))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : loading ? (
-            <LoadingState label="Searching icons..." className="h-64" />
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-3">
-              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                <X className="w-6 h-6 text-red-500" />
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
+          {localGroups.map((group) => (
+            <section key={group.name} aria-label={group.name} className="space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">{group.name}</h3>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {group.icons.map((icon) => renderIconButton(icon.id, icon.name))}
               </div>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">{error}</p>
-            </div>
-          ) : icons.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-3">
-              <Search className="w-12 h-12 text-zinc-300 dark:text-zinc-700" />
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {searchQuery
-                  ? "No icons found. Try a different search term."
-                  : "Type to search for icons"}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-              {icons.map((iconId) => renderIconButton(iconId))}
-            </div>
+            </section>
+          ))}
+
+          {query && (
+            <section aria-label="More icons" className="space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">More icons</h3>
+              {loading ? (
+                <div className="space-y-2">
+                  <output className="block text-xs text-muted-foreground">
+                    Searching the wider catalog…
+                  </output>
+                  <div aria-hidden="true" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    {["first", "second", "third", "fourth", "fifth", "sixth"].map((slot) => (
+                      <div key={slot} className="h-24 rounded-lg bg-muted" />
+                    ))}
+                  </div>
+                </div>
+              ) : error ? (
+                <div role="alert" className="space-y-2 rounded-lg border border-border p-3">
+                  <p className="text-sm text-destructive">{error}</p>
+                  <p className="text-xs text-muted-foreground">
+                    You can still choose from the curated icons above.
+                  </p>
+                  <button
+                    type="button"
+                    className={cn(buttonClass, "border border-border")}
+                    onClick={() => {
+                      setResult(null);
+                      setRetry((previous) => previous + 1);
+                    }}
+                  >
+                    Retry search
+                  </button>
+                </div>
+              ) : remoteIcons.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {remoteIcons.map((iconId) => renderIconButton(iconId))}
+                </div>
+              ) : (
+                <output className="block text-sm text-muted-foreground">
+                  {localGroups.length
+                    ? "No additional icons found. Choose a match above or try another name."
+                    : "No icons found. Try another technology or symbol name."}
+                </output>
+              )}
+            </section>
           )}
         </div>
 
-        <p className="px-4 pb-3 text-xs text-zinc-500 dark:text-zinc-400">
-          Brand marks are the property of their respective owners. Each{" "}
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-muted/50 p-3">
+          {selectedIcon ? (
+            <SelectedIconPreview key={selectedIcon} iconId={selectedIcon} onReady={handleReady} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No icon selected</p>
+          )}
+          <div className="ml-auto flex shrink-0 gap-2">
+            <button type="button" onClick={onClose} className={buttonClass}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!canConfirm}
+              className={cn(buttonClass, "bg-primary text-primary-foreground hover:bg-primary/90")}
+              onClick={() => {
+                if (canConfirm) {
+                  onSelect(selectedIcon);
+                  onClose();
+                }
+              }}
+            >
+              Use icon
+            </button>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground text-pretty">
+          Brand marks belong to their respective owners. Each{" "}
           <a
             href="https://iconify.design/docs/icons/icon-basics.html#licenses"
             target="_blank"
@@ -319,58 +306,7 @@ export function IconPickerDialog({
           </a>{" "}
           applies. Use of a mark does not imply endorsement.
         </p>
-
-        {/* Footer with Preview & Actions */}
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
-          {/* Selected Icon Preview */}
-          <div className="flex items-center gap-3">
-            {selectedIcon ? (
-              <>
-                <div className="w-10 h-10 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-                  <Icon
-                    icon={selectedIcon}
-                    className="w-full h-full text-zinc-700 dark:text-zinc-300"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                    {selectedIcon}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {selectedIcon.split(":")[0]}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">No icon selected</span>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={!selectedIcon}
-              className={cn(
-                "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                selectedIcon
-                  ? "bg-blue-500 hover:bg-blue-600 text-white"
-                  : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed",
-              )}
-            >
-              Select Icon
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

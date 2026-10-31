@@ -1,6 +1,7 @@
 export interface TechnologyIcon {
   id: string;
   name: string;
+  aliases?: readonly string[];
 }
 
 export interface TechnologyIconGroup {
@@ -32,7 +33,7 @@ export const TECHNOLOGY_ICON_GROUPS: readonly TechnologyIconGroup[] = [
   {
     name: "Backend",
     icons: [
-      { id: "logos:nodejs-icon", name: "Node.js" },
+      { id: "logos:nodejs-icon", name: "Node.js", aliases: ["node", "nodejs"] },
       { id: "logos:deno", name: "Deno" },
       { id: "logos:bun", name: "Bun" },
       { id: "logos:python", name: "Python" },
@@ -54,9 +55,9 @@ export const TECHNOLOGY_ICON_GROUPS: readonly TechnologyIconGroup[] = [
   {
     name: "Cloud and infrastructure",
     icons: [
-      { id: "logos:aws", name: "AWS" },
-      { id: "logos:google-cloud", name: "Google Cloud" },
-      { id: "logos:microsoft-azure", name: "Microsoft Azure" },
+      { id: "logos:aws", name: "AWS", aliases: ["Amazon Web Services", "Amazon cloud"] },
+      { id: "logos:google-cloud", name: "Google Cloud", aliases: ["GCP"] },
+      { id: "logos:microsoft-azure", name: "Microsoft Azure", aliases: ["Azure"] },
       { id: "logos:cloudflare-icon", name: "Cloudflare" },
       { id: "logos:vercel-icon", name: "Vercel" },
       { id: "logos:netlify-icon", name: "Netlify" },
@@ -75,7 +76,7 @@ export const TECHNOLOGY_ICON_GROUPS: readonly TechnologyIconGroup[] = [
   {
     name: "Data and messaging",
     icons: [
-      { id: "logos:postgresql", name: "PostgreSQL" },
+      { id: "logos:postgresql", name: "PostgreSQL", aliases: ["Postgres"] },
       { id: "logos:mysql-icon", name: "MySQL" },
       { id: "logos:mariadb-icon", name: "MariaDB" },
       { id: "logos:mongodb-icon", name: "MongoDB" },
