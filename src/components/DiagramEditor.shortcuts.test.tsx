@@ -125,7 +125,7 @@ describe("DiagramEditor shortcut integration", () => {
     press("S", { shiftKey: true });
 
     expect(screen.getByRole("region", { name: "Simulation panel" })).toBeInTheDocument();
-    expect(useSimulationStore.getState().mode).toBe("flow");
+    expect(useSimulationStore.getState().mode).toBe("traffic");
     expect(useDiagramStore.getState().nodes).toEqual([]);
     expect(flow.screenToFlowPosition).not.toHaveBeenCalled();
 

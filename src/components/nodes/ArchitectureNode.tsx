@@ -52,6 +52,10 @@ export const ArchitectureNode = memo(
     const sourceNodeId = useSimulationStore((s) => s.sourceNodeId);
     const protectedNodeIds = useSimulationStore((s) => s.chaosConfig.protectedNodeIds);
     const simulationMode = useSimulationStore((s) => s.mode);
+    // Messages wait at the component holding them: the producer, or the queue in front of a consumer.
+    const waitingCount = useSimulationStore(
+      (s) => s.waitingMessages.filter((message) => message.from === id).length,
+    );
 
     const isFailed = failedNodeIds.includes(id);
     const isOnActivePath = activePathNodeIds.includes(id);
@@ -93,6 +97,17 @@ export const ArchitectureNode = memo(
           setShowTooltip(false);
         }}
       >
+        {simulationMode === "traffic" && isFailed && (
+          <span className="absolute -top-2 left-2 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+            Down
+          </span>
+        )}
+        {simulationMode === "traffic" && waitingCount > 0 && (
+          <span className="absolute -top-2 right-2 rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+            {waitingCount} waiting
+          </span>
+        )}
+
         {/* Description Tooltip */}
         {showTooltip && hasDescription && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">

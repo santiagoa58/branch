@@ -11,6 +11,10 @@ const OUTSIDE_ACTORS: ReadonlySet<ArchitectureNodeType> = new Set([
   "external",
 ]);
 
+export function isOutsideActor(type: ArchitectureNodeType | undefined): boolean {
+  return type !== undefined && OUTSIDE_ACTORS.has(type);
+}
+
 /** Public entry points that are designed to receive traffic from outside. */
 const ENTRY_POINTS: ReadonlySet<ArchitectureNodeType> = new Set([
   "dns",

@@ -23,7 +23,7 @@ const MIN_DURATION = 0.3; // seconds — minimum per-step animation duration
 const MAX_DURATION = 3.0; // seconds — maximum per-step animation duration
 
 /** Compute GSAP animation duration proportional to edge latency. */
-function computeStepDuration(latencyMs?: number): number {
+export function computeStepDuration(latencyMs?: number): number {
   const latency = latencyMs ?? DEFAULT_LATENCY;
   const duration = (BASE_DURATION * latency) / DEFAULT_LATENCY;
   return Math.max(MIN_DURATION, Math.min(MAX_DURATION, duration));
@@ -70,7 +70,7 @@ function getEdgeElement(edgeId: string): Element | null {
 /**
  * Get the React Flow SVG edge layer where we can inject packet circles.
  */
-function getEdgeSvgLayer(): SVGSVGElement | null {
+export function getEdgeSvgLayer(): SVGSVGElement | null {
   return document.querySelector(".react-flow__edges svg") as SVGSVGElement | null;
 }
 
@@ -79,7 +79,7 @@ function getEdgeSvgLayer(): SVGSVGElement | null {
  * (skip markers). Prefer the BaseEdge path which is the direct child with the
  * edge path data.
  */
-function getEdgePath(edgeId: string): SVGPathElement | null {
+export function getEdgePath(edgeId: string): SVGPathElement | null {
   const edgeGroup = getEdgeElement(edgeId);
   if (!edgeGroup) {
     return null;

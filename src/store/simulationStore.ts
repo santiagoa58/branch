@@ -12,7 +12,13 @@ import type {
   ChaosConfig,
   ChaosEvent,
   ChaosSubMode,
+  TrafficCounts,
+  TrafficLogEntry,
 } from "@/types/simulation";
+import type { WaitingMessage } from "@/utils/trafficSimulation";
+
+/** Recent traffic shown in the log; older entries only remain in the counts. */
+export const TRAFFIC_LOG_LIMIT = 40;
 
 interface SimulationState {
   // Mode & playback
@@ -52,6 +58,12 @@ interface SimulationState {
   severedEdgeIds: string[];
   /** Show the chaos event log panel */
   showChaosLog: boolean;
+
+  // Live traffic
+  trafficLog: TrafficLogEntry[];
+  trafficCounts: TrafficCounts;
+  /** Hand-offs held until the component blocking them recovers. */
+  waitingMessages: WaitingMessage[];
 
   // Stats panel
   showStats: boolean;
@@ -112,6 +124,10 @@ interface SimulationState {
   toggleProtectedNode: (nodeId: string) => void;
   /** Clear all chaos failures and reset for next round */
   clearChaosFailures: () => void;
+  // Traffic actions
+  /** Record a finished request or delivery, newest first. */
+  recordTraffic: (entry: TrafficLogEntry) => void;
+  setWaitingMessages: (messages: WaitingMessage[]) => void;
   reset: () => void;
 }
 
@@ -145,9 +161,18 @@ const initialState = {
   chaosIsAutoRunning: false,
   severedEdgeIds: [] as string[],
   showChaosLog: false,
+  trafficLog: [] as TrafficLogEntry[],
+  trafficCounts: { sent: 0, ok: 0, failed: 0, delivered: 0 } as TrafficCounts,
+  waitingMessages: [] as WaitingMessage[],
   showStats: false,
   stats: null as SimulationStats | null,
 };
+
+const emptyTraffic = () => ({
+  trafficLog: [] as TrafficLogEntry[],
+  trafficCounts: { sent: 0, ok: 0, failed: 0, delivered: 0 },
+  waitingMessages: [] as WaitingMessage[],
+});
 
 export const useSimulationStore = create<SimulationState>((set, get) => ({
   ...initialState,
@@ -156,7 +181,16 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     set(() => {
       // When switching modes, reset the other mode's state
       if (mode === "idle") {
-        return { ...initialState };
+        return { ...initialState, ...emptyTraffic() };
+      }
+      if (mode === "traffic") {
+        return {
+          ...initialState,
+          ...emptyTraffic(),
+          mode,
+          speed: get().speed,
+          chaosConfig: get().chaosConfig,
+        };
       }
       if (mode === "flow") {
         return {
@@ -344,5 +378,22 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       severedEdgeIds: [],
     }),
 
-  reset: () => set({ ...initialState, chaosConfig: { ...defaultChaosConfig } }),
+  recordTraffic: (entry) =>
+    set((state) => {
+      const counts = { ...state.trafficCounts };
+      if (entry.kind === "delivery") {
+        counts.delivered += 1;
+      } else {
+        counts.sent += 1;
+        counts[entry.outcome === "failed" ? "failed" : "ok"] += 1;
+      }
+      return {
+        trafficCounts: counts,
+        trafficLog: [entry, ...state.trafficLog].slice(0, TRAFFIC_LOG_LIMIT),
+      };
+    }),
+
+  setWaitingMessages: (waitingMessages) => set({ waitingMessages }),
+
+  reset: () => set({ ...initialState, ...emptyTraffic(), chaosConfig: { ...defaultChaosConfig } }),
 }));
