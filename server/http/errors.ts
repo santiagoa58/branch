@@ -23,8 +23,9 @@ export const handleError: ErrorHandler<WorkspaceEnv> = (error) => {
     return errorResponse(400, "Invalid JSON request.");
   }
   console.error("Workspace API request failed", error);
+  // Stored data that no longer matches the schema is not an outage; retrying will not help.
   if (error instanceof z.ZodError) {
-    return errorResponse(500, "The stored document does not match the data contract.");
+    return errorResponse(422, "This document was saved in a format this version can't read.");
   }
   return errorResponse(500, "The workspace service is unavailable. Please retry.");
 };

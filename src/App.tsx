@@ -4,6 +4,7 @@ import { NodePalette } from "@/components/panels/NodePalette";
 import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
 import { Navbar } from "@/components/Navbar";
 import { LoadingState } from "@/components/ui/loading";
+import { DiagramLoadError } from "@/components/DiagramLoadError";
 import { CloudNavigationGuard, CloudSaveError } from "@/components/CloudSaveStatus";
 import { ToastNotifications } from "@/components/ui/ToastNotifications";
 import { useUIStore } from "@/store/uiStore";
@@ -38,23 +39,15 @@ function App() {
         <CloudSaveError />
         {!loaded ? (
           cloud.status === "load-error" ? (
-            <div
-              className="flex-1 grid place-content-center text-sm text-muted-foreground"
-              role="alert"
-            >
-              <p>{cloud.message}</p>
-              <button
-                type="button"
-                className="mt-3 underline"
-                onClick={() => {
-                  if (diagramId) {
-                    void cloudWorkspace.load(diagramId, projectId);
-                  }
-                }}
-              >
-                Retry loading
-              </button>
-            </div>
+            <DiagramLoadError
+              failure={cloud.loadFailure}
+              message={cloud.message}
+              onRetry={() => {
+                if (diagramId) {
+                  void cloudWorkspace.load(diagramId, projectId);
+                }
+              }}
+            />
           ) : (
             <LoadingState label="Loading diagram…" className="flex-1" />
           )

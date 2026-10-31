@@ -236,7 +236,7 @@ describe("authenticated cloud API", () => {
     ).toBe(405);
     expect(query).not.toHaveBeenCalled();
     query.mockImplementationOnce(async () => ({ rows: [{}], rowCount: 1 }));
-    expect((await api(`/diagrams/${diagram.id}`, "GET", undefined, owner)).status).toBe(500);
+    expect((await api(`/diagrams/${diagram.id}`, "GET", undefined, owner)).status).toBe(422);
     expect((await api("/projects/not-a-uuid", "GET", undefined, owner)).status).toBe(400);
   });
 

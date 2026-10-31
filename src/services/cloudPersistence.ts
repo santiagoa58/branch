@@ -1,7 +1,8 @@
 import type { ApiDiagram, ApiDiagramVersion } from "./api";
-import { ApiError } from "./api";
+import { ApiError, ApiResponseValidationError } from "./api";
 import type { DiagramData } from "@/types";
 import { diagramDataSchema } from "@/schemas/diagram";
+import { z } from "zod";
 
 export type SaveStatus =
   | "idle"
@@ -14,6 +15,9 @@ export type SaveStatus =
   | "conflict"
   | "versioning"
   | "restoring";
+/** Why a document could not be opened, which decides what the person can do next. */
+export type LoadFailure = "unreadable" | "missing" | "unavailable";
+
 export interface CloudState {
   diagram: ApiDiagram | null;
   status: SaveStatus;
@@ -21,6 +25,30 @@ export interface CloudState {
   locked: boolean;
   transitioning: boolean;
   message: string | null;
+  loadFailure?: LoadFailure | undefined;
+}
+
+const LOAD_FAILURE_MESSAGES: Record<LoadFailure, string> = {
+  unreadable:
+    "It was saved in a format this version of Branch can't read. Recreate it from a template or a JSON export.",
+  missing: "It may have been deleted, or it belongs to a project you can't open.",
+  unavailable: "Branch couldn't reach your workspace. Check your connection and retry.",
+};
+
+function classifyLoadFailure(error: unknown): LoadFailure {
+  if (error instanceof ApiError) {
+    if (error.status === 422) {
+      return "unreadable";
+    }
+    if (error.status === 403 || error.status === 404) {
+      return "missing";
+    }
+    return "unavailable";
+  }
+  // The document arrived but failed this client's API or diagram schema.
+  return error instanceof ApiResponseValidationError || error instanceof z.ZodError
+    ? "unreadable"
+    : "unavailable";
 }
 interface CloudApi {
   get(id: string): Promise<ApiDiagram>;
@@ -117,7 +145,14 @@ export class CloudPersistence {
     this.saving = null;
     this.operation = false;
     this.suspended = false;
-    this.set({ diagram: null, status: "idle", dirty: false, locked: false, message: null });
+    this.set({
+      diagram: null,
+      status: "idle",
+      dirty: false,
+      locked: false,
+      message: null,
+      loadFailure: undefined,
+    });
   };
   cancelLoad = () => {
     this.loadGeneration++;
@@ -144,23 +179,31 @@ export class CloudPersistence {
     const epoch = ++this.epoch;
     this.cancelTimer();
     this.pending = null;
-    this.set({ diagram: null, status: "loading", dirty: false, message: null });
+    this.set({
+      diagram: null,
+      status: "loading",
+      dirty: false,
+      message: null,
+      loadFailure: undefined,
+    });
     try {
       const diagram = await this.api.get(id);
       if (epoch !== this.epoch || generation !== this.loadGeneration) {
         return;
       }
       if (projectId && diagram.projectId !== projectId) {
-        throw new Error("This diagram does not belong to this project.");
+        throw new ApiError(404, "This diagram does not belong to this project.");
       }
       this.hydrate(diagram.data);
       this.onDocument?.(diagram);
       this.set({ diagram, status: "saved", message: null });
     } catch (error) {
       if (epoch === this.epoch && generation === this.loadGeneration) {
+        const loadFailure = classifyLoadFailure(error);
         this.set({
           status: "load-error",
-          message: error instanceof Error ? error.message : "Failed to load diagram.",
+          loadFailure,
+          message: LOAD_FAILURE_MESSAGES[loadFailure],
         });
       }
     }
