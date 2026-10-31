@@ -406,7 +406,7 @@ export const reactFlowNodeSchema = z.preprocess(
   z.union([architectureNodeSchema, groupNodeSchema, commentNodeSchema]),
 );
 
-export const architectureEdgeSchema = z
+const architectureEdgeObjectSchema = z
   .object({
     id: z.string(),
     source: z.string(),
@@ -437,6 +437,27 @@ export const architectureEdgeSchema = z
     labelBgBorderRadius: z.number().exactOptional(),
   })
   .strict();
+
+/** Handle ids that became the default left/right ports when layout switched to left-to-right. */
+const RETIRED_HANDLE_IDS = { sourceHandle: "right", targetHandle: "left" } as const;
+
+function migrateRetiredHandles(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+  const edge = { ...value };
+  for (const [key, retired] of Object.entries(RETIRED_HANDLE_IDS)) {
+    if (edge[key] === retired) {
+      delete edge[key];
+    }
+  }
+  return edge;
+}
+
+export const architectureEdgeSchema = z.preprocess(
+  migrateRetiredHandles,
+  architectureEdgeObjectSchema,
+);
 
 export const viewportSchema = z
   .object({

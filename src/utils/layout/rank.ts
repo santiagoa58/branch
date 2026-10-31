@@ -16,8 +16,9 @@ export interface SiblingLayout extends Size {
   positions: Map<string, Point>;
 }
 
-const NODE_GAP = 64;
-const RANK_GAP = 96;
+const NODE_GAP = 56;
+// Columns are farther apart than rows so connection labels fit between them.
+export const RANK_GAP = 140;
 const COMPONENT_GAP = 80;
 
 /** Separate weak components before ranking so isolated nodes do not form a giant rank. */
@@ -55,7 +56,7 @@ function connectedComponents(boxes: LayoutBox[], edges: LayoutEdge[]): LayoutBox
 function rankComponent(boxes: LayoutBox[], edges: LayoutEdge[]): Component {
   const graph = new dagre.graphlib.Graph();
   graph.setDefaultEdgeLabel(() => ({}));
-  graph.setGraph({ rankdir: "TB", ranksep: RANK_GAP, nodesep: NODE_GAP, marginx: 0, marginy: 0 });
+  graph.setGraph({ rankdir: "LR", ranksep: RANK_GAP, nodesep: NODE_GAP, marginx: 0, marginy: 0 });
   for (const box of boxes) {
     graph.setNode(box.id, { width: box.width, height: box.height });
   }

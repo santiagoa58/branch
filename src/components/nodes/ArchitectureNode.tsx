@@ -112,10 +112,11 @@ export const ArchitectureNode = memo(
           </div>
         )}
 
-        {/* Input Port - Top */}
+        {/* Default ports follow the left-to-right layout; top and bottom stay available. */}
         <Handle
           type="target"
           position={Position.Top}
+          id="top"
           title="Input"
           className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! -top-1! hover:scale-150! transition-transform!"
         />
@@ -224,28 +225,24 @@ export const ArchitectureNode = memo(
           </div>
         )}
 
-        {/* Output Port - Bottom */}
         <Handle
           type="source"
           position={Position.Bottom}
+          id="bottom"
           title="Output"
           className="w-2! h-2! rounded-full! bg-zinc-200! dark:bg-zinc-500! border-2! border-white! dark:border-zinc-950! -bottom-1! hover:scale-150! transition-transform!"
         />
 
-        {/* Left Handle - Input */}
         <Handle
           type="target"
           position={Position.Left}
-          id="left"
           title="Input"
           className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
         />
 
-        {/* Right Handle - Output */}
         <Handle
           type="source"
           position={Position.Right}
-          id="right"
           title="Output"
           className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
         />

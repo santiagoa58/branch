@@ -183,8 +183,8 @@ export function applyGroupCollapse(nodes: Node[], edges: Edge[]): DisplayGraph {
       continue;
     }
 
-    // Pick handles by dominant axis so the rollup edge attaches sensibly:
-    // left/right handles for mostly-horizontal pairs, top/bottom otherwise.
+    // Pick handles by dominant axis so the rollup edge attaches sensibly: the default
+    // right-to-left ports for mostly-horizontal pairs, bottom-to-top otherwise.
     const sPos = absolutePosition(sourceNode, nodeById);
     const tPos = absolutePosition(targetNode, nodeById);
     const dx = tPos.x - sPos.x;
@@ -205,7 +205,7 @@ export function applyGroupCollapse(nodes: Node[], edges: Edge[]): DisplayGraph {
       id: `${ROLLUP_EDGE_PREFIX}${key}`,
       source: agg.source,
       target: agg.target,
-      ...(horizontal ? { sourceHandle: "right", targetHandle: "left" } : {}),
+      ...(horizontal ? {} : { sourceHandle: "bottom", targetHandle: "top" }),
       type: "rollup",
       selectable: false,
       deletable: false,

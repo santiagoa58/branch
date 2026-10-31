@@ -249,3 +249,30 @@ describe("node catalog", () => {
     });
   });
 });
+
+describe("left-to-right connection ports", () => {
+  it("rewrites saved edges that named the old side handles onto the default ports", () => {
+    const parsed = diagramDataSchema.parse({
+      nodes: [
+        {
+          id: "a",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { label: "A", type: "service" },
+        },
+        {
+          id: "b",
+          type: "architecture",
+          position: { x: 300, y: 0 },
+          data: { label: "B", type: "service" },
+        },
+      ],
+      edges: [
+        { id: "side", source: "a", target: "b", sourceHandle: "right", targetHandle: "left" },
+        { id: "stacked", source: "a", target: "b", sourceHandle: "bottom", targetHandle: "top" },
+      ],
+    });
+    expect(parsed.edges[0]).toEqual({ id: "side", source: "a", target: "b" });
+    expect(parsed.edges[1]).toMatchObject({ sourceHandle: "bottom", targetHandle: "top" });
+  });
+});

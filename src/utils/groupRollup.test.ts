@@ -130,6 +130,21 @@ describe("applyGroupCollapse", () => {
     expect(data.collapsedGroupIds).toEqual(["g1"]);
   });
 
+  it.each([
+    ["side by side", { x: 600, y: 60 }, {}],
+    ["stacked", { x: 0, y: 600 }, { sourceHandle: "bottom", targetHandle: "top" }],
+  ])("attaches a rollup to the ports that face each other (%s)", (_case, position, handles) => {
+    const nodes = [group("g1", true), archNode("a", "g1"), archNode("x", undefined, position)];
+    const { rollup } = onlyRollup(
+      applyGroupCollapse(nodes, [edge("e1", "a", "x", { protocol: "http" })]).displayEdges,
+    );
+    expect({ sourceHandle: rollup.sourceHandle, targetHandle: rollup.targetHandle }).toEqual({
+      sourceHandle: undefined,
+      targetHandle: undefined,
+      ...handles,
+    });
+  });
+
   it("aggregates multiple boundary edges between the same pair into one rollup", () => {
     const nodes = [group("g1", true), archNode("a", "g1"), archNode("b", "g1"), archNode("x")];
     const edges = [
