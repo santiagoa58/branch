@@ -91,26 +91,26 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         <Handle
           type="target"
           position={Position.Top}
+          id="top"
           title="Input"
           className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
         />
         <Handle
           type="source"
           position={Position.Bottom}
+          id="bottom"
           title="Output"
           className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
         />
         <Handle
           type="target"
           position={Position.Left}
-          id="left"
           title="Input"
           className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
         />
         <Handle
           type="source"
           position={Position.Right}
-          id="right"
           title="Output"
           className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
         />
@@ -160,26 +160,26 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         <Handle
           type="target"
           position={Position.Top}
+          id="top"
           title="Input"
           className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
         />
         <Handle
           type="source"
           position={Position.Bottom}
+          id="bottom"
           title="Output"
           className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
         />
         <Handle
           type="target"
           position={Position.Left}
-          id="left"
           title="Input"
           className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
         />
         <Handle
           type="source"
           position={Position.Right}
-          id="right"
           title="Output"
           className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
         />

@@ -15,7 +15,7 @@ import { projectEdges } from "./layout/projection";
 import { layoutSiblings } from "./layout/rank";
 
 /**
- * Pure automatic top-to-bottom layout of a stored diagram (not its display rollups).
+ * Pure automatic left-to-right layout of a stored diagram (not its display rollups).
  * Children are sized and positioned before their containers participate in layout.
  * Node IDs are expected to be unique, as enforced by the diagram schema.
  */

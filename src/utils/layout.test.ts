@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { Position, type Edge, type Node } from "@xyflow/react";
 import { autoLayoutDiagram } from "./layout";
 import { COLLAPSED_GROUP_HEIGHT, COLLAPSED_GROUP_WIDTH } from "./groupRollup";
+import { RANK_GAP } from "./layout/rank";
 
 function node(id: string, overrides: Partial<Node> = {}): Node {
   return {
@@ -147,8 +148,8 @@ describe("autoLayoutDiagram", () => {
     const result = autoLayoutDiagram(nodes, edges);
     expectNonoverlap(result);
     for (const connection of edges) {
-      expect(bounds(get(result, connection.source)).bottom).toBeLessThan(
-        bounds(get(result, connection.target)).top,
+      expect(bounds(get(result, connection.source)).right).toBeLessThan(
+        bounds(get(result, connection.target)).left,
       );
     }
     expect(get(result, "source").measured).toEqual({ width: 670, height: 57 });
@@ -167,9 +168,9 @@ describe("autoLayoutDiagram", () => {
       edge("initial", "fallback"),
     ]);
     expectNonoverlap(result);
-    expect(bounds(get(result, "styled")).top).toBeGreaterThanOrEqual(270);
-    expect(bounds(get(result, "initial")).top).toBeGreaterThan(
-      bounds(get(result, "styled")).bottom,
+    expect(bounds(get(result, "styled")).left).toBeGreaterThanOrEqual(720);
+    expect(bounds(get(result, "initial")).left).toBeGreaterThan(
+      bounds(get(result, "styled")).right,
     );
   });
 
@@ -187,8 +188,8 @@ describe("autoLayoutDiagram", () => {
       [edge("bad", "good")],
     );
     expect(get(result, "bad").position).toEqual({ x: 0, y: 0 });
-    expect(get(result, "good").position.y).toBeGreaterThanOrEqual(140);
-    expect(Number.isFinite(get(result, "good").position.x)).toBe(true);
+    expect(get(result, "good").position.x).toBeGreaterThanOrEqual(RANK_GAP);
+    expect(Number.isFinite(get(result, "good").position.y)).toBe(true);
   });
 
   it("lays out large variable-size fan-out and fan-in without overlap", () => {
@@ -202,20 +203,20 @@ describe("autoLayoutDiagram", () => {
     const result = autoLayoutDiagram(nodes, edges);
     expectNonoverlap(result);
     for (const leaf of leaves) {
-      expect(bounds(get(result, "source")).bottom).toBeLessThan(bounds(get(result, leaf.id)).top);
-      expect(bounds(get(result, leaf.id)).bottom).toBeLessThan(bounds(get(result, "sink")).top);
+      expect(bounds(get(result, "source")).right).toBeLessThan(bounds(get(result, leaf.id)).left);
+      expect(bounds(get(result, leaf.id)).right).toBeLessThan(bounds(get(result, "sink")).left);
     }
     expect(autoLayoutDiagram(result, edges)).toEqual(result);
   });
 
-  it("handles a long connected chain with stable TB ranks", () => {
+  it("handles a long connected chain with stable left-to-right ranks", () => {
     const nodes = Array.from({ length: 100 }, (_, index) => node(`node-${index}`));
     const edges = nodes.slice(1).map((next, index) => edge(nodes[index]!.id, next.id));
     const result = autoLayoutDiagram(nodes, edges);
     expectNonoverlap(result);
     for (const connection of edges) {
-      expect(get(result, connection.source).position.y).toBeLessThan(
-        get(result, connection.target).position.y,
+      expect(get(result, connection.source).position.x).toBeLessThan(
+        get(result, connection.target).position.x,
       );
     }
   });
@@ -342,11 +343,11 @@ describe("autoLayoutDiagram", () => {
       edge("source", "target"),
       edge("inner-source", "inner-target"),
     ]);
-    expect(bounds(get(result, "z-source")).bottom).toBeLessThan(
-      bounds(get(result, "a-target")).top,
+    expect(bounds(get(result, "z-source")).right).toBeLessThan(
+      bounds(get(result, "a-target")).left,
     );
-    expect(bounds(get(result, "z-inner-source")).bottom).toBeLessThan(
-      bounds(get(result, "a-inner-target")).top,
+    expect(bounds(get(result, "z-inner-source")).right).toBeLessThan(
+      bounds(get(result, "a-inner-target")).left,
     );
     expectContained(result);
     expectNonoverlap(result);
@@ -362,8 +363,8 @@ describe("autoLayoutDiagram", () => {
     ];
     const edges = [edge("z-group", "other-child"), edge("child", "a-root")];
     const result = autoLayoutDiagram(nodes, edges);
-    expect(bounds(get(result, "z-group")).bottom).toBeLessThan(bounds(get(result, "a-group")).top);
-    expect(bounds(get(result, "z-group")).bottom).toBeLessThan(bounds(get(result, "a-root")).top);
+    expect(bounds(get(result, "z-group")).right).toBeLessThan(bounds(get(result, "a-group")).left);
+    expect(bounds(get(result, "z-group")).right).toBeLessThan(bounds(get(result, "a-root")).left);
     expect(autoLayoutDiagram(nodes, [...edges, edge("z-group", "child")])).toEqual(result);
   });
 
@@ -392,8 +393,8 @@ describe("autoLayoutDiagram", () => {
     const result = autoLayoutDiagram(nodes, edges);
     expectNonoverlap(result);
     for (const connection of edges) {
-      expect(bounds(get(result, connection.source)).bottom).toBeLessThan(
-        bounds(get(result, connection.target)).top,
+      expect(bounds(get(result, connection.source)).right).toBeLessThan(
+        bounds(get(result, connection.target)).left,
       );
     }
   });
@@ -464,7 +465,7 @@ describe("autoLayoutDiagram", () => {
     expect(collapsed.measured).toEqual({ width: 240, height: 190 });
     expect(collapsed.width).toBe(1600);
     expect(collapsed.height).toBe(1100);
-    expect(after.position.y - collapsed.position.y).toBe(COLLAPSED_GROUP_HEIGHT + 96);
+    expect(after.position.x - collapsed.position.x).toBe(COLLAPSED_GROUP_WIDTH + RANK_GAP);
     expect(get(result, "child").position).toEqual({ x: 32, y: 56 });
     expect(get(result, "child").extent).toBe("parent");
     expect(autoLayoutDiagram(result, edges)).toEqual(result);
