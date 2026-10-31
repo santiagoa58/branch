@@ -91,7 +91,7 @@ describe("architecture node details", () => {
     renderNode({
       label: "Read cache",
       type: "cache",
-      decision: { tradeoffs: "Legacy note", choice: "  " },
+      decision: { drawbacks: ["Stale reads"], choice: "  " },
     });
     expect(screen.getByText("Decision")).toBeVisible();
   });

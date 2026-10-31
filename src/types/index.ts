@@ -108,12 +108,6 @@ export interface DesignDecision {
   drawbacks?: string[];
   considered?: ConsideredOption[];
   revisitWhen?: string[];
-  /** @deprecated Read via getDesignDecision; write considered instead. */
-  alternatives?: string;
-  /** @deprecated Read via getDesignDecision; write drawbacks instead. */
-  tradeoffs?: string;
-  /** @deprecated Read via getDesignDecision; write revisitWhen instead. */
-  assumptions?: string;
 }
 
 // Data structure for architecture nodes

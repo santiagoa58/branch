@@ -163,28 +163,6 @@ describe("DesignDecisionEditor", () => {
     expect(onChange).toHaveBeenLastCalledWith(rest);
   });
 
-  it("shows legacy paragraph fields as editable items and writes only the structured shape", () => {
-    const { onChange } = mount({
-      choice: "Redis",
-      tradeoffs: "Stale reads",
-      alternatives: "Replicas cost more",
-      assumptions: "Revisit if reads must be current",
-    });
-    expect(screen.getByRole("textbox", { name: "Drawbacks 1" })).toHaveValue("Stale reads");
-    expect(screen.getByRole("textbox", { name: "Option 1" })).toHaveValue("Replicas cost more");
-    expect(screen.getByRole("textbox", { name: "Revisit when 1" })).toHaveValue(
-      "Revisit if reads must be current",
-    );
-    fireEvent.change(screen.getByLabelText("Why"), { target: { value: "Hot keys repeat" } });
-    expect(onChange).toHaveBeenLastCalledWith({
-      choice: "Redis",
-      reason: "Hot keys repeat",
-      drawbacks: ["Stale reads"],
-      considered: [{ option: "Replicas cost more" }],
-      revisitWhen: ["Revisit if reads must be current"],
-    });
-  });
-
   it("starts empty for an undocumented decision and only writes what was entered", () => {
     const onChange = vi.fn<(next: DesignDecision) => void>();
     render(<DesignDecisionEditor value={undefined} onChange={onChange} />);

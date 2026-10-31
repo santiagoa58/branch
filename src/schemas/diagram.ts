@@ -162,9 +162,6 @@ export const designDecisionSchema = z
     drawbacks: z.array(z.string()).exactOptional(),
     considered: z.array(consideredOptionSchema).exactOptional(),
     revisitWhen: z.array(z.string()).exactOptional(),
-    alternatives: z.string().exactOptional(),
-    tradeoffs: z.string().exactOptional(),
-    assumptions: z.string().exactOptional(),
   })
   .strict();
 

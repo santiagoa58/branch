@@ -19,10 +19,6 @@ import type { ArchitectureNodeData, DesignDecision } from "@/types";
 /** Template decisions are meant to be scanned: every section filled, each entry one short phrase. */
 function expectShortCompleteDecision(value: unknown, where: string) {
   const decision = designDecisionSchema.parse(value);
-  const legacyFields = ["alternatives", "tradeoffs", "assumptions"].filter(
-    (key) => key in decision,
-  );
-  expect(legacyFields, `${where} uses legacy paragraph fields`).toEqual([]);
   for (const [field, text, limit] of [
     ["choice", decision.choice, DECISION_LIMITS.choice],
     ["reason", decision.reason, DECISION_LIMITS.reason],

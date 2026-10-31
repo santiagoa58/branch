@@ -728,7 +728,7 @@ describe("import utilities", () => {
 
 | Decision | Details |
 |----------|---------|
-| Rationale | Preserve old reasoning |
+| Why | Preserve old reasoning |
 
 | Attribute | Value |
 |-----------|-------|
@@ -807,7 +807,7 @@ ${row}`);
 | Decision | Details |
 |----------|---------|
 | Choice | attribute |
-| Alternatives | value |
+| Considered | value |
 
 ### Component: Worker
 

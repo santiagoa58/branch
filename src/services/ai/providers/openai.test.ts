@@ -49,7 +49,7 @@ describe("OpenAI response validation", () => {
             data: {
               label: "Boundary",
               groupType: "vpc",
-              decision: { choice: "Private network", assumptions: "Illustrative isolation" },
+              decision: { choice: "Private network", revisitWhen: ["Illustrative isolation"] },
             },
           },
           {
@@ -80,7 +80,7 @@ describe("OpenAI response validation", () => {
             target: "node-1",
             data: {
               protocol: "http",
-              decision: { choice: "Bounded retries", tradeoffs: "Duplicate delivery" },
+              decision: { choice: "Bounded retries", drawbacks: ["Duplicate delivery"] },
             },
           },
         ],
@@ -126,7 +126,6 @@ describe("OpenAI response validation", () => {
         "Owner: Platform",
         "Replicas: 3\n",
         "Choice: Private network",
-        // Legacy paragraph fields still reach the model, under their structured section.
         "Revisit when: Illustrative isolation",
         "Choice: Bounded retries",
         "Drawback: Duplicate delivery",

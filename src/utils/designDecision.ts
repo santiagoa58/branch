@@ -9,34 +9,19 @@ export interface DesignDecisionView {
   revisitWhen: string[];
 }
 
-function withLegacyItem(items: string[] | undefined, legacy: string | undefined): string[] {
-  const legacyText = legacy?.trim();
-  return [...(items ?? []), ...(legacyText ? [legacyText] : [])];
-}
-
-/**
- * Structured lists win; legacy free-text fields are appended as one item so older documents stay
- * visible and editable. Blank items are preserved here because the editor needs empty draft rows.
- */
+/** An editable copy of a decision with every field present. Blank items are kept for draft rows. */
 export function getDesignDecision(decision: DesignDecision | undefined): DesignDecisionView {
-  const legacyAlternative = decision?.alternatives?.trim();
   return {
     choice: decision?.choice ?? "",
     reason: decision?.reason ?? "",
     benefits: [...(decision?.benefits ?? [])],
-    drawbacks: withLegacyItem(decision?.drawbacks, decision?.tradeoffs),
-    considered: [
-      ...(decision?.considered ?? []).map((item) => ({ ...item })),
-      ...(legacyAlternative ? [{ option: legacyAlternative }] : []),
-    ],
-    revisitWhen: withLegacyItem(decision?.revisitWhen, decision?.assumptions),
+    drawbacks: [...(decision?.drawbacks ?? [])],
+    considered: (decision?.considered ?? []).map((item) => ({ ...item })),
+    revisitWhen: [...(decision?.revisitWhen ?? [])],
   };
 }
 
-/**
- * Writes the structured shape only; legacy fields were folded in by getDesignDecision.
- * Empty fields are omitted, but blank list rows are kept while they are being edited.
- */
+/** Empty fields are omitted, but blank list rows are kept while they are being edited. */
 export function toDesignDecision(view: DesignDecisionView): DesignDecision {
   const considered = view.considered.map((item) =>
     item.whyNot === undefined ? { option: item.option } : { ...item },
@@ -114,7 +99,7 @@ export function getDecisionRows(decision: DesignDecision | undefined): [string, 
   ];
 }
 
-/** Inverse of getDecisionRows; also accepts the legacy single-paragraph row labels. */
+/** Inverse of getDecisionRows; rows with other labels are ignored. */
 export function parseDecisionRows(rows: [string, string][]): DesignDecision {
   const view: DesignDecisionView = {
     choice: "",
@@ -130,19 +115,15 @@ export function parseDecisionRows(rows: [string, string][]): DesignDecision {
         view.choice = value;
         break;
       case "why":
-      case "rationale":
-      case "reason":
         view.reason = value;
         break;
       case "benefit":
         view.benefits.push(value);
         break;
       case "drawback":
-      case "tradeoffs":
         view.drawbacks.push(value);
         break;
-      case "considered":
-      case "alternatives": {
+      case "considered": {
         const separator = value.indexOf(CONSIDERED_SEPARATOR);
         view.considered.push(
           separator === -1
@@ -155,7 +136,6 @@ export function parseDecisionRows(rows: [string, string][]): DesignDecision {
         break;
       }
       case "revisit when":
-      case "assumptions":
         view.revisitWhen.push(value);
         break;
     }

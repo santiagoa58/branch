@@ -269,7 +269,7 @@ describe("export utilities", () => {
       expect(data).toEqual(original);
     });
 
-    it("exports existing rationale without requiring a new choice or attributes", () => {
+    it("exports a partial decision without requiring a choice or attributes", () => {
       const data: DiagramData = {
         nodes: [
           {
@@ -279,7 +279,7 @@ describe("export utilities", () => {
             data: {
               label: "Legacy service",
               type: "service",
-              decision: { reason: "Keep existing reasoning", tradeoffs: "Extra network hop" },
+              decision: { reason: "Keep existing reasoning", drawbacks: ["Extra network hop"] },
               metadata: { Capacity: "100" },
             },
           },
@@ -337,7 +337,7 @@ describe("export utilities", () => {
               protocol: "http",
               method: "GET",
               description: "Reads | writes\nwith retries",
-              decision: { tradeoffs: "Retry | duplicate\nDeduplicate" },
+              decision: { drawbacks: ["Retry | duplicate\nDeduplicate"] },
             },
           },
         ],
@@ -655,7 +655,7 @@ describe("export utilities", () => {
               accentColor: "#123456",
               backgroundColor: "#654321",
               metadata: { replicas: "3", owner: "payments" },
-              decision: { reason: "Original rationale", tradeoffs: "Original tradeoff" },
+              decision: { reason: "Original rationale", drawbacks: ["Original tradeoff"] },
             },
           },
           {
@@ -665,7 +665,10 @@ describe("export utilities", () => {
             data: {
               label: "New service",
               type: "service",
-              decision: { choice: "Stateless worker", assumptions: "At-least-once delivery" },
+              decision: {
+                choice: "Stateless worker",
+                revisitWhen: ["Delivery must be exactly once"],
+              },
               attributes: [{ name: "Capacity", value: "50", unit: "requests/s" }],
             },
           },

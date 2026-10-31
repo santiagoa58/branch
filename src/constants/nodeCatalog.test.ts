@@ -159,9 +159,9 @@ describe("node catalog", () => {
   it("round-trips reasoning on nodes, groups and API edges", () => {
     const decision = {
       reason: "Reduce latency",
-      alternatives: "Direct database reads",
-      tradeoffs: "Staleness",
-      assumptions: "Read-heavy workload",
+      considered: [{ option: "Direct database reads", whyNot: "Slower" }],
+      drawbacks: ["Staleness"],
+      revisitWhen: ["Writes dominate"],
     };
     const diagram = {
       nodes: [
