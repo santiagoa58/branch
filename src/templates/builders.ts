@@ -6,6 +6,7 @@ import {
   GroupNodeData,
   GroupNodeType,
 } from "@/types";
+import { nodeAttributes } from "./reasoning";
 
 /**
  * Tiny builders for authoring starter templates. They produce exactly the
@@ -20,14 +21,22 @@ export function archNode(
   label: string,
   x: number,
   y: number,
-  extra?: Partial<ArchitectureNodeData> & { parentId?: string },
+  extra?: Partial<
+    Pick<ArchitectureNodeData, "description" | "decision" | "attributes" | "iconifyIcon">
+  > & { parentId?: string },
 ): Node {
   const { parentId, ...data } = extra ?? {};
   return {
     id,
     type: "architecture",
     position: { x, y },
-    data: { label, type, ...(parentId ? { parentId } : {}), ...data },
+    data: {
+      label,
+      type,
+      ...(parentId ? { parentId } : {}),
+      ...data,
+      attributes: (data.attributes ?? nodeAttributes(type)).map((attribute) => ({ ...attribute })),
+    },
     ...(parentId ? { parentId, extent: "parent" as const } : {}),
   };
 }
@@ -40,7 +49,9 @@ export function groupNode(
   y: number,
   width: number,
   height: number,
-  extra?: Partial<GroupNodeData> & { parentId?: string },
+  extra?: Partial<Pick<GroupNodeData, "description" | "decision" | "color">> & {
+    parentId?: string;
+  },
 ): Node {
   const { parentId, ...data } = extra ?? {};
   return {
@@ -49,7 +60,13 @@ export function groupNode(
     position: { x, y },
     zIndex: -1,
     style: { width, height },
-    data: { label, groupType, collapsed: false, ...(parentId ? { parentId } : {}), ...data },
+    data: {
+      label,
+      groupType,
+      collapsed: false,
+      ...(parentId ? { parentId } : {}),
+      ...data,
+    },
     ...(parentId ? { parentId, extent: "parent" as const } : {}),
   };
 }

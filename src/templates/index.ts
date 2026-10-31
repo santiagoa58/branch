@@ -1,4 +1,5 @@
 import type { DiagramData } from "@/types";
+import { designDecisionSchema } from "@/schemas/diagram";
 import type { DiagramTemplate, TemplateCategory } from "./types";
 
 export { TEMPLATE_CATEGORIES } from "./types";
@@ -77,7 +78,13 @@ export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
 
 function searchableText(template: DiagramTemplate): string {
   const components = template.data.nodes.flatMap((node) => {
-    const values = [node.data["label"], node.data["technology"], node.data["type"]];
+    const decision = designDecisionSchema.safeParse(node.data["decision"]).data;
+    const values = [
+      node.data["label"],
+      node.data["technology"],
+      node.data["type"],
+      decision?.choice,
+    ];
     return values.filter((value): value is string => typeof value === "string");
   });
   return [
