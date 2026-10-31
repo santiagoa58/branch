@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { CloudPersistence } from "./cloudPersistence";
 import { ApiError, type ApiDiagram, type ApiDiagramVersion } from "./api";
@@ -352,9 +353,24 @@ describe("cloud document lifecycle", () => {
     await pending;
     expect(cloud.getState().locked).toBe(false);
   });
+  it.each([
+    ["unreadable", new ApiError(422, "Saved in an older format")],
+    ["unreadable", new z.ZodError([])],
+    ["missing", new ApiError(404, "Not found")],
+    ["unavailable", new ApiError(503, "Service unavailable")],
+    ["unavailable", new Error("Network failed")],
+  ] as const)("classifies a load failure as %s with a plain message", async (failure, error) => {
+    api.get.mockRejectedValueOnce(error);
+    await cloud.load("a");
+    expect(cloud.getState()).toMatchObject({ status: "load-error", loadFailure: failure });
+    expect(cloud.getState().message).not.toContain(error.message || "unused");
+    await cloud.load("a");
+    expect(cloud.getState().loadFailure).toBeUndefined();
+  });
   it("does not apply a project-mismatched cloud document", async () => {
     await cloud.load("a", "different-project");
     expect(cloud.getState().status).toBe("load-error");
+    expect(cloud.getState().loadFailure).toBe("missing");
     expect(hydrate).not.toHaveBeenCalled();
   });
   it("validates edits before queuing cloud writes", async () => {

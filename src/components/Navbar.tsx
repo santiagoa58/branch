@@ -1,3 +1,4 @@
+import type { SaveStatus } from "@/services/cloudPersistence";
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,20 @@ import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { LoadingIndicator } from "@/components/ui/loading";
+
+// Typed over every status so a new status can't silently fall through to the wrong label.
+const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
+  idle: "",
+  loading: "Loading…",
+  "load-error": "Not loaded",
+  saved: "Saved",
+  pending: "Unsaved edits",
+  saving: "Saving…",
+  error: "Save failed",
+  conflict: "Save conflict",
+  versioning: "Saving version…",
+  restoring: "Restoring…",
+};
 
 export function Navbar() {
   const cloud = useCloudWorkspace();
@@ -309,17 +324,7 @@ export function Navbar() {
             cloud.status === "saving" ||
             cloud.status === "versioning" ||
             cloud.status === "restoring") && <LoadingIndicator className="size-3" />}
-          {cloud.status === "saved"
-            ? "Saved"
-            : cloud.status === "saving"
-              ? "Saving…"
-              : cloud.status === "pending"
-                ? "Unsaved edits"
-                : cloud.status === "conflict"
-                  ? "Save conflict"
-                  : cloud.status === "error"
-                    ? "Save failed"
-                    : "Loading…"}
+          {SAVE_STATUS_LABELS[cloud.status]}
         </output>
         <AccountControls />
 
