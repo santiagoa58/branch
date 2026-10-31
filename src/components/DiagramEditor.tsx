@@ -660,89 +660,102 @@ export function DiagramEditor() {
         </>
       )}
 
-      {/* Toolbar Overlay: tools, zoom, then actions. Every control names itself and its shortcut. */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border border-zinc-200 dark:border-zinc-800 rounded-full p-1.5 flex items-center gap-1 shadow-lg shadow-black/20 dark:shadow-black/50 z-20">
-        <ToolbarButton
-          label="Select"
-          shortcut="V"
-          active={!panMode && !laserMode}
-          onClick={() => {
-            setPanMode(false);
-            setLaserMode(false);
-          }}
-        >
-          <MousePointer2 className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarButton
-          label="Pan"
-          shortcut="H"
-          active={panMode}
-          onClick={() => {
-            setPanMode(true);
-            setLaserMode(false);
-          }}
-        >
-          <Hand className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarButton
-          label="Laser pointer for presenting"
-          shortcut="`"
-          active={laserMode}
-          onClick={() => {
-            setLaserMode(!laserMode);
-            setPanMode(false);
-          }}
-        >
-          <Presentation className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarDivider />
-        <ToolbarButton label="Zoom out" shortcut="−" onClick={() => void zoomOut()}>
-          <Minus className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <span className="text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1">
-          {zoom}%
-        </span>
-        <ToolbarButton label="Zoom in" shortcut="+" onClick={() => void zoomIn()}>
-          <Plus className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarDivider />
-        <ToolbarButton label="Import diagram" onClick={() => setShowImportDialog(true)}>
-          <FileUp className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
-          <LayoutTemplate className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarDivider />
-        <ToolbarButton
-          label="Simulate requests and failures"
-          showLabel="Simulate"
-          shortcut="⇧S"
-          active={showSimulationPanel}
-          className={cn(
-            onboardingActiveStep === "run-flow-sim" &&
-              "onboarding-pulse text-amber-600 dark:text-amber-400",
-          )}
-          onClick={() => {
-            setShowSimulationPanel((v) => !v);
-            simulationSetMode(showSimulationPanel ? "idle" : "flow");
-          }}
-        >
-          <Activity className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarButton
-          label="Saved request flows"
-          active={showFlowsPanel}
-          onClick={() => setShowFlowsPanel((v) => !v)}
-        >
-          <Route className="size-4" aria-hidden="true" />
-        </ToolbarButton>
-        <ToolbarButton
-          label="Keyboard shortcuts"
-          shortcut="?"
-          onClick={() => setShowShortcuts(true)}
-        >
-          <Keyboard className="size-4" aria-hidden="true" />
-        </ToolbarButton>
+      {/*
+        Top bar: diagram card, toolbar and legend share one row so they can never overlap.
+        Equal flexible side slots keep the toolbar centered while space allows; on a narrow
+        canvas the toolbar wraps to a second line instead of running off the edge.
+      */}
+      <div className="@container absolute top-4 inset-x-4 z-20 flex flex-wrap items-start gap-x-3 gap-y-2 pointer-events-none">
+        <div className="flex flex-1 basis-0 justify-start">
+          <DiagramInfoCard />
+        </div>
+        {/* Toolbar: tools, zoom, then actions. Every control names itself and its shortcut. */}
+        <div className="pointer-events-auto shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border border-zinc-200 dark:border-zinc-800 rounded-full p-1.5 flex items-center gap-1 shadow-lg shadow-black/20 dark:shadow-black/50">
+          <ToolbarButton
+            label="Select"
+            shortcut="V"
+            active={!panMode && !laserMode}
+            onClick={() => {
+              setPanMode(false);
+              setLaserMode(false);
+            }}
+          >
+            <MousePointer2 className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton
+            label="Pan"
+            shortcut="H"
+            active={panMode}
+            onClick={() => {
+              setPanMode(true);
+              setLaserMode(false);
+            }}
+          >
+            <Hand className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton
+            label="Laser pointer for presenting"
+            shortcut="`"
+            active={laserMode}
+            onClick={() => {
+              setLaserMode(!laserMode);
+              setPanMode(false);
+            }}
+          >
+            <Presentation className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarDivider />
+          <ToolbarButton label="Zoom out" shortcut="−" onClick={() => void zoomOut()}>
+            <Minus className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <span className="text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1">
+            {zoom}%
+          </span>
+          <ToolbarButton label="Zoom in" shortcut="+" onClick={() => void zoomIn()}>
+            <Plus className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarDivider />
+          <ToolbarButton label="Import diagram" onClick={() => setShowImportDialog(true)}>
+            <FileUp className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
+            <LayoutTemplate className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarDivider />
+          <ToolbarButton
+            label="Simulate requests and failures"
+            showLabel="Simulate"
+            shortcut="⇧S"
+            active={showSimulationPanel}
+            className={cn(
+              onboardingActiveStep === "run-flow-sim" &&
+                "onboarding-pulse text-amber-600 dark:text-amber-400",
+            )}
+            onClick={() => {
+              setShowSimulationPanel((v) => !v);
+              simulationSetMode(showSimulationPanel ? "idle" : "flow");
+            }}
+          >
+            <Activity className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton
+            label="Saved request flows"
+            active={showFlowsPanel}
+            onClick={() => setShowFlowsPanel((v) => !v)}
+          >
+            <Route className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton
+            label="Keyboard shortcuts"
+            shortcut="?"
+            onClick={() => setShowShortcuts(true)}
+          >
+            <Keyboard className="size-4" aria-hidden="true" />
+          </ToolbarButton>
+        </div>
+        <div className="flex flex-1 basis-0 justify-end">
+          <ProtocolLegend />
+        </div>
       </div>
 
       {/* Import Dialog */}
@@ -828,8 +841,6 @@ export function DiagramEditor() {
       </div>
 
       {/* Canvas overlays — diagram info, protocol legend, node detail, status bar */}
-      <DiagramInfoCard />
-      <ProtocolLegend />
       <NodeDetailPopup />
       <CanvasStatusBar />
       <SpotlightSearch />

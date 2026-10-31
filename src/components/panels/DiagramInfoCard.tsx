@@ -93,7 +93,7 @@ export function DiagramInfoCard() {
         type="button"
         onClick={() => setCollapsed(false)}
         className={cn(
-          "absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-2",
+          "pointer-events-auto flex items-center gap-2 px-3 py-2",
           "bg-white/90 dark:bg-zinc-950/85 backdrop-blur-md",
           "border border-zinc-200 dark:border-zinc-800 rounded-lg",
           "shadow-lg shadow-black/5 dark:shadow-black/40",
@@ -113,7 +113,7 @@ export function DiagramInfoCard() {
   return (
     <div
       className={cn(
-        "absolute top-4 left-4 z-20 max-w-71 px-3.5 py-3",
+        "pointer-events-auto max-w-71 px-3.5 py-3",
         "bg-white/95 dark:bg-zinc-950/85 backdrop-blur-md",
         "border border-zinc-200 dark:border-zinc-800 rounded-lg",
         "shadow-lg shadow-black/5 dark:shadow-black/40",

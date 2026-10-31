@@ -32,7 +32,7 @@ export function ToolbarButton({
         onClick={onClick}
         className={cn(
           "flex items-center gap-1.5 p-2 rounded-full text-xs font-medium transition-colors",
-          showLabel && "px-3",
+          showLabel && "@2xl:px-3",
           active
             ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
             : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",
@@ -40,7 +40,8 @@ export function ToolbarButton({
         )}
       >
         {children}
-        {showLabel && <span>{showLabel}</span>}
+        {/* In a narrow top bar the text collapses; the accessible name already says the same. */}
+        {showLabel && <span className="@max-2xl:sr-only">{showLabel}</span>}
       </button>
     </Tooltip>
   );

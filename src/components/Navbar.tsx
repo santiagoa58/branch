@@ -332,6 +332,7 @@ export function Navbar() {
 
         {/* Share Button */}
         <Tooltip
+          align="end"
           content={
             copiedLink ? "Link copied!" : "Copy private link (only your account can open it)"
           }
