@@ -1,7 +1,9 @@
 import type { Edge, Node } from "@xyflow/react";
 import { diagramDataSchema } from "@/schemas/diagram";
 import type {
+  ArchitectureAttribute,
   ArchitectureEdgeData,
+  DesignDecision,
   ArchitectureNodeType,
   EdgeProtocol,
   GroupNodeType,
@@ -30,7 +32,7 @@ interface NodeSpec {
   id: string;
   type: ArchitectureNodeType;
   label: string;
-  technology?: string;
+  attrs?: ArchitectureAttribute[];
   description?: string;
   in?: string;
 }
@@ -42,7 +44,9 @@ interface EdgeSpec {
   label?: string;
   method?: HttpMethod;
   async?: boolean;
+  /** Illustrative simulation delay, not an observed production measurement. */
   latencyMs?: number;
+  decision?: DesignDecision;
   request?: ContractSpec;
   response?: ContractSpec;
 }
@@ -58,6 +62,8 @@ export interface TemplateSpec {
   groups?: GroupSpec[];
   nodes: NodeSpec[];
   edges: EdgeSpec[];
+  /** One decision per group and node id, so every component explains why it was chosen. */
+  decisions: Record<string, DesignDecision>;
   flow: { name: string; description: string; from: string; color: string };
 }
 
@@ -73,6 +79,10 @@ function contract(spec: ContractSpec) {
 function edgeData(spec: EdgeSpec): ArchitectureEdgeData {
   return {
     protocol: spec.protocol,
+    ...(spec.decision ? { decision: { ...spec.decision } } : {}),
+    ...(spec.latencyMs === undefined
+      ? {}
+      : { description: "Illustrative simulation delay in ms; not a production measurement." }),
     ...(spec.label ? { label: spec.label } : {}),
     ...(spec.method ? { method: spec.method } : {}),
     ...(spec.async ? { async: true } : {}),
@@ -86,6 +96,31 @@ function edgeData(spec: EdgeSpec): ArchitectureEdgeData {
  * Author a template as components and connections; the shared auto formatter
  * computes positions and group sizes, so templates stay readable and tidy.
  */
+/**
+ * Attach one decision per group and architecture node, failing loudly when a template
+ * misses a component or names one that does not exist.
+ */
+export function attachDecisions(
+  templateId: string,
+  nodes: Node[],
+  decisions: Record<string, DesignDecision>,
+): Node[] {
+  const ids = new Set(nodes.map((node) => node.id));
+  const unknown = Object.keys(decisions).filter((id) => !ids.has(id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Template "${templateId}" has decisions for unknown ids: ${unknown.join(", ")}`,
+    );
+  }
+  return nodes.map((node) => {
+    const decision = decisions[node.id];
+    if (!decision) {
+      throw new Error(`Template "${templateId}" needs a decision for "${node.id}"`);
+    }
+    return { ...node, data: { ...node.data, decision: structuredClone(decision) } };
+  });
+}
+
 export function defineTemplate(spec: TemplateSpec): DiagramTemplate {
   const groups: Node[] = (spec.groups ?? []).map((group) =>
     groupNode(
@@ -101,7 +136,7 @@ export function defineTemplate(spec: TemplateSpec): DiagramTemplate {
   );
   const components: Node[] = spec.nodes.map((node) =>
     archNode(node.id, node.type, node.label, 0, 0, {
-      ...(node.technology ? { technology: node.technology } : {}),
+      ...(node.attrs ? { attributes: node.attrs } : {}),
       ...(node.description ? { description: node.description } : {}),
       ...(node.in ? { parentId: node.in } : {}),
     }),
@@ -111,7 +146,10 @@ export function defineTemplate(spec: TemplateSpec): DiagramTemplate {
   );
 
   const data = diagramDataSchema.parse({
-    nodes: autoLayoutDiagram([...groups, ...components], edges),
+    nodes: autoLayoutDiagram(
+      attachDecisions(spec.id, [...groups, ...components], spec.decisions),
+      edges,
+    ),
     edges,
     flows: [
       {

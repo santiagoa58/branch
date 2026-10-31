@@ -1,6 +1,6 @@
 # 🏗️ Branch — Architecture Workspace
 
-A visual architecture documentation platform for designing, documenting, and communicating microservice systems—capturing not just _what_ components exist, but _how data flows_ between them.
+A visual architecture documentation platform for designing, documenting, and communicating microservice systems—capturing _what_ components exist, _why_ they were chosen, and _how data flows_ between them.
 
 Built with React 19, React Flow, GSAP, Clerk authentication, and managed PostgreSQL. One repository deploys the Vite frontend and TypeScript Vercel Functions together. Saved projects and diagrams live in the database.
 
@@ -24,7 +24,10 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **AI/ML Components** — LLM, Vector DB, ML Pipeline, Embedding
 - **Cloud Services** — Secrets Manager, Event Bus, Data Lake, Search, Notifications
 - **Group Containers** — Organize with VPCs, Clusters, Regions, and Subnets
-- **Starter templates** — 26 searchable architectures modeled on familiar products such as Google Drive, Slack, Uber, Stripe and YouTube. Filter by category, preview a template, then start from it or add it to an existing diagram.
+- **Starter templates** — 26 searchable, decision-first architectures inspired by familiar products such as Google Drive, Slack, Uber, Stripe and YouTube. Filter by category, preview a template, then start from it or add it to an existing diagram. Choices, alternatives, tradeoffs, assumptions, and example quantities are illustrative starting points—not verified descriptions of those products' internal systems or measured production workloads.
+- **Decision-first details** — Document the choice, rationale, alternatives, tradeoffs, and assumptions for components, groups, and connections. Put implementation names in a component label or its choice rather than a dedicated Technology field.
+- **Architecture attributes** — Capture named values with optional explicit units, such as `Latency budget: 25 ms`, `Throughput: 100 requests/s`, or `Replicas: 3 replicas`. New numeric entries require a unit (including `count` for counts); descriptive values can remain unitless.
+- **Icons** — Choose a recognizable symbol or product logo by searching in plain language, such as “database,” “message queue,” or “PostgreSQL.” Icons identify components; they do not report live health or deployment status. Node status, health-check URLs, ports, technology fields, tags, and custom color controls are no longer active node-detail controls.
 - **Auto format** — One click arranges components using their actual dimensions, fits nested groups around their contents, respects connections across groups, and packs disconnected sections. The result fits in view and can be undone in one step.
 
 ### Data Flow & Contracts
@@ -73,7 +76,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 
 - **Architecture Analysis** — AI-powered review with scoring and recommendations
 - **Connection Suggestions** — Smart protocol recommendations based on node types
-- **Documentation Generation** — Auto-generate Markdown documentation
+- **Documentation Generation** — Generate Markdown with decision context, alternatives, tradeoffs, assumptions, and architecture attributes with their units
 - **Secure Key Storage** — API keys stored locally, never sent to servers
 - **Settings Panel** — Configure provider, model, and test connections
 
@@ -163,6 +166,8 @@ The database is authoritative. Hydration does not save or add an edit history en
 Navigation flushes pending edits. If saving fails, navigation stays blocked and the canvas remains available. Retry the save, or export JSON and explicitly discard before leaving. If a session expires, pending edits remain in memory and are recoverable after signing back into the same account. Account changes clear private clipboard and document state. Browser refresh/close warns while edits are pending; closing anyway loses unsaved memory. Conflicts never retry over newer cloud data: export your edits, explicitly reload, then use Import if you want to apply them. There is no automatic merge or offline synchronization. Requests are bounded to 4 MB (including thumbnail/data JSON); larger documents fail visibly and remain exportable.
 
 Import remains an explicit editor action that edits the active cloud document and schedules a save. URL parameters never implicitly load a document snapshot. Theme, panel preferences, onboarding progress and AI provider settings remain browser preferences; AI analysis caches now stay in memory.
+
+Decisions and attributes belong to the diagram and persist with cloud saves, version snapshots, and JSON backups. Existing documents remain compatible: legacy node `status`, `healthCheckUrl`, `technology`, `port`, `tags`, and color fields are retained losslessly even though their controls are removed. Legacy `metadata` remains readable as attributes; explicit attributes take precedence when names match, without deleting the old metadata or inventing units for existing values. Simulation failure/chaos state is separate and remains ephemeral.
 
 ### Validate and build
 
@@ -282,7 +287,9 @@ Shortcuts apply in the diagram editor, not in inputs, text editors, dropdowns, o
 
 ## 📦 Import and Export
 
-Export supports JSON, PNG, SVG, PDF, and Markdown. JSON is the full-fidelity backup format and can include viewport, comments, metadata, and formatted output. Markdown is intended for human-readable documentation and includes component/connection tables and Mermaid output.
+Export supports JSON, PNG, SVG, PDF, and Markdown. JSON is the full-fidelity backup format and can include viewport, comments, metadata, and formatted output. It preserves both legacy fields and new decision/attribute data; use it to back up or move an editable diagram.
+
+Markdown is human-readable documentation with group/component/connection tables, decision details (choice, rationale, alternatives, tradeoffs, assumptions), architecture attributes including explicit units, and Mermaid output. Component tables no longer include Technology or Port columns: document implementation choices in labels or decisions. Multiline values and table separators are escaped for readable tables. Markdown is not a lossless backup format.
 
 The import dialog accepts JSON and Markdown through file selection or drag-and-drop, detects the format, previews content, and validates nodes, edges, protocols, and contracts. Errors block an import; warnings can be accepted.
 
@@ -292,7 +299,9 @@ Import modes:
 - **Merge** — remaps imported IDs and offsets nodes to avoid collisions; recommended for combining diagrams.
 - **Append** — preserves original IDs and can conflict with existing content.
 
-Markdown import reconstructs components from `## Components` and connections from `## Connections` tables, with limited support for basic Mermaid flowcharts.
+Markdown import supports both the older `## Components` layout (`Component`, `Type`, `Technology`, `Port`, `Description`) and the current layout (`Component`, `Type`, `Description`), plus `## Connections` tables. Columns are matched by header, and escaped separators and multiline text are decoded. Component decision sections and attribute tables are restored; the current attribute export has separate Value and Unit columns to preserve units without guessing. Earlier two-column attribute tables remain readable as unitless text values.
+
+Markdown regenerates IDs and positions. Grouped children remain present as flat components, but group containers/hierarchy, group and connection decisions, comments, contracts, simulation flows, and other advanced fields are not reconstructed. Connections require unambiguous component labels; edges to omitted group/comment endpoints cannot be restored. Basic Mermaid flowchart import remains limited. Use JSON import/export to preserve the complete diagram.
 
 ## 🛠️ Tech Stack
 
