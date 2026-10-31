@@ -3,7 +3,29 @@
  * These types are ephemeral — not persisted to localStorage or included in undo/redo history.
  */
 
-export type SimulationMode = "idle" | "flow" | "failure" | "chaos";
+export type SimulationMode = "idle" | "traffic" | "flow" | "failure" | "chaos";
+
+/** One finished request or delivered message in the live traffic log. */
+export interface TrafficLogEntry {
+  id: string;
+  kind: "request" | "delivery";
+  /** Where the request started, or the component that received a released message. */
+  sourceId: string;
+  outcome: "ok" | "failed" | "waiting" | "delivered";
+  /** The down component a failed request reached first. */
+  failedAt?: string;
+  /** Illustrative end-to-end latency from the diagram's edge latencies. */
+  latencyMs: number;
+  /** Messages this request left waiting for a down component. */
+  waitingCount: number;
+}
+
+export interface TrafficCounts {
+  sent: number;
+  ok: number;
+  failed: number;
+  delivered: number;
+}
 
 export type SimulationSpeed = 0.25 | 0.5 | 1 | 2 | 4;
 

@@ -1,4 +1,6 @@
-import type { Edge } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
+import type { ArchitectureNodeType } from "@/types";
+import { isOutsideActor } from "@/utils/designRules";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { edgeProtocolSchema } from "@/schemas/diagram";
 
@@ -47,7 +49,10 @@ export interface TrafficPlan {
   waiting: WaitingMessage[];
 }
 
-function hopDuration(edge: Edge): number {
+export type HopDuration = (edge: Edge) => number;
+
+/** The diagram's own illustrative latency for an edge. */
+export function hopDuration(edge: Edge): number {
   const latency = edge.data?.["latencyMs"];
   return typeof latency === "number" && latency > 0 ? latency : DEFAULT_HOP_MS;
 }
@@ -81,6 +86,7 @@ function createPlanner(
   down: ReadonlySet<string>,
   requestId: string,
   entryId?: string,
+  durationOf: HopDuration = hopDuration,
 ): Planner {
   const outgoing = outgoingBySource(edges);
   // Each component handles a given request once, which also stops cycles.
@@ -99,7 +105,7 @@ function createPlanner(
     });
 
   const handOff = (edge: Edge, startMs: number) => {
-    const durationMs = hopDuration(edge);
+    const durationMs = durationOf(edge);
     hops.push({
       edgeId: edge.id,
       from: edge.source,
@@ -133,7 +139,7 @@ function createPlanner(
         continue;
       }
       visited.add(edge.target);
-      const durationMs = hopDuration(edge);
+      const durationMs = durationOf(edge);
       const call = { edgeId: edge.id, durationMs };
       hops.push({
         ...call,
@@ -186,11 +192,12 @@ export function planRequest(
   sourceId: string,
   down: ReadonlySet<string>,
   requestId: string,
+  durationOf?: HopDuration,
 ): TrafficPlan | null {
   if (down.has(sourceId)) {
     return null;
   }
-  const planner = createPlanner(edges, down, requestId, sourceId);
+  const planner = createPlanner(edges, down, requestId, sourceId, durationOf);
   return toPlan(requestId, sourceId, planner, planner.visit(sourceId, 0));
 }
 
@@ -202,6 +209,7 @@ export function releaseWaiting(
   edges: Edge[],
   waiting: readonly WaitingMessage[],
   down: ReadonlySet<string>,
+  durationOf?: HopDuration,
 ): { plans: TrafficPlan[]; stillWaiting: WaitingMessage[] } {
   const byId = new Map(edges.map((edge) => [edge.id, edge]));
   const plans: TrafficPlan[] = [];
@@ -215,9 +223,36 @@ export function releaseWaiting(
       stillWaiting.push(message);
       continue;
     }
-    const planner = createPlanner(edges, down, message.requestId);
+    const planner = createPlanner(edges, down, message.requestId, undefined, durationOf);
     planner.handOff(edge, 0);
     plans.push(toPlan(message.id, message.to, planner, { endMs: 0 }));
   }
   return { plans, stillWaiting };
+}
+
+/**
+ * Where traffic starts: each saved flow's start, or else every outside actor (person, app, device
+ * or third party) with an outgoing connection, or else any component nothing calls.
+ */
+export function trafficSources(
+  nodes: Node[],
+  edges: Edge[],
+  flows: readonly { sourceNodeId: string }[],
+): string[] {
+  const ids = new Set(nodes.map((node) => node.id));
+  const fromFlows = [...new Set(flows.map((flow) => flow.sourceNodeId))].filter((id) =>
+    ids.has(id),
+  );
+  if (fromFlows.length > 0) {
+    return fromFlows;
+  }
+  const callers = new Set(edges.map((edge) => edge.source));
+  const called = new Set(edges.map((edge) => edge.target));
+  const architecture = nodes.filter((node) => node.type === "architecture" && callers.has(node.id));
+  const actors = architecture.filter((node) =>
+    isOutsideActor((node.data as { type?: ArchitectureNodeType }).type),
+  );
+  return (actors.length > 0 ? actors : architecture.filter((node) => !called.has(node.id))).map(
+    (node) => node.id,
+  );
 }

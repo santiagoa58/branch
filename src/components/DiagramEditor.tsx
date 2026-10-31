@@ -51,6 +51,7 @@ import {
 import { useSimulationAnimation } from "@/hooks/useSimulationAnimation";
 import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
 import { useChaosSimulation } from "@/hooks/useChaosSimulation";
+import { useTrafficSimulation } from "@/hooks/useTrafficSimulation";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
@@ -95,6 +96,7 @@ export function DiagramEditor() {
   useSimulationAnimation();
   useDestroyAnimation();
   useChaosSimulation();
+  useTrafficSimulation();
   // Track getting-started checklist progress
   useOnboardingProgress();
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
@@ -330,8 +332,8 @@ export function DiagramEditor() {
         simulationStartFlow(node.id, path);
         return;
       }
-      // In failure simulation mode: toggle node failure
-      if (simulationMode === "failure") {
+      // In traffic or failure mode: take the component down or bring it back
+      if (simulationMode === "traffic" || simulationMode === "failure") {
         toggleNodeFailure(node.id);
         return;
       }
@@ -526,7 +528,7 @@ export function DiagramEditor() {
     showShortcuts: () => setShowShortcuts(true),
     toggleSimulation: () => {
       setShowSimulationPanel(!showSimulationPanel);
-      simulationSetMode(showSimulationPanel ? "idle" : "flow");
+      simulationSetMode(showSimulationPanel ? "idle" : "traffic");
     },
     autoFormat,
     escape: () => {
@@ -733,7 +735,7 @@ export function DiagramEditor() {
             )}
             onClick={() => {
               setShowSimulationPanel((v) => !v);
-              simulationSetMode(showSimulationPanel ? "idle" : "flow");
+              simulationSetMode(showSimulationPanel ? "idle" : "traffic");
             }}
           >
             <Activity className="size-4" aria-hidden="true" />

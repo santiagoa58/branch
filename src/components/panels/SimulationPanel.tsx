@@ -17,6 +17,8 @@ import { ChaosEventLog } from "./ChaosEventLog";
 import { SequenceDiagramDialog } from "@/components/ui/SequenceDiagramDialog";
 import { SaveFlowDialog } from "@/components/ui/SaveFlowDialog";
 import type { NamedFlow } from "@/types/simulation";
+import { TrafficLog } from "./TrafficLog";
+import { Activity } from "lucide-react";
 import {
   PlayIcon,
   PauseIcon,
@@ -157,6 +159,14 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
     if (mode === "idle") {
       return "Select a mode to begin";
     }
+    if (mode === "traffic") {
+      if (!isRunning) {
+        return "Press Play to send requests from each entry point";
+      }
+      return failedNodeIds.length === 0
+        ? "Click a component to take it down"
+        : `${failedNodeIds.length} down — click a component again to bring it back`;
+    }
     if (mode === "flow") {
       if (!sourceNodeId) {
         return "Click a node to set as source";
@@ -199,12 +209,12 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
     }
     if (mode === "failure") {
       if (failedNodeIds.length === 0) {
-        return "Click nodes to mark as failed";
+        return "Click components to mark them as failed";
       }
       if (isRunning) {
-        return `${failedNodeIds.length} node(s) failed — showing blast radius`;
+        return `Showing what depends on ${failedNodeIds.length} failed component(s)`;
       }
-      return `${failedNodeIds.length} node(s) marked — Press Play`;
+      return `${failedNodeIds.length} component(s) marked — Press Play`;
     }
     if (mode === "chaos") {
       if (chaosIsAutoRunning) {
@@ -219,6 +229,8 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
 
   return (
     <div className="absolute bottom-6 inset-x-0 z-50 flex flex-col items-center px-2">
+      {mode === "traffic" && <TrafficLog />}
+
       {/* Chaos event log (rendered above everything) */}
       {mode === "chaos" && showChaosLog && <ChaosEventLog />}
 
@@ -242,6 +254,20 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
         <div className="flex gap-1">
           <button
             type="button"
+            onClick={() => setMode("traffic")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+              mode === "traffic"
+                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            )}
+            title="Traffic — live requests; take components down and bring them back"
+          >
+            <Activity className="w-3.5 h-3.5" aria-hidden="true" />
+            Traffic
+          </button>
+          <button
+            type="button"
             onClick={() => setMode("flow")}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
@@ -249,10 +275,10 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                 ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
             )}
-            title="Flow Simulation — Trace request path"
+            title="Trace — follow one request's path from a component"
           >
             <SignalIcon className="w-3.5 h-3.5" />
-            Flow
+            Trace
           </button>
           <button
             type="button"
@@ -263,10 +289,10 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
             )}
-            title="Failure Simulation — Blast radius analysis"
+            title="Blast radius — what depends on the components you mark as failed"
           >
             <ExclamationTriangleIcon className="w-3.5 h-3.5" />
-            Failure
+            Blast radius
           </button>
           <button
             type="button"
@@ -315,7 +341,9 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
           ) : !isRunning || (steppingMode && flowPath) ? (
             <button
               type="button"
-              onClick={mode === "flow" ? handlePlayFlow : handlePlayFailure}
+              onClick={
+                mode === "traffic" ? resume : mode === "flow" ? handlePlayFlow : handlePlayFailure
+              }
               disabled={
                 mode === "idle" ||
                 (mode === "flow" && !sourceNodeId) ||
@@ -351,18 +379,27 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               if (mode === "chaos") {
                 stopChaos();
                 clearChaosFailures();
+              } else if (mode === "traffic") {
+                // Clears requests, down components and the log for a fresh run.
+                setMode("traffic");
               } else {
                 stop();
               }
             }}
-            disabled={mode !== "chaos" && !isRunning && !sourceNodeId && failedNodeIds.length === 0}
+            disabled={
+              mode !== "chaos" &&
+              mode !== "traffic" &&
+              !isRunning &&
+              !sourceNodeId &&
+              failedNodeIds.length === 0
+            }
             className={cn(
               "p-1.5 rounded-lg transition-colors",
-              !isRunning && !sourceNodeId && failedNodeIds.length === 0
+              mode !== "traffic" && !isRunning && !sourceNodeId && failedNodeIds.length === 0
                 ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
                 : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
             )}
-            title="Stop"
+            title={mode === "traffic" ? "Stop and reset" : "Stop"}
           >
             <StopIcon className="w-4 h-4" />
           </button>
@@ -443,7 +480,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                 title="Toggle request-response round trip"
               >
                 <ArrowPathIcon className="w-3 h-3" />
-                RT
+                Round trip
               </button>
             )}
 
@@ -461,7 +498,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               title="Generate a Mermaid sequence diagram from the traced flow"
             >
               <Bars3BottomLeftIcon className="w-3 h-3" />
-              Seq
+              Sequence
             </button>
 
             {/* Save current source as a named flow */}
@@ -478,7 +515,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               title="Save the current source as a replayable named flow"
             >
               <BookmarkIcon className="w-3 h-3" />
-              Save
+              Save flow
             </button>
           </>
         )}
