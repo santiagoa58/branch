@@ -112,7 +112,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
         aria-labelledby="template-gallery-title"
         className="relative m-0 flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl"
       >
-        <header className="flex flex-wrap items-center gap-4 border-b border-border px-6 py-4">
+        <header className="flex flex-wrap items-center gap-4 border-b border-border px-4 py-4 sm:px-6">
           <div className="mr-auto">
             <h2 id="template-gallery-title" className="text-base font-semibold text-balance">
               Start from a template
@@ -122,7 +122,8 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
               pattern or technology.
             </p>
           </div>
-          <label className="flex w-full items-center gap-2 rounded-lg border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring sm:w-80">
+          {/* On phones the close button stays beside the title and search takes its own row. */}
+          <label className="order-last flex w-full items-center gap-2 rounded-lg border border-input bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring sm:order-none sm:w-80">
             <MagnifyingGlassIcon
               aria-hidden="true"
               className="size-4 shrink-0 text-muted-foreground"
