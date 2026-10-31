@@ -45,6 +45,7 @@ export const webSearch = defineTemplate({
     { id: "ranker", type: "inference", label: "Ranking model", in: "online" },
     { id: "results", type: "cache", label: "Results cache", in: "online" },
     { id: "user", type: "client", label: "Searcher" },
+    { id: "lb", type: "loadbalancer", label: "Search load balancer" },
   ],
   edges: [
     { from: "frontier", to: "crawler", protocol: "amqp", async: true },
@@ -55,7 +56,7 @@ export const webSearch = defineTemplate({
     { from: "indexer", to: "index", protocol: "search" },
     {
       from: "user",
-      to: "query",
+      to: "lb",
       protocol: "http",
       method: "GET",
       request: { name: "SearchQuery", fields: { q: "string", page: "number", locale: "string" } },
@@ -63,6 +64,7 @@ export const webSearch = defineTemplate({
     { from: "query", to: "results", protocol: "redis" },
     { from: "query", to: "index", protocol: "search", latencyMs: 30 },
     { from: "query", to: "ranker", protocol: "inference", latencyMs: 20 },
+    { from: "lb", to: "query", protocol: "http" },
   ],
   decisions: {
     offline: decide(
@@ -161,6 +163,14 @@ export const webSearch = defineTemplate({
       [["Term frequency scoring only", "Easily gamed and less relevant"]],
       ["Ranking latency exceeds the budget"],
     ),
+    lb: decide(
+      "Load balancer in front of query servers",
+      "Searches arrive from everywhere and must spread across many query servers.",
+      ["Query servers scale and fail independently"],
+      ["Another hop on the latency budget"],
+      [["DNS round-robin to query servers", "Slow to remove failed servers"]],
+      ["Query servers move behind a global anycast edge"],
+    ),
   },
   flow: {
     name: "Run a search",
@@ -205,15 +215,16 @@ export const recommendationSystem = defineTemplate({
     { id: "candidates", type: "vectordb", label: "Candidate index", in: "ml" },
     { id: "ranker", type: "inference", label: "Ranking service", in: "ml" },
     { id: "api", type: "service", label: "Recommendations API" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
+    { id: "collector", type: "service", label: "Event collector" },
   ],
   edges: [
-    { from: "app", to: "events", protocol: "http", async: true },
     { from: "events", to: "lake", protocol: "kafka", async: true },
     { from: "events", to: "features", protocol: "kafka", async: true, label: "streaming features" },
     { from: "lake", to: "training", protocol: "s3" },
     { from: "training", to: "registry", protocol: "http", label: "publish model" },
     { from: "registry", to: "ranker", protocol: "http", label: "deploy" },
-    { from: "app", to: "api", protocol: "http", method: "GET" },
+    { from: "app", to: "gateway", protocol: "http", method: "GET" },
     { from: "api", to: "candidates", protocol: "vector" },
     {
       from: "api",
@@ -222,6 +233,9 @@ export const recommendationSystem = defineTemplate({
       response: { name: "RankedItems", fields: { items: "{ id: string, score: number }[]" } },
     },
     { from: "ranker", to: "features", protocol: "http" },
+    { from: "gateway", to: "api", protocol: "http" },
+    { from: "gateway", to: "collector", protocol: "http", label: "interaction events" },
+    { from: "collector", to: "events", protocol: "kafka", async: true },
   ],
   decisions: {
     ml: decide(
@@ -303,6 +317,22 @@ export const recommendationSystem = defineTemplate({
       ["Must fall back when ML systems fail"],
       [["Apps call ranking directly", "ML internals leak into apps"]],
       ["Recommendations move into each product team"],
+    ),
+    gateway: decide(
+      "API gateway for app traffic",
+      "App requests for recommendations and interaction events need auth and limits.",
+      ["One entry for reads and event writes"],
+      ["Event bursts share capacity with recommendation reads"],
+      [["Apps call the API and stream directly", "Exposes stream credentials to devices"]],
+      ["Event ingestion moves to a dedicated endpoint"],
+    ),
+    collector: decide(
+      "Interaction event collector",
+      "Raw app events need validation and enrichment before they enter the stream.",
+      ["Bad events are dropped before training data"],
+      ["A service on the hot event path"],
+      [["Gateway writes to the stream", "No place to validate or enrich events"]],
+      ["A managed ingestion service covers validation"],
     ),
   },
   flow: {

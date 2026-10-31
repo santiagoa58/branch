@@ -210,6 +210,8 @@ export const documentAi = defineTemplate({
     { id: "review", type: "webapp", label: "Review queue" },
     { id: "results", type: "database", label: "Extracted data" },
     { id: "erp", type: "external", label: "ERP system" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
+    { id: "reviewapi", type: "service", label: "Review API" },
   ],
   edges: [
     { from: "portal", to: "uploads", protocol: "s3" },
@@ -227,8 +229,10 @@ export const documentAi = defineTemplate({
     { from: "extract", to: "router", protocol: "grpc" },
     { from: "router", to: "review", protocol: "http", label: "low confidence" },
     { from: "router", to: "results", protocol: "sql" },
-    { from: "review", to: "results", protocol: "sql", label: "corrections" },
+    { from: "review", to: "gateway", protocol: "http", label: "corrections" },
     { from: "results", to: "erp", protocol: "http", async: true },
+    { from: "gateway", to: "reviewapi", protocol: "http" },
+    { from: "reviewapi", to: "results", protocol: "sql", label: "corrections" },
   ],
   decisions: {
     portal: decide(
@@ -302,6 +306,22 @@ export const documentAi = defineTemplate({
       ["ERP APIs are slow and strict"],
       [["Export CSV files", "Manual imports and errors"]],
       ["Customers use different ERPs"],
+    ),
+    gateway: decide(
+      "API gateway for the review app",
+      "Reviewer corrections must pass auth and validation instead of touching the database.",
+      ["Database stays private"],
+      ["A hop on every correction"],
+      [["Review app queries SQL directly", "Credentials in the browser and no validation"]],
+      ["Review moves into the ERP's own UI"],
+    ),
+    reviewapi: decide(
+      "Review API owning corrections",
+      "Corrections need validation, audit and conflict checks before they're saved.",
+      ["One place to validate and audit corrections"],
+      ["Another service to deploy"],
+      [["Confidence router writes corrections", "Mixes automated and human paths"]],
+      ["Corrections become rare enough for manual import"],
     ),
   },
   flow: {

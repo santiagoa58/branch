@@ -50,7 +50,7 @@ export const rideHailing = defineTemplate({
   edges: [
     {
       from: "driver",
-      to: "location",
+      to: "gateway",
       protocol: "websocket",
       label: "GPS updates",
       decision: decide(
@@ -80,6 +80,7 @@ export const rideHailing = defineTemplate({
     { from: "trips", to: "tripdb", protocol: "sql" },
     { from: "trips", to: "push", protocol: "sns", async: true },
     { from: "trips", to: "payments", protocol: "http", async: true, label: "charge at drop-off" },
+    { from: "gateway", to: "location", protocol: "websocket", label: "GPS updates" },
   ],
   decisions: {
     dispatch: decide(
@@ -227,11 +228,12 @@ export const foodDelivery = defineTemplate({
     },
     { id: "payments", type: "external", label: "Payments" },
     { id: "push", type: "notification", label: "Notifications" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
     {
       from: "customer",
-      to: "orders",
+      to: "gateway",
       protocol: "http",
       method: "POST",
       request: {
@@ -246,9 +248,11 @@ export const foodDelivery = defineTemplate({
     { from: "workflow", to: "eta", protocol: "inference" },
     { from: "workflow", to: "dispatch", protocol: "grpc" },
     { from: "dispatch", to: "courier", protocol: "websocket", label: "offer delivery" },
-    { from: "courier", to: "tracking", protocol: "websocket" },
+    { from: "courier", to: "gateway", protocol: "websocket" },
     { from: "tracking", to: "customer", protocol: "websocket", label: "courier location" },
     { from: "workflow", to: "push", protocol: "sns", async: true },
+    { from: "gateway", to: "orders", protocol: "http" },
+    { from: "gateway", to: "tracking", protocol: "websocket" },
   ],
   decisions: {
     customer: decide(
@@ -338,6 +342,14 @@ export const foodDelivery = defineTemplate({
       ["Notifications can arrive late"],
       [["Notify inside each step", "Push outages would stall orders"]],
       ["Notifications need delivery guarantees"],
+    ),
+    gateway: decide(
+      "API gateway for customer and courier apps",
+      "Both apps need auth, versioning and limits before orders or live tracking.",
+      ["One place to retire old app versions"],
+      ["Courier sockets and order requests share one entry"],
+      [["Apps call each service directly", "Every service handles auth and app versions"]],
+      ["Courier traffic needs its own regional entry"],
     ),
   },
   flow: {

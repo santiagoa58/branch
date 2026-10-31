@@ -409,9 +409,10 @@ export const photoSharing = defineTemplate({
       attrs: [{ name: "Illustrative counter refresh interval", value: "10", unit: "s" }],
     },
     { id: "explore", type: "inference", label: "Explore recommendations" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
-    { from: "app", to: "api", protocol: "http", method: "POST", label: "new post" },
+    { from: "app", to: "gateway", protocol: "http", method: "POST", label: "new post" },
     { from: "app", to: "originals", protocol: "s3", label: "upload photo" },
     { from: "originals", to: "jobs", protocol: "eventbridge", async: true },
     { from: "jobs", to: "resizer", protocol: "amqp", async: true },
@@ -421,6 +422,7 @@ export const photoSharing = defineTemplate({
     { from: "api", to: "likes", protocol: "redis", latencyMs: 1 },
     { from: "api", to: "explore", protocol: "inference" },
     { from: "app", to: "cdn", protocol: "http", method: "GET" },
+    { from: "gateway", to: "api", protocol: "http", label: "new post" },
   ],
   decisions: {
     media: decide(
@@ -510,6 +512,14 @@ export const photoSharing = defineTemplate({
       ["Needs training data and monitoring"],
       [["Most popular posts", "Everyone sees the same few posts"]],
       ["The user base is too small to learn from"],
+    ),
+    gateway: decide(
+      "API gateway in front of the media API",
+      "Phones on flaky networks need one authenticated endpoint with request limits.",
+      ["Abusive clients are throttled before the API"],
+      ["Another hop on post and feed requests"],
+      [["App calls the media API directly", "Auth and limits would live in the API code"]],
+      ["Feed reads move behind a separate read path"],
     ),
   },
   flow: {

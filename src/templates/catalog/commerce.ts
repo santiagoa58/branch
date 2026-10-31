@@ -559,13 +559,14 @@ export const ticketing = defineTemplate({
       label: "Hold expiry",
     },
     { id: "email", type: "external", label: "Ticket email" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
-    { from: "fan", to: "queue", protocol: "http", label: "join queue" },
+    { from: "fan", to: "gateway", protocol: "http", label: "join queue" },
     { from: "queue", to: "limiter", protocol: "redis" },
-    { from: "fan", to: "events", protocol: "http", method: "GET" },
+    { from: "gateway", to: "events", protocol: "http", method: "GET" },
     {
-      from: "fan",
+      from: "gateway",
       to: "seats",
       protocol: "http",
       method: "POST",
@@ -589,10 +590,11 @@ export const ticketing = defineTemplate({
       ),
     },
     { from: "seats", to: "expiry", protocol: "grpc", async: true },
-    { from: "fan", to: "checkout", protocol: "http", method: "POST" },
+    { from: "gateway", to: "checkout", protocol: "http", method: "POST" },
     { from: "checkout", to: "payment", protocol: "http" },
     { from: "checkout", to: "orders", protocol: "sql" },
     { from: "checkout", to: "email", protocol: "sns", async: true },
+    { from: "gateway", to: "queue", protocol: "http", label: "join queue" },
   ],
   decisions: {
     fan: decide(
@@ -682,6 +684,14 @@ export const ticketing = defineTemplate({
       ["Emails can be delayed during sales"],
       [["Send inside checkout", "Email outages would fail purchases"]],
       ["Tickets move fully into the app"],
+    ),
+    gateway: decide(
+      "API gateway in front of the sale",
+      "Every sale request needs bot checks and a queue token before it touches inventory.",
+      ["Requests without a queue token are rejected early"],
+      ["The gateway must scale for the full spike"],
+      [["Each service checks queue tokens", "One missed check lets bots skip the line"]],
+      ["A CDN-level waiting room absorbs the spike instead"],
     ),
   },
   flow: {

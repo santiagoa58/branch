@@ -86,7 +86,7 @@ export const cloudFileStorage = defineTemplate({
   ],
   edges: [
     { from: "web", to: "gateway", protocol: "http", label: "files API" },
-    { from: "desktop", to: "sync", protocol: "websocket", label: "change feed" },
+    { from: "desktop", to: "gateway", protocol: "websocket", label: "change feed" },
     { from: "gateway", to: "auth", protocol: "oauth", label: "verify token" },
     {
       from: "gateway",
@@ -131,6 +131,7 @@ export const cloudFileStorage = defineTemplate({
     { from: "indexer", to: "search", protocol: "search" },
     { from: "metadata", to: "sync", protocol: "grpc", async: true, label: "file changed" },
     { from: "cdn", to: "blobs", protocol: "s3", label: "origin fetch" },
+    { from: "gateway", to: "sync", protocol: "websocket", label: "change feed" },
   ],
   decisions: {
     platform: decide(
@@ -320,6 +321,7 @@ export const collaborativeDocs = defineTemplate({
     { id: "comments", type: "service", label: "Comments and mentions" },
     { id: "notify", type: "notification", label: "Mention notifications" },
     { id: "search", type: "search", label: "Workspace search" },
+    { id: "gateway", type: "gateway", label: "API gateway" },
   ],
   edges: [
     { from: "editor", to: "lb", protocol: "websocket", label: "edit operations" },
@@ -338,8 +340,10 @@ export const collaborativeDocs = defineTemplate({
     { from: "docs", to: "docdb", protocol: "http" },
     { from: "docs", to: "snapshots", protocol: "s3", async: true, label: "hourly snapshot" },
     { from: "docs", to: "search", protocol: "search", async: true },
-    { from: "editor", to: "comments", protocol: "http", method: "POST" },
+    { from: "editor", to: "gateway", protocol: "http", method: "POST" },
     { from: "comments", to: "notify", protocol: "sns", async: true },
+    { from: "gateway", to: "comments", protocol: "http" },
+    { from: "gateway", to: "docs", protocol: "http", label: "load document" },
   ],
   decisions: {
     collab: decide(
@@ -429,6 +433,19 @@ export const collaborativeDocs = defineTemplate({
       ["Notifications arrive a few seconds late"],
       [["Send email inside the comment request", "Slow email providers block commenting"]],
       ["Mentions need guaranteed delivery receipts"],
+    ),
+    gateway: decide(
+      "API gateway for document and comment APIs",
+      "Comments and document loads share auth and limits; only live edits use the sticky socket path.",
+      ["Comment and document calls get one auth check"],
+      ["Two entry points to run: gateway and sticky load balancer"],
+      [
+        [
+          "Send comments over the editing socket",
+          "Mixes slow writes into the latency-critical edit stream",
+        ],
+      ],
+      ["Comments need real-time delivery to open editors"],
     ),
   },
   flow: {
