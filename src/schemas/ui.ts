@@ -6,6 +6,7 @@ export const paletteNodeTypeSchema = z.union([
   z.templateLiteral(["group-", groupNodeTypeSchema]),
   z.literal("comment"),
 ]);
+export type PaletteNodeType = z.infer<typeof paletteNodeTypeSchema>;
 export const chaosSubModeSchema = z.enum(["random-failure", "network-partition"]);
 export const imageBackgroundSchema = z.enum(["transparent", "white", "dark"]);
 export const imageScaleSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);

@@ -47,6 +47,11 @@ export function ToolbarButton({
   );
 }
 
-export function ToolbarDivider() {
-  return <div aria-hidden="true" className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-1" />;
+export function ToolbarDivider({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn("w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-1", className)}
+    />
+  );
 }

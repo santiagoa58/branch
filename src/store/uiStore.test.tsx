@@ -6,7 +6,7 @@ import type { ReactFlowProps } from "@xyflow/react";
 import { DiagramEditor } from "@/components/DiagramEditor";
 import { Navbar } from "@/components/Navbar";
 import { useDiagramStore } from "./diagramStore";
-import { useUIStore } from "./uiStore";
+import { COMPACT_LAYOUT_QUERY, useUIStore } from "./uiStore";
 
 vi.mock("@xyflow/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@xyflow/react")>()),
@@ -118,5 +118,73 @@ describe("editor filtering controls", () => {
     expect(screen.queryByRole("button", { name: /health/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Run health checks", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Auto format" })).toBeInTheDocument();
+  });
+});
+
+describe("panel layout on compact screens", () => {
+  function mockScreen(compact: boolean) {
+    vi.stubGlobal(
+      "matchMedia",
+      vi
+        .fn<(query: string) => MediaQueryList>()
+        .mockImplementation(
+          (query) => ({ matches: compact && query === COMPACT_LAYOUT_QUERY }) as MediaQueryList,
+        ),
+    );
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useUIStore.setState({
+      leftPanelVisible: true,
+      rightPanelVisible: true,
+      pendingPaletteAdd: null,
+    });
+  });
+
+  it("opens one panel at a time and closes the palette after adding on a compact screen", () => {
+    mockScreen(true);
+    useUIStore.setState({ leftPanelVisible: false, rightPanelVisible: false });
+    useUIStore.getState().toggleLeftPanel();
+    expect(useUIStore.getState()).toMatchObject({
+      leftPanelVisible: true,
+      rightPanelVisible: false,
+    });
+    useUIStore.getState().toggleRightPanel();
+    expect(useUIStore.getState()).toMatchObject({
+      leftPanelVisible: false,
+      rightPanelVisible: true,
+    });
+
+    useUIStore.setState({ leftPanelVisible: true, rightPanelVisible: false });
+    useUIStore.getState().requestPaletteAdd("database");
+    useUIStore.getState().completePaletteAdd();
+    expect(useUIStore.getState()).toMatchObject({
+      pendingPaletteAdd: null,
+      leftPanelVisible: false,
+    });
+  });
+
+  it("keeps both panels independent and the palette open on a wide screen", () => {
+    mockScreen(false);
+    useUIStore.getState().toggleRightPanel();
+    expect(useUIStore.getState()).toMatchObject({
+      leftPanelVisible: true,
+      rightPanelVisible: false,
+    });
+    useUIStore.getState().requestPaletteAdd("database");
+    useUIStore.getState().completePaletteAdd();
+    expect(useUIStore.getState()).toMatchObject({
+      pendingPaletteAdd: null,
+      leftPanelVisible: true,
+    });
+  });
+
+  it("closes both panels at once, for the tap-outside backdrop", () => {
+    useUIStore.getState().closePanels();
+    expect(useUIStore.getState()).toMatchObject({
+      leftPanelVisible: false,
+      rightPanelVisible: false,
+    });
   });
 });

@@ -14,7 +14,7 @@ import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 function App() {
-  const { leftPanelVisible, rightPanelVisible } = useUIStore();
+  const { leftPanelVisible, rightPanelVisible, closePanels } = useUIStore();
   const { setCurrentProject, setCurrentDiagram } = useWorkspaceStore();
   const { projectId, diagramId } = useParams<{ projectId: string; diagramId: string }>();
   const cloud = useCloudWorkspace();
@@ -53,9 +53,26 @@ function App() {
           )
         ) : (
           <main className="flex-1 flex overflow-hidden relative" inert={locked}>
-            {leftPanelVisible && <NodePalette />}
+            {/* Below lg the panels slide over the canvas instead of squeezing it to nothing. */}
+            {(leftPanelVisible || rightPanelVisible) && (
+              <button
+                type="button"
+                aria-label="Close panel"
+                onClick={closePanels}
+                className="lg:hidden absolute inset-0 z-30 bg-background/60"
+              />
+            )}
+            {leftPanelVisible && (
+              <div className="flex max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:shadow-2xl">
+                <NodePalette />
+              </div>
+            )}
             <DiagramEditor />
-            {rightPanelVisible && <PropertiesPanel />}
+            {rightPanelVisible && (
+              <div className="flex max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:max-w-full max-lg:shadow-2xl">
+                <PropertiesPanel />
+              </div>
+            )}
           </main>
         )}
         {loaded && locked && (

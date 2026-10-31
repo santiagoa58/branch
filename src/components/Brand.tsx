@@ -24,10 +24,17 @@ interface BrandProps {
   className?: string;
   markClassName?: string;
   decorative?: boolean;
+  /** Show only the mark on phones; the name stays available to screen readers. */
+  compact?: boolean;
 }
 
 /** The wordmark supplies the name, so the adjacent mark is always decorative. */
-export function Brand({ className, markClassName, decorative = false }: BrandProps) {
+export function Brand({
+  className,
+  markClassName,
+  decorative = false,
+  compact = false,
+}: BrandProps) {
   return (
     <span
       aria-hidden={decorative || undefined}
@@ -37,7 +44,7 @@ export function Brand({ className, markClassName, decorative = false }: BrandPro
       )}
     >
       <BrandMark decorative className={cn(markClassName)} />
-      <span>Branch</span>
+      <span className={compact ? "sr-only sm:not-sr-only" : undefined}>Branch</span>
     </span>
   );
 }

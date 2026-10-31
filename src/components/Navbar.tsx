@@ -17,6 +17,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
   BookmarkIcon,
+  EllipsisHorizontalIcon,
 } from "@heroicons/react/24/outline";
 import { useAnimationStore } from "@/store/animationStore";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
@@ -36,6 +37,7 @@ import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { LoadingIndicator } from "@/components/ui/loading";
+import { cn } from "@/lib/utils";
 
 // Typed over every status so a new status can't silently fall through to the wrong label.
 const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
@@ -77,6 +79,8 @@ export function Navbar() {
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
   const queryClient = useQueryClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const { autoFormat, disabled: formatDisabled } = useAutoFormat();
 
   const saveVersionMutation = useMutation({
@@ -104,6 +108,9 @@ export function Navbar() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setExportDropdownOpen(false);
       }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -126,9 +133,9 @@ export function Navbar() {
   };
 
   return (
-    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-50">
-      <div className="flex items-center gap-3">
-        <nav className="flex items-center gap-1 text-sm">
+    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2 px-3 sm:px-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-50">
+      <div className="flex min-w-0 items-center gap-3">
+        <nav className="flex min-w-0 items-center gap-1 text-sm">
           <button
             type="button"
             onClick={() => {
@@ -136,10 +143,10 @@ export function Navbar() {
             }}
             className="rounded-lg hover:opacity-80 transition-opacity duration-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            <Brand />
+            <Brand compact />
           </button>
           {project && (
-            <>
+            <span className="hidden items-center gap-1 md:flex">
               <ChevronRightIcon className="w-3 h-3 text-zinc-400" />
               <button
                 type="button"
@@ -150,12 +157,12 @@ export function Navbar() {
               >
                 {project.name}
               </button>
-            </>
+            </span>
           )}
           {diagram && (
             <>
-              <ChevronRightIcon className="w-3 h-3 text-zinc-400" />
-              <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-30">
+              <ChevronRightIcon className="w-3 h-3 shrink-0 text-zinc-400" />
+              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400 sm:max-w-40">
                 {diagram.name}
               </span>
             </>
@@ -163,13 +170,15 @@ export function Navbar() {
         </nav>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-4">
         {/* Panel Toggles */}
         <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Components panel">
             <button
               type="button"
               onClick={toggleLeftPanel}
+              aria-label="Components panel"
+              aria-pressed={leftPanelVisible}
               className={`p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors ${
                 leftPanelVisible
                   ? "text-zinc-900 dark:text-zinc-100 bg-zinc-200 dark:bg-zinc-800"
@@ -183,6 +192,8 @@ export function Navbar() {
             <button
               type="button"
               onClick={toggleRightPanel}
+              aria-label="Properties panel"
+              aria-pressed={rightPanelVisible}
               className={`p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors ${
                 rightPanelVisible
                   ? "text-zinc-900 dark:text-zinc-100 bg-zinc-200 dark:bg-zinc-800"
@@ -194,12 +205,13 @@ export function Navbar() {
           </Tooltip>
         </div>
 
-        {/* Undo/Redo */}
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
+        {/* Undo/Redo — inside the More menu on phones */}
+        <div className="hidden sm:flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Undo (⌘Z)">
             <button
               type="button"
               onClick={undo}
+              aria-label="Undo"
               disabled={!canUndo()}
               className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -210,6 +222,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={redo}
+              aria-label="Redo"
               disabled={!canRedo()}
               className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -223,20 +236,22 @@ export function Navbar() {
             type="button"
             onClick={autoFormat}
             disabled={formatDisabled}
-            className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            aria-label="Auto format"
+            className="flex items-center gap-2 whitespace-nowrap rounded-md border border-border bg-muted p-2 lg:px-3 text-sm font-semibold text-foreground hover:bg-accent transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <SparklesIcon className="size-4" strokeWidth={2} />
-            Auto format
+            <span className="hidden lg:inline">Auto format</span>
           </button>
         </Tooltip>
 
-        {/* Version History */}
+        {/* Version History — inside the More menu on phones */}
         {diagramId && (
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
+          <div className="hidden md:flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
             <Tooltip content="Save version snapshot">
               <button
                 type="button"
                 onClick={() => setSaveVersionOpen(true)}
+                aria-label="Save version snapshot"
                 className="flex items-center gap-1 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
               >
                 <BookmarkIcon className="w-3.5 h-3.5" />
@@ -246,6 +261,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setVersionsOpen(true)}
+                aria-label="Version history"
                 className="flex items-center gap-1.5 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors text-xs"
               >
                 <ClockIcon className="w-3.5 h-3.5" />
@@ -261,14 +277,15 @@ export function Navbar() {
               type="button"
               onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
               disabled={isExporting}
-              className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-900 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shadow-sm disabled:opacity-50"
+              aria-label="Export"
+              className="flex items-center gap-2 whitespace-nowrap bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-100 dark:text-zinc-900 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors shadow-sm disabled:opacity-50"
             >
               {isExporting ? (
                 <LoadingIndicator className="size-3.5" />
               ) : (
                 <ArrowDownTrayIcon className="w-3.5 h-3.5" strokeWidth={2} />
               )}
-              {isExporting ? "Exporting..." : "Export"}
+              <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export"}</span>
             </button>
           </Tooltip>
 
@@ -324,14 +341,18 @@ export function Navbar() {
             cloud.status === "saving" ||
             cloud.status === "versioning" ||
             cloud.status === "restoring") && <LoadingIndicator className="size-3" />}
-          {SAVE_STATUS_LABELS[cloud.status]}
+          <span className="sr-only whitespace-nowrap lg:not-sr-only">
+            {SAVE_STATUS_LABELS[cloud.status]}
+          </span>
         </output>
-        <AccountControls />
-
-        <ThemeToggle />
+        <div className="hidden md:flex items-center gap-2 lg:gap-4">
+          <AccountControls />
+          <ThemeToggle />
+        </div>
 
         {/* Share Button */}
         <Tooltip
+          className="hidden md:inline-flex"
           align="end"
           content={
             copiedLink ? "Link copied!" : "Copy private link (only your account can open it)"
@@ -354,6 +375,60 @@ export function Navbar() {
             )}
           </button>
         </Tooltip>
+        {/* Everything the row hides on small screens lives here. */}
+        <div className="relative md:hidden" ref={moreMenuRef}>
+          <button
+            type="button"
+            aria-label="More actions"
+            aria-expanded={moreMenuOpen}
+            onClick={() => setMoreMenuOpen((open) => !open)}
+            className="rounded-md border border-zinc-200 bg-zinc-100 p-1.5 text-zinc-700 transition-colors hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <EllipsisHorizontalIcon className="size-4" />
+          </button>
+          {moreMenuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-zinc-200 bg-white p-1 shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              {[
+                { label: "Undo", onSelect: undo, disabled: !canUndo(), phoneOnly: true },
+                { label: "Redo", onSelect: redo, disabled: !canRedo(), phoneOnly: true },
+                ...(diagramId
+                  ? [
+                      { label: "Save version", onSelect: () => setSaveVersionOpen(true) },
+                      { label: "Version history", onSelect: () => setVersionsOpen(true) },
+                    ]
+                  : []),
+                { label: "Copy private link", onSelect: () => void handleShareLink() },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  role="menuitem"
+                  disabled={item.disabled}
+                  onClick={() => {
+                    setMoreMenuOpen(false);
+                    item.onSelect();
+                  }}
+                  className={cn(
+                    "w-full rounded-md px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-zinc-800",
+                    item.phoneOnly && "sm:hidden",
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+              <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+              <div className="flex items-center justify-between px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300">
+                Theme
+                <ThemeToggle />
+              </div>
+              <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+              <AccountControls layout="menu" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Settings Modal */}

@@ -1,11 +1,34 @@
 import { create } from "zustand";
 import type { EdgeProtocol } from "@/types";
+import type { PaletteNodeType } from "@/schemas/ui";
+
+/**
+ * Below Tailwind's lg breakpoint the side panels slide over the canvas instead of sitting beside
+ * it; two inline panels on a tablet would leave the canvas too narrow to use.
+ */
+export const COMPACT_LAYOUT_QUERY = "(max-width: 1023px)";
+
+export function isCompactLayout(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(COMPACT_LAYOUT_QUERY).matches
+  );
+}
 
 interface UIState {
   leftPanelVisible: boolean;
   rightPanelVisible: boolean;
+  /** On a compact screen, opening one panel closes the other so the canvas stays usable. */
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
+  closePanels: () => void;
+
+  /** A component chosen in the palette by click or tap, added by the editor at the view center. */
+  pendingPaletteAdd: PaletteNodeType | null;
+  requestPaletteAdd: (type: PaletteNodeType) => void;
+  /** Clears the request; on a compact screen it also closes the palette to reveal the result. */
+  completePaletteAdd: () => void;
 
   // Legend filtering — protocols whose edges should render dimmed.
   hiddenProtocols: ReadonlySet<EdgeProtocol>;
@@ -20,10 +43,32 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  leftPanelVisible: true,
-  rightPanelVisible: true,
-  toggleLeftPanel: () => set((state) => ({ leftPanelVisible: !state.leftPanelVisible })),
-  toggleRightPanel: () => set((state) => ({ rightPanelVisible: !state.rightPanelVisible })),
+  leftPanelVisible: !isCompactLayout(),
+  rightPanelVisible: !isCompactLayout(),
+  toggleLeftPanel: () =>
+    set((state) => {
+      const leftPanelVisible = !state.leftPanelVisible;
+      return leftPanelVisible && isCompactLayout()
+        ? { leftPanelVisible, rightPanelVisible: false }
+        : { leftPanelVisible };
+    }),
+  toggleRightPanel: () =>
+    set((state) => {
+      const rightPanelVisible = !state.rightPanelVisible;
+      return rightPanelVisible && isCompactLayout()
+        ? { rightPanelVisible, leftPanelVisible: false }
+        : { rightPanelVisible };
+    }),
+  closePanels: () => set({ leftPanelVisible: false, rightPanelVisible: false }),
+
+  pendingPaletteAdd: null,
+  requestPaletteAdd: (type) => set({ pendingPaletteAdd: type }),
+  completePaletteAdd: () =>
+    set(
+      isCompactLayout()
+        ? { pendingPaletteAdd: null, leftPanelVisible: false }
+        : { pendingPaletteAdd: null },
+    ),
 
   // Legend filtering
   hiddenProtocols: new Set<EdgeProtocol>(),

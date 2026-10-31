@@ -15,6 +15,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import { useUIStore } from "@/store/uiStore";
+import type { PaletteNodeType } from "@/schemas/ui";
 
 // Shortcut badges come from the same list the editor's quick-add keys use.
 const NODE_SHORTCUTS: Partial<Record<string, string>> = Object.fromEntries(
@@ -168,16 +170,28 @@ export function NodePalette() {
   );
 }
 
+/** Drag a palette item onto the canvas, or click, tap or press Enter to add it at the center. */
+function usePaletteItem(type: PaletteNodeType, label: string) {
+  const { onDragStart } = useDragEvent(type);
+  const requestPaletteAdd = useUIStore((s) => s.requestPaletteAdd);
+  return {
+    draggable: true,
+    onDragStart,
+    onClick: () => requestPaletteAdd(type),
+    "aria-label": `Add ${label}`,
+  };
+}
+
 // Draggable comment component
 function CommentDraggableNode() {
   const Icon = COMMENT_CONFIG.icon;
-  const { onDragStart } = useDragEvent("comment");
+  const item = usePaletteItem("comment", COMMENT_CONFIG.label);
 
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      className="group cursor-grab active:cursor-grabbing flex items-center gap-3 p-2 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-950/30 border border-transparent hover:border-yellow-200 dark:hover:border-yellow-800 transition-all relative"
+    <button
+      type="button"
+      {...item}
+      className="w-full text-left group cursor-grab active:cursor-grabbing flex items-center gap-3 p-2 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-950/30 border border-transparent hover:border-yellow-200 dark:hover:border-yellow-800 transition-all relative"
     >
       <span className="p-1.5 rounded bg-yellow-100 dark:bg-yellow-900/30">
         <Icon className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
@@ -191,7 +205,7 @@ function CommentDraggableNode() {
       <kbd className="text-[8px] font-mono bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
         N
       </kbd>
-    </div>
+    </button>
   );
 }
 
@@ -199,14 +213,14 @@ function CommentDraggableNode() {
 function GroupDraggableNode({ type }: { type: GroupNodeType }) {
   const config = GROUP_TYPES_CONFIG[type];
   const Icon = config.icon;
-  const { onDragStart } = useDragEvent(`group-${type}`);
+  const item = usePaletteItem(`group-${type}`, config.label);
   const shortcut = GROUP_SHORTCUTS[type];
 
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      className="cursor-grab active:cursor-grabbing bg-zinc-100/50 dark:bg-zinc-900/30 hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 rounded-lg p-3 flex flex-col items-center gap-2 transition-all relative group"
+    <button
+      type="button"
+      {...item}
+      className="min-w-0 cursor-grab active:cursor-grabbing bg-zinc-100/50 dark:bg-zinc-900/30 hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 rounded-lg px-1.5 py-3 flex flex-col items-center gap-2 transition-all relative group"
     >
       {shortcut && (
         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -216,22 +230,24 @@ function GroupDraggableNode({ type }: { type: GroupNodeType }) {
         </div>
       )}
       <Icon className="w-4 h-4 text-muted-foreground" />
-      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{config.label}</span>
-    </div>
+      <span className="text-center text-xs font-medium leading-tight text-balance text-zinc-600 dark:text-zinc-400">
+        {config.label}
+      </span>
+    </button>
   );
 }
 
 function ListDraggableNode({ type }: { type: ArchitectureNodeType }) {
   const config = NODE_TYPES_CONFIG[type];
   const Icon = config.icon;
-  const { onDragStart } = useDragEvent(type);
+  const item = usePaletteItem(type, config.label);
   const shortcut = NODE_SHORTCUTS[type];
 
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      className="group cursor-grab active:cursor-grabbing flex items-center gap-3 p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 transition-all relative"
+    <button
+      type="button"
+      {...item}
+      className="w-full text-left group cursor-grab active:cursor-grabbing flex items-center gap-3 p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 transition-all relative"
     >
       <span className={cn("p-1.5 rounded", config.bgClass)}>
         <Icon className={cn("w-4 h-4", config.iconColor)} />
@@ -245,6 +261,6 @@ function ListDraggableNode({ type }: { type: ArchitectureNodeType }) {
           {shortcut}
         </kbd>
       )}
-    </div>
+    </button>
   );
 }
