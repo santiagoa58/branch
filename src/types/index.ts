@@ -90,6 +90,12 @@ export type CommentColor = "yellow" | "blue" | "green" | "pink" | "purple";
 
 export type NodeStatus = "active" | "inactive" | "warning";
 
+export interface ArchitectureAttribute {
+  name: string;
+  value: string;
+  unit?: string;
+}
+
 export interface DesignDecision {
   reason?: string;
   alternatives?: string;
@@ -105,6 +111,8 @@ export type ArchitectureNodeData = {
   technology?: string;
   port?: string;
   status?: NodeStatus;
+  attributes?: ArchitectureAttribute[];
+  /** @deprecated Read via getNodeAttributes; write attributes instead. */
   metadata?: Record<string, string>;
   decision?: DesignDecision;
   parentId?: string; // For grouping - reference to parent group
