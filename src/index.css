@@ -107,10 +107,115 @@
   }
 }
 
+/*
+ * Loader artwork: a request signal leaves the source node, travels the trunk, forks and
+ * lights both services as it arrives. Signal paths use pathLength="1", so a short dash can
+ * slide along any curve by animating stroke-dashoffset from the dash length to -1.
+ */
+.branch-signal {
+  stroke-dasharray: 0.22 1.22;
+  stroke-dashoffset: 0.22;
+  opacity: 0;
+  animation: 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.branch-signal-trunk {
+  animation-name: branch-signal-trunk;
+}
+
+.branch-signal-fork {
+  animation-name: branch-signal-fork;
+}
+
+.branch-node {
+  stroke: var(--border);
+  animation: 2.4s ease-out infinite;
+}
+
+.branch-node-source {
+  animation-name: branch-node-source;
+}
+
+.branch-node-target {
+  animation-name: branch-node-target;
+}
+
+@keyframes branch-signal-trunk {
+  0%,
+  8% {
+    stroke-dashoffset: 0.22;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  38% {
+    stroke-dashoffset: -1;
+    opacity: 1;
+  }
+  40%,
+  100% {
+    stroke-dashoffset: -1;
+    opacity: 0;
+  }
+}
+
+@keyframes branch-signal-fork {
+  0%,
+  34% {
+    stroke-dashoffset: 0.22;
+    opacity: 0;
+  }
+  38% {
+    opacity: 1;
+  }
+  70% {
+    stroke-dashoffset: -1;
+    opacity: 1;
+  }
+  72%,
+  100% {
+    stroke-dashoffset: -1;
+    opacity: 0;
+  }
+}
+
+@keyframes branch-node-source {
+  0%,
+  100% {
+    stroke: var(--border);
+  }
+  6%,
+  20% {
+    stroke: var(--primary);
+  }
+}
+
+@keyframes branch-node-target {
+  0%,
+  66%,
+  100% {
+    stroke: var(--border);
+  }
+  72%,
+  88% {
+    stroke: var(--primary);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .branch-loading-dot {
     animation: none;
     opacity: 0.65;
+  }
+
+  .branch-signal {
+    animation: none;
+  }
+
+  .branch-node {
+    animation: none;
+    stroke: var(--primary);
   }
 }
 
