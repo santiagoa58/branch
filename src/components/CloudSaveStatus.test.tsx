@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, cleanup, act, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider, useNavigate } from "react-router-dom";
 import { CloudNavigationGuard, CloudSaveError } from "./CloudSaveStatus";
 import { useAnimationStore } from "@/store/animationStore";
@@ -13,6 +13,18 @@ import {
 } from "@/services/api";
 import { diagramDataSchema } from "@/schemas/diagram";
 const empty = { nodes: [], edges: [], flows: [] };
+const otherCopy = {
+  nodes: [
+    {
+      id: "added-elsewhere",
+      type: "architecture",
+      position: { x: 0, y: 0 },
+      data: { label: "Cache", type: "cache" },
+    },
+  ],
+  edges: [],
+  flows: [],
+};
 const diagram: ApiDiagram = {
   id: "a",
   projectId: "p",
@@ -187,10 +199,66 @@ describe("cloud navigation and save recovery", () => {
     await expect(cloudWorkspace.flush()).rejects.toThrow("Changed elsewhere");
     const router = mount();
     expect(screen.queryByText("Retry save")).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByText("Leave editor"));
     await screen.findByText("Your edits have not been saved");
     expect(router.state.location.pathname).toBe("/");
     fireEvent.click(screen.getByText("Discard edits and leave"));
     await screen.findByText("Other page");
+  });
+
+  it("compares both copies on a conflict and saves the one the person keeps", async () => {
+    const remote = { ...diagram, revision: 7, data: diagramDataSchema.parse(otherCopy) };
+    vi.spyOn(diagramsApi, "get").mockResolvedValue(remote);
+    const update = vi
+      .spyOn(diagramsApi, "update")
+      .mockRejectedValueOnce(new ApiError(409, "Changed elsewhere"))
+      .mockImplementation(async (_id, input) => ({
+        ...remote,
+        revision: input.expectedRevision + 1,
+      }));
+    cloudWorkspace.schedule(empty);
+    await expect(cloudWorkspace.flush()).rejects.toThrow("Changed elsewhere");
+    mount();
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "This diagram was changed somewhere else",
+    });
+    expect(within(dialog).getByText("-1 removed")).toBeInTheDocument();
+    // The modal hides the page behind it from assistive technology, banner included.
+    expect(screen.getByRole("alert", { hidden: true })).toHaveTextContent(
+      "This diagram was changed in another tab or window. Your edits in this tab aren't saved yet.",
+    );
+    expect(screen.queryByText(/Export/)).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep my version" }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(update).toHaveBeenLastCalledWith("a", { data: empty, expectedRevision: 7 });
+    expect(cloudWorkspace.getState()).toMatchObject({ status: "saved", dirty: false });
+  });
+
+  it("can reopen the comparison and switch to the other copy, dropping this tab's edits", async () => {
+    const remote = { ...diagram, revision: 7, data: diagramDataSchema.parse(otherCopy) };
+    vi.spyOn(diagramsApi, "get").mockResolvedValue(remote);
+    const update = vi
+      .spyOn(diagramsApi, "update")
+      .mockRejectedValue(new ApiError(409, "Changed elsewhere"));
+    cloudWorkspace.schedule(empty);
+    await expect(cloudWorkspace.flush()).rejects.toThrow("Changed elsewhere");
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Discard mine, use other copy" }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(cloudWorkspace.getState()).toMatchObject({
+      status: "saved",
+      dirty: false,
+      diagram: { revision: 7 },
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { CloudPersistence } from "./cloudPersistence";
+import { CONFLICT_MESSAGE, CloudPersistence } from "./cloudPersistence";
 import { ApiError, type ApiDiagram, type ApiDiagramVersion } from "./api";
 import { diagramDataSchema } from "@/schemas/diagram";
 import type { DiagramData } from "@/types";
@@ -225,10 +225,77 @@ describe("cloud document lifecycle", () => {
     api.update.mockRejectedValueOnce(new ApiError(409, "Changed elsewhere"));
     await expect(cloud.flush()).rejects.toThrow("Changed elsewhere");
     cloud.schedule(empty);
-    await expect(cloud.flush()).rejects.toThrow("Changed elsewhere");
+    await expect(cloud.flush()).rejects.toThrow(CONFLICT_MESSAGE);
     expect(api.update).toHaveBeenCalledTimes(1);
     expect(cloud.getState().dirty).toBe(true);
     expect(cloud.getState().status).toBe("conflict");
+  });
+  it("fetches the other copy on a conflict and keeps this tab's edits on top of it", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    api.update.mockRejectedValueOnce(new ApiError(409, "Changed elsewhere"));
+    api.get.mockResolvedValueOnce(diagram("a", 4));
+    await expect(cloud.flush()).rejects.toThrow("Changed elsewhere");
+    await vi.waitFor(() => expect(cloud.getState().conflict?.remote?.revision).toBe(4));
+    expect(cloud.getState()).toMatchObject({ status: "conflict", dirty: true });
+
+    await cloud.keepLocal();
+
+    expect(api.update).toHaveBeenLastCalledWith("a", { data: edited, expectedRevision: 4 });
+    expect(cloud.getState()).toMatchObject({
+      status: "saved",
+      dirty: false,
+      conflict: undefined,
+      diagram: { revision: 5 },
+    });
+  });
+  it("drops this tab's edits for the other copy without saving anything", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    api.update.mockRejectedValueOnce(new ApiError(409, "Changed elsewhere"));
+    const remote = diagram("a", 4, edited);
+    api.get.mockResolvedValueOnce(remote);
+    await expect(cloud.flush()).rejects.toThrow("Changed elsewhere");
+    await vi.waitFor(() => expect(cloud.getState().conflict?.remote).toBe(remote));
+    hydrate.mockClear();
+
+    cloud.useRemote();
+
+    expect(hydrate).toHaveBeenCalledExactlyOnceWith(remote.data);
+    expect(cloud.onDocument).toHaveBeenLastCalledWith(remote);
+    expect(cloud.getState()).toMatchObject({ status: "saved", dirty: false, diagram: remote });
+    await cloud.flush();
+    expect(api.update).toHaveBeenCalledTimes(1);
+  });
+  it("lets the person retry when the other copy can't be fetched", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    api.update.mockRejectedValueOnce(new ApiError(409, "Changed elsewhere"));
+    api.get.mockRejectedValueOnce(new Error("Offline"));
+    await expect(cloud.flush()).rejects.toThrow("Changed elsewhere");
+    await vi.waitFor(() =>
+      expect(cloud.getState().conflict).toEqual({ remote: null, failed: true }),
+    );
+    await expect(cloud.keepLocal()).rejects.toThrow("hasn't loaded");
+
+    await cloud.retryConflict();
+
+    expect(cloud.getState().conflict).toMatchObject({ remote: { revision: 1 }, failed: false });
+    expect(cloud.getState().dirty).toBe(true);
+  });
+  it("treats a version conflict without unsaved edits as a conflict with nothing to keep", async () => {
+    await cloud.load("a");
+    api.createVersion.mockRejectedValueOnce(new ApiError(409, "Changed before the snapshot"));
+    api.get.mockResolvedValueOnce(diagram("a", 3, edited));
+    await expect(cloud.createVersion()).rejects.toThrow("Changed before the snapshot");
+    await vi.waitFor(() => expect(cloud.getState().conflict?.remote?.revision).toBe(3));
+    expect(cloud.getState()).toMatchObject({ status: "conflict", dirty: false, locked: false });
+
+    await cloud.keepLocal();
+
+    expect(api.update).not.toHaveBeenCalled();
+    expect(hydrate).toHaveBeenLastCalledWith(diagramDataSchema.parse(edited));
+    expect(cloud.getState()).toMatchObject({ status: "saved", diagram: { revision: 3 } });
   });
   it("holds a transition lock through flush and the asynchronous action, even across reset", async () => {
     await cloud.load("a");

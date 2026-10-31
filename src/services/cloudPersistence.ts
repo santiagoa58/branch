@@ -18,6 +18,13 @@ export type SaveStatus =
 /** Why a document could not be opened, which decides what the person can do next. */
 export type LoadFailure = "unreadable" | "missing" | "unavailable";
 
+/** The copy saved elsewhere while this tab still had unsaved edits. */
+export interface SaveConflict {
+  /** Null while it is being fetched, or when fetching it failed. */
+  remote: ApiDiagram | null;
+  failed: boolean;
+}
+
 export interface CloudState {
   diagram: ApiDiagram | null;
   status: SaveStatus;
@@ -26,7 +33,11 @@ export interface CloudState {
   transitioning: boolean;
   message: string | null;
   loadFailure?: LoadFailure | undefined;
+  conflict?: SaveConflict | undefined;
 }
+
+export const CONFLICT_MESSAGE = "This diagram was changed in another tab or window.";
+const SAVE_FAILED_MESSAGE = "Couldn't save your latest edits.";
 
 const LOAD_FAILURE_MESSAGES: Record<LoadFailure, string> = {
   unreadable:
@@ -49,6 +60,9 @@ function classifyLoadFailure(error: unknown): LoadFailure {
   return error instanceof ApiResponseValidationError || error instanceof z.ZodError
     ? "unreadable"
     : "unavailable";
+}
+function isConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409;
 }
 interface CloudApi {
   get(id: string): Promise<ApiDiagram>;
@@ -152,6 +166,7 @@ export class CloudPersistence {
       locked: false,
       message: null,
       loadFailure: undefined,
+      conflict: undefined,
     });
   };
   cancelLoad = () => {
@@ -185,6 +200,7 @@ export class CloudPersistence {
       dirty: false,
       message: null,
       loadFailure: undefined,
+      conflict: undefined,
     });
     try {
       const diagram = await this.api.get(id);
@@ -230,9 +246,7 @@ export class CloudPersistence {
       return Promise.reject(new Error("Sign in with the original account to save these edits."));
     }
     if (this.state.status === "conflict") {
-      return Promise.reject(
-        new Error(this.state.message ?? "Save conflict. Export your edits before reloading."),
-      );
+      return Promise.reject(new Error(CONFLICT_MESSAGE));
     }
     if (this.saving) {
       return this.saving;
@@ -273,19 +287,85 @@ export class CloudPersistence {
         });
       } catch (error) {
         if (epoch === this.epoch) {
-          this.set({
-            status: error instanceof ApiError && error.status === 409 ? "conflict" : "error",
-            dirty: true,
-            message:
-              error instanceof Error
-                ? error.message
-                : "Save failed. Your edits are still in memory.",
-          });
+          if (isConflict(error)) {
+            this.enterConflict(epoch);
+          } else {
+            this.set({ status: "error", dirty: true, message: SAVE_FAILED_MESSAGE });
+          }
         }
         throw error;
       }
     }
   }
+  private enterConflict(epoch: number) {
+    this.cancelTimer();
+    // A version operation's flush can report the same conflict its own catch sees.
+    if (this.state.status === "conflict") {
+      return;
+    }
+    this.set({
+      status: "conflict",
+      dirty: this.pending !== null,
+      message: CONFLICT_MESSAGE,
+      conflict: { remote: null, failed: false },
+    });
+    void this.fetchConflict(epoch);
+  }
+  private async fetchConflict(epoch: number) {
+    const id = this.state.diagram?.id;
+    if (!id) {
+      return;
+    }
+    let conflict: SaveConflict;
+    try {
+      conflict = { remote: await this.api.get(id), failed: false };
+    } catch {
+      conflict = { remote: null, failed: true };
+    }
+    if (epoch === this.epoch && this.state.status === "conflict") {
+      this.set({ conflict });
+    }
+  }
+  /** Fetch the other copy again after it failed to load. */
+  retryConflict = () => {
+    if (this.state.status !== "conflict") {
+      return Promise.resolve();
+    }
+    this.set({ conflict: { remote: null, failed: false } });
+    return this.fetchConflict(this.epoch);
+  };
+  /** Replace the other copy with this tab's edits. */
+  keepLocal = (): Promise<void> => {
+    const remote = this.state.conflict?.remote;
+    if (this.state.status !== "conflict" || !remote) {
+      return Promise.reject(new Error("The other copy hasn't loaded yet."));
+    }
+    if (!this.pending) {
+      this.useRemote();
+      return Promise.resolve();
+    }
+    // Save on top of the newest revision, which is what the person chose to overwrite.
+    this.set({ diagram: remote, status: "pending", message: null, conflict: undefined });
+    return this.flush();
+  };
+  /** Drop this tab's unsaved edits and continue from the other copy. */
+  useRemote = () => {
+    const remote = this.state.conflict?.remote;
+    if (this.state.status !== "conflict" || !remote) {
+      return;
+    }
+    this.cancelTimer();
+    this.pending = null;
+    this.hydrate(remote.data);
+    this.onDocument?.(remote);
+    this.set({
+      diagram: remote,
+      status: "saved",
+      dirty: false,
+      message: null,
+      conflict: undefined,
+    });
+  };
   private async versionOperation<T>(
     status: "versioning" | "restoring",
     run: (diagram: ApiDiagram, epoch: number) => Promise<T>,
@@ -310,10 +390,14 @@ export class CloudPersistence {
       return result;
     } catch (error) {
       if (epoch === this.epoch) {
-        this.set({
-          status: error instanceof ApiError && error.status === 409 ? "conflict" : "error",
-          message: error instanceof Error ? error.message : "Version operation failed.",
-        });
+        if (isConflict(error)) {
+          this.enterConflict(epoch);
+        } else {
+          this.set({
+            status: "error",
+            message: error instanceof Error ? error.message : "Version operation failed.",
+          });
+        }
       }
       throw error;
     } finally {

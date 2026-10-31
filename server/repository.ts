@@ -181,10 +181,7 @@ export class WorkspaceRepository {
     );
     if (!result.rows.length) {
       await this.diagram(owner, id);
-      throw new HttpError(
-        409,
-        "This diagram changed elsewhere. Export your edits before reloading.",
-      );
+      throw new HttpError(409, "This diagram changed in another tab or window.");
     }
     return apiDiagramSchema.parse(first(result.rows));
   }
@@ -195,7 +192,7 @@ export class WorkspaceRepository {
     );
     if (!result.rows.length) {
       await this.diagram(owner, id);
-      throw new HttpError(409, "This diagram changed elsewhere.");
+      throw new HttpError(409, "This diagram changed in another tab or window.");
     }
     return apiDiagramSchema.parse(first(result.rows));
   }
