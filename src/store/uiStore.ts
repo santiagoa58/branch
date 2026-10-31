@@ -14,13 +14,6 @@ interface UIState {
   isolateProtocol: (p: EdgeProtocol, allProtocols: EdgeProtocol[]) => void;
   clearHiddenProtocols: () => void;
 
-  // Tag filtering — nodes/edges carrying any hidden tag render dimmed.
-  hiddenTags: ReadonlySet<string>;
-  toggleHiddenTag: (tag: string) => void;
-  /** Hide every tag except the given one. Call again with the same tag to clear. */
-  isolateTag: (tag: string, allTags: string[]) => void;
-  clearHiddenTags: () => void;
-
   // Spotlight search (Cmd+K)
   spotlightOpen: boolean;
   setSpotlightOpen: (open: boolean) => void;
@@ -53,29 +46,6 @@ export const useUIStore = create<UIState>((set) => ({
       return { hiddenProtocols: alreadyIsolated ? new Set() : new Set(others) };
     }),
   clearHiddenProtocols: () => set({ hiddenProtocols: new Set() }),
-
-  // Tag filtering
-  hiddenTags: new Set<string>(),
-  toggleHiddenTag: (tag) =>
-    set((state) => {
-      const next = new Set(state.hiddenTags);
-      const key = tag.toLowerCase();
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return { hiddenTags: next };
-    }),
-  isolateTag: (tag, allTags) =>
-    set((state) => {
-      const key = tag.toLowerCase();
-      const others = allTags.filter((t) => t.toLowerCase() !== key).map((t) => t.toLowerCase());
-      const alreadyIsolated =
-        !state.hiddenTags.has(key) && others.every((t) => state.hiddenTags.has(t));
-      return { hiddenTags: alreadyIsolated ? new Set() : new Set(others) };
-    }),
-  clearHiddenTags: () => set({ hiddenTags: new Set() }),
 
   // Spotlight
   spotlightOpen: false,

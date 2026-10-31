@@ -96,10 +96,23 @@ export interface ArchitectureAttribute {
   unit?: string;
 }
 
+export interface ConsideredOption {
+  option: string;
+  whyNot?: string;
+}
+
 export interface DesignDecision {
+  choice?: string;
   reason?: string;
+  benefits?: string[];
+  drawbacks?: string[];
+  considered?: ConsideredOption[];
+  revisitWhen?: string[];
+  /** @deprecated Read via getDesignDecision; write considered instead. */
   alternatives?: string;
+  /** @deprecated Read via getDesignDecision; write drawbacks instead. */
   tradeoffs?: string;
+  /** @deprecated Read via getDesignDecision; write revisitWhen instead. */
   assumptions?: string;
 }
 
@@ -108,21 +121,28 @@ export type ArchitectureNodeData = {
   label: string;
   type: ArchitectureNodeType;
   description?: string;
+  /** @deprecated Retained for lossless legacy document compatibility. */
   technology?: string;
+  /** @deprecated Retained for lossless legacy document compatibility. */
   port?: string;
+  /** @deprecated Retained for lossless legacy document compatibility. */
   status?: NodeStatus;
   attributes?: ArchitectureAttribute[];
   /** @deprecated Read via getNodeAttributes; write attributes instead. */
   metadata?: Record<string, string>;
   decision?: DesignDecision;
   parentId?: string; // For grouping - reference to parent group
-  healthCheckUrl?: string; // Health check endpoint URL
-  /** Free-form user tags. Filterable via the TagFilter overlay. */
+  /** @deprecated Retained for lossless legacy document compatibility. */
+  healthCheckUrl?: string;
+  /** @deprecated Retained for lossless legacy document compatibility. */
   tags?: string[];
   iconifyIcon?: string; // Custom Iconify icon ID (e.g., "mdi:kubernetes", "logos:docker-icon")
-  iconColor?: string; // Custom icon color (hex/CSS color)
-  accentColor?: string; // Optional accent for icon container and subtle highlights
-  backgroundColor?: string; // Optional semi-transparent background tint
+  /** @deprecated Retained for lossless legacy document compatibility. */
+  iconColor?: string;
+  /** @deprecated Retained for lossless legacy document compatibility. */
+  accentColor?: string;
+  /** @deprecated Retained for lossless legacy document compatibility. */
+  backgroundColor?: string;
 } & Record<string, unknown>;
 
 // Data structure for group nodes

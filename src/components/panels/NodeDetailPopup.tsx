@@ -1,28 +1,29 @@
 import { useEffect, useState } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Icon as IconifyIcon } from "@iconify/react";
-import { useDiagramStore } from "@/store/diagramStore";
+import { DesignDecisionSummary } from "@/components/ui/DesignDecisionSummary";
 import { NODE_TYPES_CONFIG } from "@/constants";
-import { ArchitectureNodeData } from "@/types";
 import { cn } from "@/lib/utils";
+import { architectureNodeDataSchema } from "@/schemas/diagram";
+import { useDiagramStore } from "@/store/diagramStore";
+import { getNodeAttributes, formatArchitectureAttribute } from "@/utils/architectureAttributes";
 import { hasBlockingEditorOverlay, isTextEditingEvent } from "@/utils/keyboardContext";
 
 export function NodeDetailPopup() {
-  const selectedNodeId = useDiagramStore((s) => s.selectedNodeId);
-  const nodes = useDiagramStore((s) => s.nodes);
+  const selectedNodeId = useDiagramStore((state) => state.selectedNodeId);
+  const nodes = useDiagramStore((state) => state.nodes);
   const [dismissedNodeId, setDismissedNodeId] = useState<string | null>(null);
   const dismissed = dismissedNodeId === selectedNodeId;
 
-  // Esc dismisses the card.
   useEffect(() => {
     if (!selectedNodeId || dismissed) {
       return;
     }
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (event: KeyboardEvent) => {
       if (
-        e.key === "Escape" &&
-        !e.defaultPrevented &&
-        !isTextEditingEvent(e) &&
+        event.key === "Escape" &&
+        !event.defaultPrevented &&
+        !isTextEditingEvent(event) &&
         !hasBlockingEditorOverlay()
       ) {
         setDismissedNodeId(selectedNodeId);
@@ -32,100 +33,69 @@ export function NodeDetailPopup() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedNodeId, dismissed]);
 
-  if (!selectedNodeId || dismissed) {
+  const node = nodes.find((entry) => entry.id === selectedNodeId);
+  if (!node || node.type !== "architecture" || dismissed) {
     return null;
   }
-
-  const node = nodes.find((n) => n.id === selectedNodeId);
-  if (!node || node.type !== "architecture") {
-    return null;
-  }
-
-  const data = node.data as ArchitectureNodeData;
+  const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
-  if (!config) {
-    return null;
-  }
-
   const NodeIcon = config.icon;
-  const label = data.label || config.label;
-  const description = data.description;
-  const technology = data.technology;
+  const attributes = getNodeAttributes(data);
 
   return (
-    <div
-      className={cn(
-        "absolute bottom-17 left-4 z-20 w-67 px-3.5 py-3",
-        "bg-white/95 dark:bg-zinc-950/90 backdrop-blur-md",
-        "border border-zinc-200 dark:border-zinc-800 rounded-lg",
-        "shadow-lg shadow-black/5 dark:shadow-black/40",
-        "animate-slide-in",
-      )}
+    <section
+      aria-label="Selected component decision"
+      className="absolute bottom-16 left-4 z-20 flex max-h-[60vh] w-96 max-w-[calc(100%-2rem)] flex-col rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
     >
-      {/* Header */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3 border-b border-border p-3">
         <div
           className={cn(
-            "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border",
+            "flex size-10 shrink-0 items-center justify-center rounded-lg border",
             config.bgClass,
             config.borderClass,
           )}
         >
           {data.iconifyIcon ? (
-            <IconifyIcon
-              icon={data.iconifyIcon}
-              width={18}
-              height={18}
-              style={{ color: data.iconColor }}
-            />
+            <IconifyIcon icon={data.iconifyIcon} className={cn("size-5", config.iconColor)} />
           ) : (
-            <NodeIcon className={cn("w-4.5 h-4.5", config.iconColor)} strokeWidth={1.5} />
+            <NodeIcon className={cn("size-5", config.iconColor)} strokeWidth={1.5} />
           )}
         </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
-            {label}
-          </div>
-          <div className="mt-0.5 text-[10px] font-mono uppercase tracking-tight text-muted-foreground">
-            {data.type}
-            {technology ? ` · ${technology}` : ""}
-          </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="wrap-anywhere text-sm font-semibold">{data.label}</h2>
+          <p className="text-xs text-muted-foreground">{config.label}</p>
         </div>
-
         <button
           type="button"
-          onClick={() => setDismissedNodeId(selectedNodeId)}
-          className="shrink-0 p-1 rounded text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+          aria-label="Dismiss component decision"
           title="Dismiss (Esc)"
+          onClick={() => setDismissedNodeId(selectedNodeId)}
+          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
-          <XMarkIcon className="w-3 h-3" />
+          <XMarkIcon className="size-4" />
         </button>
       </div>
-
-      {/* Description */}
-      {description && (
-        <p className="mt-2.5 pt-2.5 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-          {description}
-        </p>
-      )}
-
-      {/* Tags */}
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        <span className="px-2 py-0.5 text-[10px] font-medium font-mono rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300">
-          {data.type}
-        </span>
-        {technology && (
-          <span className="px-2 py-0.5 text-[10px] font-medium font-mono rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300">
-            {technology}
-          </span>
+      <div className="space-y-4 overflow-y-auto p-3">
+        {data.description && (
+          <p className="text-sm text-muted-foreground text-pretty">{data.description}</p>
         )}
-        {data.port && (
-          <span className="px-2 py-0.5 text-[10px] font-medium font-mono rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300">
-            :{data.port}
-          </span>
+        <DesignDecisionSummary value={data.decision} compact />
+        {attributes.length > 0 && (
+          <section aria-label="Architecture attributes" className="space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground">Architecture attributes</h3>
+            <dl className="space-y-2 text-xs">
+              {attributes.map((attribute) => (
+                <div key={attribute.name} className="flex items-baseline justify-between gap-3">
+                  <dt className="wrap-anywhere text-muted-foreground">{attribute.name}</dt>
+                  <dd className="wrap-anywhere text-right font-mono">
+                    {formatArchitectureAttribute(attribute)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         )}
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,0 +1,114 @@
+import { afterEach, describe, expect, it } from "vite-plus/test";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import type { DesignDecision } from "@/types";
+import { DesignDecisionSummary } from "./DesignDecisionSummary";
+
+const decision: DesignDecision = {
+  choice: "Redis cache-aside",
+  reason: "Most reads repeat within a minute.",
+  benefits: ["Fewer database reads", "Faster page loads"],
+  drawbacks: ["Reads can be up to 60 s stale"],
+  considered: [{ option: "Read replicas", whyNot: "More to operate for this load" }],
+  revisitWhen: ["Reads must always be current"],
+};
+
+afterEach(cleanup);
+
+describe("DesignDecisionSummary", () => {
+  it.each([false, true])(
+    "leads with the choice and why, then lists each section as items (compact=%s)",
+    (compact) => {
+      const { container } = render(<DesignDecisionSummary value={decision} compact={compact} />);
+      const paragraphs = container.querySelectorAll("p");
+      expect(paragraphs[0]).toHaveTextContent("Chose Redis cache-aside");
+      expect(paragraphs[1]).toHaveTextContent("Most reads repeat within a minute.");
+      const benefits = screen.getByRole("region", { name: "Benefits" });
+      expect(
+        within(benefits)
+          .getAllByRole("listitem")
+          .map((item) => item.textContent),
+      ).toEqual(["Fewer database reads", "Faster page loads"]);
+      expect(
+        within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem"),
+      ).toHaveTextContent("Reads can be up to 60 s stale");
+      expect(
+        within(screen.getByRole("region", { name: "Considered instead" })).getByRole("listitem")
+          .textContent,
+      ).toBe("Read replicas — More to operate for this load");
+      expect(
+        within(screen.getByRole("region", { name: "Revisit when" })).getByRole("listitem"),
+      ).toHaveTextContent("Reads must always be current");
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    },
+  );
+
+  it("avoids diff-like markers and colors for benefits and drawbacks", () => {
+    const { container } = render(<DesignDecisionSummary value={decision} />);
+    for (const item of screen.getAllByRole("listitem")) {
+      expect(item.textContent).not.toMatch(/^\s*[+−-]/);
+    }
+    const classes = Array.from(container.querySelectorAll("[class]"), (el) => el.className);
+    expect(classes.join(" ")).not.toMatch(
+      /\b(?:text|bg|border)-(?:green|red|emerald|amber|lime|rose|success|destructive)\b/,
+    );
+  });
+
+  it.each([
+    undefined,
+    {},
+    { choice: " ", reason: "\n", benefits: ["", " "], considered: [{ option: " " }] },
+  ])("shows the empty state when nothing meaningful is documented: %j", (value) => {
+    const { container } = render(<DesignDecisionSummary value={value} />);
+    expect(screen.getByText("No decision documented yet.")).toBeVisible();
+    expect(container.querySelector("ul")).not.toBeInTheDocument();
+  });
+
+  it("omits empty sections and blank items without inventing headings", () => {
+    render(
+      <DesignDecisionSummary
+        value={{ choice: "  Redis  ", benefits: ["", "Fast reads"], drawbacks: [" "] }}
+      />,
+    );
+    expect(screen.getByText("Redis")).toBeVisible();
+    expect(
+      within(screen.getByRole("region", { name: "Benefits" })).getAllByRole("listitem"),
+    ).toHaveLength(1);
+    for (const name of ["Drawbacks", "Considered instead", "Revisit when"]) {
+      expect(screen.queryByRole("region", { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it("shows legacy paragraph decisions as items in the matching sections", () => {
+    render(
+      <DesignDecisionSummary
+        value={{
+          reason: "Reduce load",
+          tradeoffs: "Potential stale reads",
+          alternatives: "Replicas",
+          assumptions: "Reads tolerate a minute of lag",
+        }}
+      />,
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem"),
+    ).toHaveTextContent("Potential stale reads");
+    expect(
+      within(screen.getByRole("region", { name: "Considered instead" })).getByRole("listitem"),
+    ).toHaveTextContent("Replicas");
+    expect(
+      within(screen.getByRole("region", { name: "Revisit when" })).getByRole("listitem"),
+    ).toHaveTextContent("Reads tolerate a minute of lag");
+  });
+
+  it("keeps long legacy text fully readable without truncation", () => {
+    const tradeoffs = `Potential stale reads\n${"More invalidation work. ".repeat(30)}`.trim();
+    const { container } = render(<DesignDecisionSummary value={{ tradeoffs }} compact />);
+    const item = within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem");
+    expect(item.textContent).toBe(tradeoffs);
+    expect(item).toHaveClass("whitespace-pre-wrap", "wrap-anywhere");
+    expect(
+      container.querySelector(".line-clamp-2, .line-clamp-3, .truncate"),
+    ).not.toBeInTheDocument();
+  });
+});

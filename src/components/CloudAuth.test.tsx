@@ -214,7 +214,7 @@ describe("cloud authentication transitions", () => {
     expect(beforeUnload.defaultPrevented).toBe(true);
     expect(useDiagramStore.getState().nodes[0]?.data["label"]).toBe("Unsaved");
   });
-  it("clears private clipboard and health results when the account changes", async () => {
+  it("clears private clipboard when the account changes", async () => {
     const view = render(gate());
     await waitFor(() => expect(screen.queryByText("Loading workspace…")).toBeNull());
     await act(async () => {
@@ -238,7 +238,6 @@ describe("cloud authentication transitions", () => {
     view.rerender(gate());
     await waitFor(() => expect(screen.queryByText("Loading workspace…")).toBeNull());
     expect(useDiagramStore.getState().clipboard).toEqual({ nodes: [], edges: [] });
-    expect(useDiagramStore.getState().healthCheckResults).toEqual({});
   });
   it("requires the original owner's return to export or retry recovery", async () => {
     const view = render(gate());

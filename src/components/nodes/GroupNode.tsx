@@ -10,8 +10,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   const config = GROUP_TYPES_CONFIG[nodeData.groupType] || GROUP_TYPES_CONFIG.vpc;
   const Icon = config.icon;
   const isCollapsed = nodeData.collapsed ?? false;
-  const accentColor = nodeData.accentColor;
-  const backgroundColor = nodeData.backgroundColor;
+
   const toggleGroupCollapse = useDiagramStore((state) => state.toggleGroupCollapse);
   // Subscribe to a derived primitive (childCount) instead of the whole nodes
   // array, so this component is not re-rendered on every drag tick.
@@ -54,28 +53,10 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
               ? "border-zinc-400 dark:border-zinc-500 shadow-lg shadow-zinc-400/20 dark:shadow-zinc-500/20"
               : "border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600",
           )}
-          style={accentColor ? { borderColor: accentColor } : undefined}
         >
-          {/* Background tint overlay */}
-          {backgroundColor && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundColor: `${backgroundColor}33`,
-                zIndex: -1,
-                borderRadius: "inherit",
-              }}
-            />
-          )}
           {/* Icon */}
-          <div
-            className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"
-            style={accentColor ? { border: `1px solid ${accentColor}` } : undefined}
-          >
-            <Icon
-              className="w-6 h-6 text-zinc-600 dark:text-zinc-400"
-              style={accentColor ? { color: accentColor } : undefined}
-            />
+          <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+            <Icon className="w-6 h-6 text-zinc-600 dark:text-zinc-400" />
           </div>
 
           {/* Label */}
@@ -159,20 +140,9 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
             ? "border-zinc-400 dark:border-zinc-500 bg-zinc-100/20 dark:bg-zinc-900/20"
             : "border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-100/10 dark:bg-zinc-900/10 hover:bg-zinc-100/20 dark:hover:bg-zinc-900/20 hover:border-zinc-400 dark:hover:border-zinc-700",
         )}
-        style={accentColor ? { borderColor: accentColor } : undefined}
       >
-        {/* Background tint overlay */}
-        {backgroundColor && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: `${backgroundColor}33`, zIndex: -1, borderRadius: "inherit" }}
-          />
-        )}
         {/* Label Badge - positioned at top */}
-        <div
-          className="absolute -top-3 left-4 bg-white dark:bg-zinc-950 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5 border border-zinc-300 dark:border-zinc-800 rounded-full pointer-events-auto cursor-pointer"
-          style={accentColor ? { borderColor: accentColor, color: accentColor } : undefined}
-        >
+        <div className="absolute -top-3 left-4 bg-white dark:bg-zinc-950 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5 border border-zinc-300 dark:border-zinc-800 rounded-full pointer-events-auto cursor-pointer">
           <Icon className="w-2.5 h-2.5" />
           <span>{nodeData.label}</span>
           {/* Collapse Toggle */}

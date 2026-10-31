@@ -147,9 +147,21 @@ export const architectureAttributeInputSchema = architectureAttributeSchema.supe
   },
 );
 
+export const consideredOptionSchema = z
+  .object({
+    option: z.string(),
+    whyNot: z.string().exactOptional(),
+  })
+  .strict();
+
 export const designDecisionSchema = z
   .object({
+    choice: z.string().exactOptional(),
     reason: z.string().exactOptional(),
+    benefits: z.array(z.string()).exactOptional(),
+    drawbacks: z.array(z.string()).exactOptional(),
+    considered: z.array(consideredOptionSchema).exactOptional(),
+    revisitWhen: z.array(z.string()).exactOptional(),
     alternatives: z.string().exactOptional(),
     tradeoffs: z.string().exactOptional(),
     assumptions: z.string().exactOptional(),

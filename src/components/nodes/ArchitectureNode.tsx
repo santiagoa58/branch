@@ -3,21 +3,20 @@ import { createPortal } from "react-dom";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Icon as IconifyIcon } from "@iconify/react";
 import { cn } from "@/lib/utils";
-import { NODE_TYPES_CONFIG, HEALTH_STATUS_STYLES } from "@/constants";
+import { NODE_TYPES_CONFIG } from "@/constants";
 import type { ArchitectureNode as ArchitectureFlowNode } from "@/types";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useAnimationStore } from "@/store/animationStore";
-import { useUIStore } from "@/store/uiStore";
-import { HeartIcon } from "@heroicons/react/24/outline";
-import { LoadingIndicator } from "@/components/ui/loading";
+import { getNodeAttributes, formatArchitectureAttribute } from "@/utils/architectureAttributes";
+import { getDocumentedDecision, hasDesignDecision } from "@/utils/designDecision";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 
 export const ArchitectureNode = memo(
   ({ data: nodeData, selected, id }: NodeProps<ArchitectureFlowNode>) => {
     const config = NODE_TYPES_CONFIG[nodeData.type];
     const Icon = config.icon;
-    const getNodeHealthResult = useDiagramStore((state) => state.getNodeHealthResult);
+
     const updateNodeData = useDiagramStore((state) => state.updateNodeData);
 
     // Inline editing state
@@ -41,26 +40,10 @@ export const ArchitectureNode = memo(
       }
     }, [isEditing]);
 
-    const getStatusColor = () => {
-      switch (nodeData.status) {
-        case "active":
-          return "bg-emerald-500 border-emerald-400";
-        case "warning":
-          return "bg-amber-500 border-amber-400";
-        case "inactive":
-          return "bg-zinc-400 dark:bg-zinc-600 border-zinc-300 dark:border-zinc-500";
-        case undefined:
-          return null;
-        default:
-          return null;
-      }
-    };
-
-    const statusColor = getStatusColor();
-    const healthResult = getNodeHealthResult(id);
-    const hasHealthCheck = !!nodeData.healthCheckUrl;
-    const accentColor = nodeData.accentColor;
-    const backgroundColor = nodeData.backgroundColor;
+    const attributes = getNodeAttributes(nodeData);
+    const decision = hasDesignDecision(nodeData.decision)
+      ? getDocumentedDecision(nodeData.decision)
+      : undefined;
 
     // Simulation state
     const failedNodeIds = useSimulationStore((s) => s.failedNodeIds);
@@ -79,23 +62,10 @@ export const ArchitectureNode = memo(
     // Animation state — hide node during shatter animation
     const isPendingDeletion = useAnimationStore((s) => s.isPendingDeletion(id));
 
-    // Tag filtering — dim if any of this node's tags is hidden.
-    const isTagHidden = useUIStore((s) => {
-      if (!nodeData.tags || nodeData.tags.length === 0) {
-        return false;
-      }
-      for (const t of nodeData.tags) {
-        if (s.hiddenTags.has(t.toLowerCase())) {
-          return true;
-        }
-      }
-      return false;
-    });
-
     return (
       <div
         data-node-id={id}
-        style={isTagHidden ? { opacity: 0.12, transition: "opacity 200ms ease" } : undefined}
+
         className={cn(
           "relative flex flex-col items-center gap-2 p-3 min-w-30 rounded-xl bg-white/90 dark:bg-zinc-900/90 border backdrop-blur-sm cursor-grab active:cursor-grabbing transition-all hover:border-zinc-400 dark:hover:border-zinc-600",
           selected
@@ -123,13 +93,6 @@ export const ArchitectureNode = memo(
           setShowTooltip(false);
         }}
       >
-        {/* Background tint overlay */}
-        {backgroundColor && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: `${backgroundColor}33`, zIndex: -1, borderRadius: "inherit" }}
-          />
-        )}
         {/* Description Tooltip */}
         {showTooltip && hasDescription && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
@@ -165,11 +128,7 @@ export const ArchitectureNode = memo(
             config.borderClass,
             "border",
           )}
-          style={
-            accentColor
-              ? { borderColor: accentColor, boxShadow: `0 0 0 1px ${accentColor}33 inset` }
-              : undefined
-          }
+
           onDoubleClick={(e) => {
             e.stopPropagation();
             setIsIconPickerOpen(true);
@@ -177,15 +136,11 @@ export const ArchitectureNode = memo(
           title="Double-click to change icon"
         >
           {nodeData.iconifyIcon ? (
-            <IconifyIcon
-              icon={nodeData.iconifyIcon}
-              className="w-5 h-5"
-              style={{ color: nodeData.iconColor || accentColor }}
-            />
+            <IconifyIcon icon={nodeData.iconifyIcon} className={cn("w-5 h-5", config.iconColor)} />
           ) : (
             <Icon
               className={cn("w-5 h-5", config.iconColor)}
-              style={accentColor ? { color: accentColor } : undefined}
+
               strokeWidth={1.5}
             />
           )}
@@ -228,54 +183,43 @@ export const ArchitectureNode = memo(
                 {nodeData.label}
               </span>
             )}
-            {statusColor && (
-              <div
-                className={cn(
-                  "w-2 h-2 rounded-full border border-white dark:border-zinc-950 shadow-sm",
-                  statusColor,
-                )}
-              />
-            )}
           </div>
           <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-tight">
             {nodeData.type}
           </span>
         </div>
 
-        {nodeData.decision &&
-          Object.values(nodeData.decision).some(
-            (value) => typeof value === "string" && value.trim().length > 0,
-          ) && (
-            <span
-              title={nodeData.decision.reason || "Design reasoning documented"}
-              className="rounded border border-zinc-300 dark:border-zinc-700 px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground"
-            >
-              Why
-            </span>
-          )}
+        {/* The chosen approach is the at-a-glance answer to "why this component?". */}
+        {decision && (
+          <span
+            title={[decision.choice, decision.reason].filter(Boolean).join("\n")}
+            className="max-w-48 truncate rounded border border-zinc-300 dark:border-zinc-700 px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground"
+          >
+            {decision.choice || "Decision"}
+          </span>
+        )}
 
         {/* Important design constraints should be visible without opening properties. */}
-        {nodeData.metadata && Object.keys(nodeData.metadata).length > 0 && (
+        {attributes.length > 0 && (
           <div
-            className="w-full max-w-48 border-t border-zinc-200 dark:border-zinc-700 pt-1.5 space-y-0.5"
-            title={Object.entries(nodeData.metadata)
-              .map(([key, value]) => `${key}: ${value}`)
+            className="w-full max-w-48 border-t border-border pt-2 space-y-1"
+            title={attributes
+              .map((attribute) => `${attribute.name}: ${formatArchitectureAttribute(attribute)}`)
               .join("\n")}
           >
-            {Object.entries(nodeData.metadata)
-              .slice(0, 3)
-              .map(([key, value]) => (
-                <div key={key} className="flex items-baseline justify-between gap-2 text-[9px]">
-                  <span className="text-muted-foreground truncate">{key}</span>
-                  <span className="text-zinc-700 dark:text-zinc-300 font-mono truncate">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            {Object.keys(nodeData.metadata).length > 3 && (
-              <div className="text-[9px] text-muted-foreground">
-                +{Object.keys(nodeData.metadata).length - 3} more
+            {attributes.slice(0, 3).map((attribute) => (
+              <div
+                key={attribute.name}
+                className="flex items-baseline justify-between gap-2 text-xs"
+              >
+                <span className="truncate text-muted-foreground">{attribute.name}</span>
+                <span className="truncate font-mono text-foreground">
+                  {formatArchitectureAttribute(attribute)}
+                </span>
               </div>
+            ))}
+            {attributes.length > 3 && (
+              <div className="text-xs text-muted-foreground">+{attributes.length - 3} more</div>
             )}
           </div>
         )}
@@ -305,45 +249,6 @@ export const ArchitectureNode = memo(
           title="Output"
           className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
         />
-
-        {/* Health Check Indicator */}
-        {hasHealthCheck && (
-          <div className="absolute -top-1 -right-1 z-10">
-            {healthResult?.loading ? (
-              <div
-                className={cn(
-                  "w-4 h-4 rounded-full border-2 border-white dark:border-zinc-950 flex items-center justify-center shadow-sm",
-                  HEALTH_STATUS_STYLES.loading.bg,
-                )}
-              >
-                <LoadingIndicator className={cn("size-2.5", HEALTH_STATUS_STYLES.loading.icon)} />
-              </div>
-            ) : healthResult ? (
-              <div
-                className={cn(
-                  "w-4 h-4 rounded-full border-2 border-white dark:border-zinc-950 flex items-center justify-center shadow-sm",
-                  HEALTH_STATUS_STYLES[healthResult.status].bg,
-                )}
-                title={`Health: ${healthResult.status} (${healthResult.latency}ms)`}
-              >
-                <HeartIcon
-                  className={cn("w-2.5 h-2.5", HEALTH_STATUS_STYLES[healthResult.status].icon)}
-                  strokeWidth={2}
-                />
-              </div>
-            ) : (
-              <div
-                className="w-4 h-4 rounded-full border-2 border-white dark:border-zinc-950 bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shadow-sm"
-                title="Health check configured"
-              >
-                <HeartIcon
-                  className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-400"
-                  strokeWidth={2}
-                />
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Icon Picker Dialog (via Portal) */}
         {isIconPickerOpen &&

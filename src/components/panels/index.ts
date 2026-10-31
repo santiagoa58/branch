@@ -10,5 +10,5 @@ export { ProtocolLegend } from "./ProtocolLegend";
 export { NodeDetailPopup } from "./NodeDetailPopup";
 export { CanvasStatusBar } from "./CanvasStatusBar";
 export { SpotlightSearch } from "./SpotlightSearch";
-export { TagFilter } from "./TagFilter";
+
 export { FlowsPanel } from "./FlowsPanel";

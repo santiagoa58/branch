@@ -1,9 +1,11 @@
 import { BaseEdge, EdgeLabelRenderer, EdgeProps, type Edge, getBezierPath } from "@xyflow/react";
 import { cn } from "@/lib/utils";
+import { hasDesignDecision } from "@/utils/designDecision";
 import type { ArchitectureEdgeData } from "@/types";
 
 import { useSimulationStore } from "@/store/simulationStore";
 import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
+import { useEdgeLabelPosition } from "@/hooks/useEdgeLabelPosition";
 import { useUIStore } from "@/store/uiStore";
 import { useState, useCallback } from "react";
 import { PROTOCOL_CONFIG } from "@/constants";
@@ -25,18 +27,7 @@ export function ArchitectureEdge({
   const isProtocolHidden = useUIStore((s) =>
     edgeData?.protocol ? s.hiddenProtocols.has(edgeData.protocol) : false,
   );
-  const isTagHidden = useUIStore((s) => {
-    if (!edgeData?.tags || edgeData.tags.length === 0) {
-      return false;
-    }
-    for (const t of edgeData.tags) {
-      if (s.hiddenTags.has(t.toLowerCase())) {
-        return true;
-      }
-    }
-    return false;
-  });
-  const isEdgeDimmed = isProtocolHidden || isTagHidden;
+  const isEdgeDimmed = isProtocolHidden;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -45,7 +36,7 @@ export function ArchitectureEdge({
     setIsDialogOpen(true);
   }, []);
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, preferredLabelX, preferredLabelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -134,11 +125,13 @@ export function ArchitectureEdge({
     fullLabel = `${baseLabel} • ${edgeData.dataContract.schemaName}`;
   }
 
-  const hasDecision =
-    !!edgeData?.decision &&
-    Object.values(edgeData.decision).some(
-      (value) => typeof value === "string" && value.trim().length > 0,
-    );
+  const hasDecision = hasDesignDecision(edgeData?.decision);
+
+  const { labelRef, labelX, labelY } = useEdgeLabelPosition(
+    preferredLabelX,
+    preferredLabelY,
+    hasDecision,
+  );
 
   // Determine marker IDs for bidirectional support
   const isBidirectional = edgeData?.bidirectional ?? false;
@@ -275,7 +268,10 @@ export function ArchitectureEdge({
       <EdgeLabelRenderer>
         {hasDecision && (
           <div
-            title={edgeData?.decision?.reason || "Design reasoning documented"}
+            title={
+              [edgeData?.decision?.choice, edgeData?.decision?.reason].filter(Boolean).join("\n") ||
+              "Design reasoning documented"
+            }
             style={{
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX + 26}px, ${labelY - 24}px)`,
@@ -291,7 +287,7 @@ export function ArchitectureEdge({
           <div
             style={{
               position: "absolute",
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${preferredLabelX}px, ${preferredLabelY}px)`,
               pointerEvents: "all",
               width: 24,
               height: 24,
@@ -302,6 +298,7 @@ export function ArchitectureEdge({
 
         {fullLabel && (
           <div
+            ref={labelRef}
             style={{
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,

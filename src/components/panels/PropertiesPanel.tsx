@@ -1,35 +1,19 @@
-import { useState, useMemo } from "react";
-import { Icon as IconifyIcon } from "@iconify/react";
+import { useState } from "react";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
-import {
-  NODE_TYPES_CONFIG,
-  GROUP_TYPES_CONFIG,
-  DATA_FORMATS,
-  COMMENT_CONFIG,
-  HEALTH_STATUS_STYLES,
-  PROTOCOL_CONFIG,
-} from "@/constants";
-import {
-  ArchitectureNodeType,
-  ArchitectureNodeData,
-  ArchitectureEdgeData,
-  GroupNodeType,
-  DataFormat,
-} from "@/types";
+import { GROUP_TYPES_CONFIG, DATA_FORMATS, COMMENT_CONFIG, PROTOCOL_CONFIG } from "@/constants";
+import type { GroupNodeType, DataFormat } from "@/types";
 import { cn } from "@/lib/utils";
+import { hasDesignDecision } from "@/utils/designDecision";
 import { applyValidatedInput } from "@/lib/validatedInput";
 import {
-  architectureNodeTypeSchema,
   groupNodeTypeSchema,
-  nodeStatusSchema,
   edgeProtocolSchema,
   httpMethodSchema,
   dataFormatSchema,
   commentNodeDataSchema,
   groupNodeDataSchema,
-  architectureNodeDataSchema,
   architectureEdgeDataSchema,
 } from "@/schemas/diagram";
 import {
@@ -37,25 +21,14 @@ import {
   TrashIcon,
   CursorArrowRippleIcon,
   ChevronDownIcon,
-  Squares2X2Icon,
-  HeartIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationCircleIcon,
-  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
-import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
-import { TagInput } from "@/components/ui/TagInput";
-import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
+import { NodePropertiesPanel } from "./NodePropertiesPanel";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
-import { LoadingIndicator } from "@/components/ui/loading";
 
 export function PropertiesPanel() {
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
-
   const {
     nodes,
     edges,
@@ -68,16 +41,10 @@ export function PropertiesPanel() {
     toggleGroupCollapse,
     updateEdgeData,
     deleteEdge,
-    addNodeToGroup,
-    removeNodeFromGroup,
-    runNodeHealthCheck,
-    getNodeHealthResult,
   } = useDiagramStore();
 
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
-
-  const [isTestingHealth, setIsTestingHealth] = useState(false);
 
   // Associate the selected contract side with its edge so changing selection
   // naturally falls back to the request side without an effect-driven reset.
@@ -91,7 +58,7 @@ export function PropertiesPanel() {
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
 
-  // Selection-specific navigation: each new item starts with the essential fields.
+  // Decisions are the primary view; comments and connections retain their basic controls.
   const selectionKey = selectedNode
     ? `node:${selectedNode.id}`
     : selectedEdge
@@ -101,36 +68,11 @@ export function PropertiesPanel() {
     key: "",
     tab: "basics",
   });
+  const defaultTab = selectedNode && selectedNode.type !== "comment" ? "design" : "basics";
   const activeInspectorTab =
-    inspectorSelection.key === selectionKey ? inspectorSelection.tab : "basics";
+    inspectorSelection.key === selectionKey ? inspectorSelection.tab : defaultTab;
   const chooseInspectorTab = (tab: InspectorTab) =>
     setInspectorSelection({ key: selectionKey, tab });
-
-  // Tag suggestions: union of every tag in use across nodes + edges.
-  const tagSuggestions = useMemo(() => {
-    const set = new Set<string>();
-    for (const n of nodes) {
-      if (n.type === "architecture") {
-        const t = (n.data as ArchitectureNodeData).tags;
-        if (Array.isArray(t)) {
-          for (const tag of t) {
-            set.add(tag);
-          }
-        }
-      }
-    }
-    for (const e of edges) {
-      const t = (e.data as ArchitectureEdgeData | undefined)?.tags;
-      if (Array.isArray(t)) {
-        for (const tag of t) {
-          if (typeof tag === "string") {
-            set.add(tag);
-          }
-        }
-      }
-    }
-    return Array.from(set).sort();
-  }, [nodes, edges]);
 
   if (!selectedNode && !selectedEdge) {
     return (
@@ -326,10 +268,8 @@ export function PropertiesPanel() {
               { id: "basics", label: "Basics" },
               {
                 id: "design",
-                label: "Why",
-                populated: Object.values(groupData.decision ?? {}).some(
-                  (v) => typeof v === "string" && v.trim().length > 0,
-                ),
+                label: "Decision",
+                populated: hasDesignDecision(groupData.decision),
               },
               { id: "advanced", label: "More" },
             ]}
@@ -414,58 +354,6 @@ export function PropertiesPanel() {
                 </div>
               </div>
               <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-                {/* Accent Color */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Accent Color
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={groupData.accentColor || "#a1a1aa"}
-                      onChange={(e) =>
-                        updateGroupData(selectedNode.id, { accentColor: e.target.value })
-                      }
-                      className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
-                    />
-                    {groupData.accentColor && (
-                      <button
-                        type="button"
-                        onClick={() => updateGroupData(selectedNode.id, { accentColor: "" })}
-                        className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Background Color */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Background Color
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={groupData.backgroundColor || "#6366f1"}
-                      onChange={(e) =>
-                        updateGroupData(selectedNode.id, { backgroundColor: e.target.value })
-                      }
-                      className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
-                    />
-                    {groupData.backgroundColor && (
-                      <button
-                        type="button"
-                        onClick={() => updateGroupData(selectedNode.id, { backgroundColor: "" })}
-                        className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-
                 {/* Collapsed Toggle */}
                 <div className="flex items-center justify-between py-1">
                   <span className="text-xs text-zinc-700 dark:text-zinc-300">Collapsed</span>
@@ -534,541 +422,13 @@ export function PropertiesPanel() {
       );
     }
 
-    // Regular architecture node
-    const nodeData = architectureNodeDataSchema.parse(selectedNode.data);
-    const config = NODE_TYPES_CONFIG[nodeData.type];
-    const Icon = config.icon;
-
     return (
-      <>
-        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
-          {/* Header */}
-          <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
-            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              Properties
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedNode(null)}
-              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
-          </div>
-
-          <InspectorTabs
-            items={[
-              { id: "basics", label: "Basics" },
-              {
-                id: "design",
-                label: "Why",
-                populated: Object.values(nodeData.decision ?? {}).some(
-                  (v) => typeof v === "string" && v.trim().length > 0,
-                ),
-              },
-              { id: "advanced", label: "More" },
-            ]}
-            value={activeInspectorTab}
-            onChange={chooseInspectorTab}
-          />
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
-            {/* Header Section */}
-            <div className="flex items-start gap-4">
-              <div className={cn("p-3 rounded-lg border", config.bgClass, config.borderClass)}>
-                {nodeData.iconifyIcon ? (
-                  <IconifyIcon
-                    icon={nodeData.iconifyIcon}
-                    className="w-5 h-5"
-                    style={{ color: nodeData.iconColor || config.iconColor.replace("text-", "") }}
-                  />
-                ) : (
-                  <Icon className={cn("w-5 h-5", config.iconColor)} />
-                )}
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
-                  {nodeData.label}
-                </h2>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  ID: {selectedNode.id.slice(-8).toUpperCase()}
-                </span>
-              </div>
-            </div>
-
-            <hr className="border-zinc-200 dark:border-zinc-800" />
-
-            {/* Fields */}
-            <div className="space-y-4">
-              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
-                {/* Display Name */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Display Name
-                  </span>
-                  <input
-                    type="text"
-                    value={nodeData.label}
-                    onChange={(e) => updateNodeData(selectedNode.id, { label: e.target.value })}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                  />
-                </div>
-
-                {/* Type */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Component Type
-                  </span>
-                  <div className="relative">
-                    <select
-                      value={nodeData.type}
-                      onChange={(e) =>
-                        applyValidatedInput(architectureNodeTypeSchema, e.target.value, (type) =>
-                          updateNodeData(selectedNode.id, { type }),
-                        )
-                      }
-                      onKeyDown={(e) => e.stopPropagation()}
-                      className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                    >
-                      {(Object.keys(NODE_TYPES_CONFIG) as ArchitectureNodeType[]).map((type) => (
-                        <option key={type} value={type}>
-                          {NODE_TYPES_CONFIG[type].label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-                {/* Custom Icon */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Custom Icon
-                  </span>
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        value={nodeData.iconifyIcon || ""}
-                        onChange={(e) =>
-                          updateNodeData(selectedNode.id, { iconifyIcon: e.target.value })
-                        }
-                        onKeyDown={(e) => e.stopPropagation()}
-                        placeholder="e.g., mdi:kubernetes, logos:docker-icon"
-                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                      />
-                      {nodeData.iconifyIcon && (
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4">
-                          <IconifyIcon
-                            icon={nodeData.iconifyIcon}
-                            className="w-full h-full"
-                            style={{
-                              color: nodeData.iconColor || config.iconColor.replace("text-", ""),
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsIconPickerOpen(true)}
-                      className="px-3 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded transition-colors text-zinc-700 dark:text-zinc-300"
-                    >
-                      Browse
-                    </button>
-                  </div>
-                  {nodeData.iconifyIcon && (
-                    <div className="flex gap-2">
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">
-                          Icon Color
-                        </span>
-                        <input
-                          type="color"
-                          value={nodeData.iconColor || "#000000"}
-                          onChange={(e) =>
-                            updateNodeData(selectedNode.id, { iconColor: e.target.value })
-                          }
-                          className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateNodeData(selectedNode.id, {
-                            iconifyIcon: "",
-                            iconColor: "",
-                          })
-                        }
-                        className="mt-4.5 px-2 py-1.5 text-[10px] font-medium bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded transition-colors"
-                        title="Reset to default icon"
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
-                {/* Technology */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Technology
-                  </span>
-                  <input
-                    type="text"
-                    value={nodeData.technology || ""}
-                    onChange={(e) =>
-                      updateNodeData(selectedNode.id, { technology: e.target.value })
-                    }
-                    onKeyDown={(e) => e.stopPropagation()}
-                    placeholder="e.g., Node.js, PostgreSQL"
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                  />
-                </div>
-              </div>
-              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-                {/* Status */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Status
-                  </span>
-                  <div className="relative">
-                    <select
-                      value={nodeData.status || ""}
-                      onChange={(e) =>
-                        applyValidatedInput(
-                          nodeStatusSchema.optional(),
-                          e.target.value || undefined,
-                          (status) => updateNodeData(selectedNode.id, { status }),
-                        )
-                      }
-                      onKeyDown={(e) => e.stopPropagation()}
-                      className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                    >
-                      <option value="">None</option>
-                      <option value="active">Healthy</option>
-                      <option value="warning">Degraded</option>
-                      <option value="inactive">Maintenance</option>
-                    </select>
-                    <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Accent Color */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Accent Color
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={nodeData.accentColor || "#a1a1aa"}
-                      onChange={(e) =>
-                        updateNodeData(selectedNode.id, { accentColor: e.target.value })
-                      }
-                      className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
-                    />
-                    {nodeData.accentColor && (
-                      <button
-                        type="button"
-                        onClick={() => updateNodeData(selectedNode.id, { accentColor: "" })}
-                        className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Background Color */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Background Color
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={nodeData.backgroundColor || "#6366f1"}
-                      onChange={(e) =>
-                        updateNodeData(selectedNode.id, { backgroundColor: e.target.value })
-                      }
-                      className="h-8 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded cursor-pointer"
-                    />
-                    {nodeData.backgroundColor && (
-                      <button
-                        type="button"
-                        onClick={() => updateNodeData(selectedNode.id, { backgroundColor: "" })}
-                        className="px-2 py-1.5 text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded transition-colors"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Port */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Port
-                  </span>
-                  <input
-                    type="text"
-                    value={nodeData.port || ""}
-                    onChange={(e) => updateNodeData(selectedNode.id, { port: e.target.value })}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    placeholder="e.g., 3000, 5432"
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                  />
-                </div>
-              </div>
-              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
-                {/* Description */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Description
-                  </span>
-                  <textarea
-                    value={nodeData.description || ""}
-                    onChange={(e) =>
-                      updateNodeData(selectedNode.id, { description: e.target.value })
-                    }
-                    onKeyDown={(e) => e.stopPropagation()}
-                    placeholder="Describe this component..."
-                    rows={3}
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors resize-none"
-                  />
-                </div>
-              </div>
-              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-                {/* Health Check */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide flex items-center gap-1">
-                    <HeartIcon className="w-3 h-3" />
-                    Health Check URL
-                  </span>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={nodeData.healthCheckUrl || ""}
-                      onChange={(e) =>
-                        updateNodeData(selectedNode.id, { healthCheckUrl: e.target.value })
-                      }
-                      onKeyDown={(e) => e.stopPropagation()}
-                      placeholder="https://api.example.com/health"
-                      className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-muted-foreground focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!nodeData.healthCheckUrl) {
-                          return;
-                        }
-                        setIsTestingHealth(true);
-                        void runNodeHealthCheck(selectedNode.id).finally(() =>
-                          setIsTestingHealth(false),
-                        );
-                      }}
-                      disabled={!nodeData.healthCheckUrl || isTestingHealth}
-                      className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                    >
-                      {isTestingHealth ? (
-                        <LoadingIndicator className="size-3" />
-                      ) : (
-                        <HeartIcon className="w-3 h-3" />
-                      )}
-                      Test
-                    </button>
-                  </div>
-
-                  {/* Health Check Result */}
-                  {(() => {
-                    const healthResult = getNodeHealthResult(selectedNode.id);
-                    if (!healthResult) {
-                      return null;
-                    }
-
-                    const statusStyle =
-                      HEALTH_STATUS_STYLES[healthResult.loading ? "loading" : healthResult.status];
-                    const StatusIcon =
-                      healthResult.status === "healthy"
-                        ? CheckCircleIcon
-                        : healthResult.status === "unhealthy"
-                          ? XCircleIcon
-                          : ExclamationCircleIcon;
-
-                    return (
-                      <div
-                        className={cn(
-                          "mt-2 p-2 rounded border",
-                          statusStyle.bg,
-                          statusStyle.border,
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {healthResult.loading ? (
-                            <LoadingIndicator className={cn("size-4", statusStyle.icon)} />
-                          ) : (
-                            <StatusIcon className={cn("w-4 h-4", statusStyle.icon)} />
-                          )}
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <span className={cn("text-xs font-medium", statusStyle.text)}>
-                                {healthResult.loading
-                                  ? "Testing..."
-                                  : healthResult.status === "healthy"
-                                    ? "Healthy"
-                                    : healthResult.status === "unhealthy"
-                                      ? "Unhealthy"
-                                      : "Error"}
-                              </span>
-                              {!healthResult.loading && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {healthResult.latency}ms
-                                </span>
-                              )}
-                            </div>
-                            {healthResult.message && !healthResult.loading && (
-                              <p className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-0.5">
-                                {healthResult.message}
-                              </p>
-                            )}
-                            {!healthResult.loading && (
-                              <p className="text-[9px] text-muted-foreground mt-0.5">
-                                {new Date(healthResult.timestamp).toLocaleTimeString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* CORS Info */}
-                  {nodeData.healthCheckUrl && (
-                    <div className="mt-2 flex gap-2 p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded">
-                      <InformationCircleIcon className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                        Health checks may fail for services without CORS headers. Best for localhost
-                        or CORS-enabled services.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
-                <DesignDecisionEditor
-                  key={`decision-${selectedNode.id}`}
-                  value={nodeData.decision}
-                  onChange={(decision) => updateNodeData(selectedNode.id, { decision })}
-                />
-                <ArchitectureFactsEditor
-                  key={selectedNode.id}
-                  metadata={nodeData.metadata ?? {}}
-                  onChange={(metadata) => updateNodeData(selectedNode.id, { metadata })}
-                />
-              </div>
-              <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-                {/* Tags */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Tags
-                  </span>
-                  <TagInput
-                    value={nodeData.tags || []}
-                    onChange={(next) => updateNodeData(selectedNode.id, { tags: next })}
-                    suggestions={tagSuggestions}
-                    placeholder="e.g. pci, team:payments"
-                  />
-                  <span className="text-[9px] text-muted-foreground">
-                    Filter the canvas by tag from the top-right overlay
-                  </span>
-                </div>
-              </div>
-              <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
-                {/* Parent Group */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Parent Group
-                  </span>
-                  <div className="relative">
-                    <select
-                      value={selectedNode.parentId || nodeData.parentId || ""}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          addNodeToGroup(selectedNode.id, e.target.value);
-                        } else {
-                          removeNodeFromGroup(selectedNode.id);
-                        }
-                      }}
-                      onKeyDown={(e) => e.stopPropagation()}
-                      className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
-                    >
-                      <option value="">None (Drag to assign)</option>
-                      {nodes
-                        .filter((n) => n.type === "group")
-                        .map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {groupNodeDataSchema.parse(group.data).label || "Unnamed Group"}
-                          </option>
-                        ))}
-                    </select>
-                    <Squares2X2Icon className="absolute right-2 top-2 w-3 h-3 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Tip: Drag node inside a group to auto-assign
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-              {/* Metadata Section */}
-              <div className="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-muted-foreground">Node ID</span>
-                  <span className="text-zinc-700 dark:text-zinc-300 font-mono">
-                    {selectedNode.id.slice(-12)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-muted-foreground">Position X</span>
-                  <span className="text-zinc-700 dark:text-zinc-300 font-mono">
-                    {Math.round(selectedNode.position.x)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-muted-foreground">Position Y</span>
-                  <span className="text-zinc-700 dark:text-zinc-300 font-mono">
-                    {Math.round(selectedNode.position.y)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Delete Button */}
-              <button
-                type="button"
-                onClick={() => requestDelete(selectedNode.id)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
-              >
-                <TrashIcon className="w-3 h-3" />
-                Delete Node
-              </button>
-            </div>
-          </div>
-        </aside>
-        <IconPickerDialog
-          isOpen={isIconPickerOpen}
-          onClose={() => setIsIconPickerOpen(false)}
-          onSelect={(iconId) => {
-            updateNodeData(selectedNode.id, { iconifyIcon: iconId });
-            setIsIconPickerOpen(false);
-          }}
-          {...(nodeData.iconifyIcon ? { currentIcon: nodeData.iconifyIcon } : {})}
-        />
-      </>
+      <NodePropertiesPanel
+        key={selectedNode.id}
+        node={selectedNode}
+        activeTab={activeInspectorTab}
+        onTabChange={chooseInspectorTab}
+      />
     );
   }
 
@@ -1099,10 +459,8 @@ export function PropertiesPanel() {
             },
             {
               id: "design",
-              label: "Why",
-              populated: Object.values(edgeData.decision ?? {}).some(
-                (v) => typeof v === "string" && v.trim().length > 0,
-              ),
+              label: "Decision",
+              populated: hasDesignDecision(edgeData.decision),
             },
             { id: "advanced", label: "More" },
           ]}
@@ -1297,20 +655,6 @@ export function PropertiesPanel() {
                 value={edgeData.decision}
                 onChange={(decision) => updateEdgeData(selectedEdge.id, { decision })}
               />
-            </div>
-            <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
-              {/* Tags */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-                  Tags
-                </span>
-                <TagInput
-                  value={edgeData.tags || []}
-                  onChange={(next) => updateEdgeData(selectedEdge.id, { tags: next })}
-                  suggestions={tagSuggestions}
-                  placeholder="e.g. critical, public-api"
-                />
-              </div>
             </div>
           </div>
 
