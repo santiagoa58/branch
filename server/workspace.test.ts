@@ -190,6 +190,11 @@ describe("authenticated cloud API", () => {
     expect((await api("/workspace/projects")).status).toBe(404);
     expect(query).not.toHaveBeenCalled();
   });
+  it("returns 404 for HEAD on an unknown path without accessing documents", async () => {
+    query.mockClear();
+    expect((await api("/missing", "HEAD")).status).toBe(404);
+    expect(query).not.toHaveBeenCalled();
+  });
   it("bounds bodies, distinguishes request validation from stored data, and rejects aliases", async () => {
     const owner = "boundary";
     const project = await json(

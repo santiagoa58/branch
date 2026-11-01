@@ -23,7 +23,7 @@ export const handleError: ErrorHandler<WorkspaceEnv> = (error) => {
   if (error instanceof HttpError) {
     return errorResponse(error.status, error.message, error.headers);
   }
-  if (error instanceof HTTPException && (error.status === 400 || error.status === 405)) {
+  if (error instanceof HTTPException && error.status === 400) {
     return errorResponse(400, "Invalid JSON request.");
   }
   console.error("Workspace API request failed", error);
