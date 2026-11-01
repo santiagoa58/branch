@@ -341,12 +341,21 @@ function summarizeChange(deps: PipelineDeps, before: DiagramSide, after: Diagram
   });
 }
 
-/** Stages 1 and 2. Returns the pre-stage-2 snapshot when stage 2 applied, false to stop. */
+/** The graph just before and just after stage 2 applied. */
+interface DesignChange {
+  before: DiagramSide;
+  after: DiagramSide;
+}
+
+/**
+ * Stages 1 and 2. Returns stage 2's change when it applied, false to stop. The change is captured
+ * before stage 3 writes decisions, so reasoning on kept components does not count as a change.
+ */
 async function runDesignStages(
   deps: PipelineDeps,
   session: Session,
   stages: readonly AiStage[],
-): Promise<{ snapshot: DiagramSide | null } | false> {
+): Promise<{ change: DesignChange | null } | false> {
   if (stages.includes("requirements")) {
     const opened = session.current();
     if (!opened) {
@@ -369,7 +378,7 @@ async function runDesignStages(
     }
   }
   if (!stages.includes("components")) {
-    return { snapshot: null };
+    return { change: null };
   }
 
   const before = session.current();
@@ -415,7 +424,11 @@ async function runDesignStages(
     flows: applied.flows,
     brief: applied.brief,
   });
-  return { snapshot };
+  const designed = session.current();
+  if (!designed) {
+    return false;
+  }
+  return { change: { before: snapshot, after: { nodes: designed.nodes, edges: designed.edges } } };
 }
 
 /** Runs the first out-of-date stage and every stage after it (spec 3.2). */
@@ -457,9 +470,8 @@ export async function runPipeline(
         runApiStage ? runApi(deps, session, base, ranFrom) : undefined,
       ]);
     }
-    const finished = session.current();
-    if (designed.snapshot && finished) {
-      summarizeChange(deps, designed.snapshot, finished);
+    if (designed.change && session.current()) {
+      summarizeChange(deps, designed.change.before, designed.change.after);
     }
   } finally {
     session.end();

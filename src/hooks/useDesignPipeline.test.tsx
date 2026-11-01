@@ -175,6 +175,11 @@ const applyComponentsCallOrder = () => {
   const index = apply.mock.calls.findIndex(([next]) => next.flows !== undefined);
   return apply.mock.invocationCallOrder[index] ?? Number.NaN;
 };
+/** The graph stage 2 applied, before stage 3 wrote any decision. */
+const afterComponents = () => {
+  const next = apply.mock.calls.find(([entry]) => entry.flows !== undefined)?.[0];
+  return { nodes: next?.nodes ?? [], edges: next?.edges ?? [] };
+};
 const failure = (stage: string, status: number, statusText: string, message: string) =>
   new ApiError(status, `POST /ai/${stage} failed (${status} ${statusText}): ${message}`);
 
@@ -513,7 +518,7 @@ describe("runPipeline", () => {
 
     await runPipeline(deps);
 
-    const { counts } = diffDiagrams(before, current);
+    const { counts } = diffDiagrams(before, afterComponents());
     expect(counts.added).toBeGreaterThan(0);
     expect(runState().lastChange).toEqual({
       added: counts.added,
@@ -529,6 +534,33 @@ describe("runPipeline", () => {
     expect(toast?.button?.title).toBe("Undo");
     toast?.button?.onClick();
     expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not count the decisions stage 3 writes on kept components as changes", async () => {
+    apply.mockImplementation((next) => {
+      Object.assign(current, next);
+      historyTop = {};
+    });
+    const requirementsDone = (brief: DesignBrief): DesignBrief => ({
+      ...brief,
+      ranFrom: { requirements: inputsFingerprint(brief.inputs) },
+    });
+    current.brief = requirementsDone(makeBrief());
+    await runPipeline(deps);
+    // The same design again: stage 2 keeps every node as it is, stage 3 rewrites every decision.
+    const designed = afterComponents();
+    current.nodes = designed.nodes;
+    current.edges = designed.edges;
+    current.brief = requirementsDone(current.brief);
+    apply.mockClear();
+
+    await runPipeline(deps);
+
+    expect(stagesCalled()).toContain("components");
+    expect(nodeDecisions().length).toBe(componentsOutput.components.length);
+    expect(diffDiagrams(designed, current).counts.modified).toBeGreaterThan(0);
+    expect(runState().lastChange).toEqual({ added: 0, changed: 0, removed: 0 });
+    expect(runState().highlight.size).toBe(0);
   });
 
   describe("change highlight", () => {
@@ -549,7 +581,7 @@ describe("runPipeline", () => {
       const before = { nodes: existingNodes(), edges: existingEdges() };
       await runPipeline(deps);
 
-      const changed = diffDiagrams(before, current)
+      const changed = diffDiagrams(before, afterComponents())
         .nodes.filter(({ status }) => status === "added" || status === "modified")
         .map(({ node }) => node.id);
       expect(changed.length).toBeGreaterThan(0);
