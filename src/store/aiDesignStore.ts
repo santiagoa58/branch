@@ -8,6 +8,8 @@ import type { AiStage } from "@/schemas/aiDesign";
 export interface AiDesignState {
   running: boolean;
   stage: AiStage | null;
+  /** The stages this run will go through, in order; set by the pipeline as the run starts. */
+  plannedStages: AiStage[];
   decisions: { done: number; total: number };
   warnings: string[];
   errors: Partial<Record<AiStage, string>>;
@@ -20,6 +22,7 @@ export interface AiDesignState {
 
   start: (diagramId: string) => AbortSignal;
   setStage: (stage: AiStage | null) => void;
+  setPlannedStages: (stages: readonly AiStage[]) => void;
   setDecisionProgress: (done: number, total: number) => void;
   addWarnings: (warnings: string[]) => void;
   setError: (stage: AiStage, message: string | null) => void;
@@ -33,6 +36,7 @@ export interface AiDesignState {
 export const useAiDesignStore = create<AiDesignState>((set, get) => ({
   running: false,
   stage: null,
+  plannedStages: [],
   decisions: { done: 0, total: 0 },
   warnings: [],
   errors: {},
@@ -48,6 +52,7 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
     set((state) => ({
       running: true,
       stage: null,
+      plannedStages: [],
       decisions: { done: 0, total: 0 },
       warnings: [],
       errors: {},
@@ -60,6 +65,8 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
   },
 
   setStage: (stage) => set({ stage }),
+
+  setPlannedStages: (stages) => set({ plannedStages: [...stages] }),
 
   setDecisionProgress: (done, total) => set({ decisions: { done, total } }),
 

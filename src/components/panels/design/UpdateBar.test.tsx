@@ -147,6 +147,9 @@ describe("RunProgress", () => {
   it("progress shows reasoning d/t and Cancel calls cancel()", async () => {
     const user = userEvent.setup();
     useAiDesignStore.getState().start("d1");
+    useAiDesignStore
+      .getState()
+      .setPlannedStages(["requirements", "components", "decisions", "api"]);
     useAiDesignStore.getState().setStage("decisions");
     useAiDesignStore.getState().setDecisionProgress(3, 7);
     render(<RunProgress />);
@@ -163,8 +166,22 @@ describe("RunProgress", () => {
     expect(pipeline.cancel).toHaveBeenCalledTimes(1);
   });
 
+  it("shows only the stages the run goes through", () => {
+    useAiDesignStore.getState().start("d1");
+    useAiDesignStore.getState().setPlannedStages(["decisions", "api"]);
+    useAiDesignStore.getState().setStage("decisions");
+    useAiDesignStore.getState().setDecisionProgress(0, 4);
+    render(<RunProgress />);
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      expect.stringContaining("Reasoning 0/4"),
+      expect.stringContaining("API"),
+    ]);
+    expect(screen.getByText("Reasoning 0/4").closest("li")).toHaveAttribute("aria-current", "step");
+  });
+
   it("shows a data model run as its own step", () => {
     useAiDesignStore.getState().start("d1");
+    useAiDesignStore.getState().setPlannedStages(["data-model"]);
     useAiDesignStore.getState().setStage("data-model");
     render(<RunProgress />);
     expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([

@@ -139,6 +139,89 @@ describe("DesignPanel", () => {
   });
 });
 
+describe("tab after a run", () => {
+  const question = {
+    id: "q1",
+    topic: "scale",
+    question: "How many links a day?",
+    why: "Sizes storage.",
+    options: [
+      { label: "About 1k", impact: "One small database" },
+      { label: "About 1M", impact: "A cache in front of the database" },
+    ],
+    recommended: "About 1M",
+    allowsCustom: false,
+  };
+
+  it("switches to the Brief tab when a run ends with open questions", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
+    render(<DesignPanel />);
+    await user.click(tab("API"));
+    act(() => {
+      useAiDesignStore.getState().start("d1");
+    });
+    act(() => {
+      useDiagramStore.setState({ brief: { ...base, questions: [question] } });
+      useAiDesignStore.getState().finish();
+    });
+    expect(tab("Brief")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("region", { name: "Questions" })).toBeVisible();
+  });
+
+  it("keeps the open tab when a run ends without questions", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
+    render(<DesignPanel />);
+    await user.click(tab("API"));
+    act(() => {
+      useAiDesignStore.getState().start("d1");
+    });
+    act(() => {
+      useAiDesignStore.getState().finish();
+    });
+    expect(tab("API")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps the tab and chosen answers while the inspector holds the slot", async () => {
+    const user = userEvent.setup();
+    useUIStore.getState().openDesignPanel();
+    useDiagramStore.setState({ brief: { ...base, questions: [question] }, nodes: [], edges: [] });
+    render(<EditorRightPanel />);
+    await user.click(screen.getByRole("button", { name: /About 1k/ }));
+    await user.click(tab("Data model"));
+
+    act(() => {
+      useDiagramStore.setState({ selectedNodeId: "api" });
+    });
+    expect(screen.queryByRole("complementary", { name: "Design with AI" })).not.toBeInTheDocument();
+    act(() => {
+      useDiagramStore.setState({ selectedNodeId: null });
+    });
+
+    expect(tab("Data model")).toHaveAttribute("aria-pressed", "true");
+    await user.click(tab("Brief"));
+    expect(screen.getByRole("button", { name: /About 1k/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("starts a new round of questions with no answers chosen", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({ brief: { ...base, questions: [question] }, nodes: [], edges: [] });
+    render(<DesignPanel />);
+    await user.click(screen.getByRole("button", { name: /About 1k/ }));
+    act(() => {
+      useDiagramStore.setState({ brief: { ...base, questions: [{ ...question }] } });
+    });
+    expect(screen.getByRole("button", { name: /About 1k/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+});
+
 describe("EditorRightPanel", () => {
   it("gives the slot to the inspector while something is selected", () => {
     useUIStore.getState().openDesignPanel();

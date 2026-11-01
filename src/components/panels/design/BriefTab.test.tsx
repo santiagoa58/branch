@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vite-plus/test";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { useUIStore } from "@/store/uiStore";
 import {
   answerQuestion,
   assumeRemaining,
@@ -83,6 +84,7 @@ let schedule: MockInstance<typeof cloudWorkspace.schedule>;
 beforeEach(() => {
   useAiDesignStore.setState(useAiDesignStore.getInitialState());
   useDiagramStore.getState().resetDiagramState();
+  useUIStore.setState(useUIStore.getInitialState());
   schedule = vi.spyOn(cloudWorkspace, "schedule").mockImplementation(() => {});
   vi.spyOn(crypto, "randomUUID").mockReturnValue(NEW_ID);
   for (const fn of Object.values(pipeline)) {
@@ -223,6 +225,15 @@ describe("questions", () => {
     expect(pipeline.update).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the recommended answer of a free-text question as a visible hint", () => {
+    mount(asking);
+    const hint = screen.getByText("Recommended:").closest("p");
+    expect(hint).toHaveTextContent("Recommended: The list keeps working offline");
+    expect(
+      screen.getByRole("textbox", { name: "What should happen without a signal in the store?" }),
+    ).toHaveAccessibleDescription("Recommended: The list keeps working offline");
+  });
+
   it("offers a written answer where the question allows one", async () => {
     const user = userEvent.setup();
     mount({
@@ -242,7 +253,7 @@ describe("questions", () => {
 });
 
 describe("brief sections", () => {
-  async function act(label: string) {
+  async function perform(label: string) {
     const user = userEvent.setup();
     mount(designed);
     switch (label) {
@@ -279,7 +290,7 @@ describe("brief sections", () => {
   it.each(["Confirm", "Change", "Remove", "Bring into scope"])(
     "%s edits the inputs",
     async (label) => {
-      const expected = await act(label);
+      const expected = await perform(label);
       expect(currentBrief()).toEqual(expected);
     },
   );
@@ -329,6 +340,47 @@ describe("brief sections", () => {
     const assumption = row("Members sign in with email", "Assumptions");
     expect(within(assumption).queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
     expect(within(assumption).getByText("Confirmed")).toBeVisible();
+  });
+
+  it("a row's status follows undo and redo", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.getState().hydrateDiagram({ nodes: [], edges: [], brief: designed });
+    render(<BriefTab />);
+    const assumption = () => row("Members sign in with email", "Assumptions");
+
+    for (let cycle = 0; cycle < 2; cycle += 1) {
+      await user.click(within(assumption()).getByRole("button", { name: "Confirm" }));
+      expect(within(assumption()).getByText("Confirmed")).toBeVisible();
+      act(() => useDiagramStore.getState().undo());
+      expect(within(assumption()).getByRole("button", { name: "Confirm" })).toBeVisible();
+      expect(currentBrief()?.inputs.requirements).toHaveLength(1);
+    }
+
+    act(() => useDiagramStore.getState().redo());
+    expect(within(assumption()).getByText("Confirmed")).toBeVisible();
+  });
+
+  it("derived rows show what was done with them", async () => {
+    const user = userEvent.setup();
+    mount(designed);
+    await user.click(
+      within(row("Add, edit and remove items", "Functional requirements")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    expect(
+      within(row("Add, edit and remove items", "Functional requirements")).getByText(
+        "Moved out of scope",
+      ),
+    ).toBeVisible();
+    await user.click(
+      within(row("Recipe and meal planning", "Out of scope")).getByRole("button", {
+        name: "Bring into scope",
+      }),
+    );
+    expect(
+      within(row("Recipe and meal planning", "Out of scope")).getByText("Brought into scope"),
+    ).toBeVisible();
   });
 
   it("user lines are shown verbatim and are editable", async () => {

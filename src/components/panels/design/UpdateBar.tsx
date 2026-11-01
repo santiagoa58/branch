@@ -69,17 +69,17 @@ export function UpdateBar() {
   );
 }
 
-const PIPELINE_STEPS: readonly PipelineStage[] = ["requirements", "components", "decisions", "api"];
-
 /** The stepper shown while a run is in progress, with Cancel. */
 export function RunProgress() {
   const pipeline = useDesignPipeline();
   const stage = useAiDesignStore((state) => state.stage);
+  const planned = useAiDesignStore((state) => state.plannedStages);
   const decisions = useAiDesignStore((state) => state.decisions);
 
-  const steps: readonly AiStage[] = stage === "data-model" ? ["data-model"] : PIPELINE_STEPS;
-  // Before the first stage is set, the run is starting on the first step.
-  const current = stage ? steps.indexOf(stage) : 0;
+  // Only the stages this run goes through: an update after a graph edit starts at reasoning.
+  const steps: readonly AiStage[] = planned.length > 0 ? planned : stage ? [stage] : [];
+  // Before the first stage is set, the run is starting on its first step.
+  const current = stage ? Math.max(0, steps.indexOf(stage)) : 0;
   const label = (step: AiStage) =>
     step === "decisions" && decisions.total > 0
       ? `${STAGE_LABELS[step]} ${decisions.done}/${decisions.total}`

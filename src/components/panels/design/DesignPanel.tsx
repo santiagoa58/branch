@@ -1,17 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
-import { useUIStore } from "@/store/uiStore";
+import { useUIStore, type DesignTabId } from "@/store/uiStore";
 import { outdatedStages } from "@/utils/aiDesign/fingerprint";
 import { BriefTab } from "./BriefTab";
 import { SCOPES } from "./Composer";
 import { RunNotes, RunProgress, UpdateBar } from "./UpdateBar";
 
-export type DesignTabId = "brief" | "design" | "api" | "dataModel";
+export type { DesignTabId };
 
 const TABS: readonly { id: DesignTabId; label: string }[] = [
   { id: "brief", label: "Brief" },
@@ -118,13 +118,27 @@ function PanelHeader({ brief, running }: { brief: DesignBrief | null; running: b
   );
 }
 
+/**
+ * When a run ends with open questions, answering them is the next step: show the Brief tab, which
+ * holds them, whichever tab was open.
+ */
+function showQuestionsAfterRuns(): () => void {
+  return useAiDesignStore.subscribe((state, previous) => {
+    if (previous.running && !state.running && useDiagramStore.getState().brief?.questions.length) {
+      useUIStore.getState().setDesignTab("brief");
+    }
+  });
+}
+
 /** The docked AI design panel: composer, run progress, or the four tabs with the update bar. */
 export function DesignPanel() {
   const brief = useDiagramStore((state) => state.brief);
   const nodes = useDiagramStore((state) => state.nodes);
   const edges = useDiagramStore((state) => state.edges);
   const running = useAiDesignStore((state) => state.running);
-  const [tab, setTab] = useState<DesignTabId>("brief");
+  const tab = useUIStore((state) => state.designTab);
+  const setTab = useUIStore((state) => state.setDesignTab);
+  useEffect(() => showQuestionsAfterRuns(), []);
   const outdated = useMemo(
     () => (brief ? outdatedTabs(outdatedStages(brief, nodes, edges)) : null),
     [brief, nodes, edges],

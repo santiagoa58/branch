@@ -688,6 +688,27 @@ describe("runPipeline", () => {
     expect(input).toMatchObject({ previousKeys: ["backend", "web", "api", "db"] });
   });
 
+  it("records the stages it plans to run as it starts", async () => {
+    current.nodes = existingNodes();
+    current.edges = existingEdges();
+    current.brief = graphOnlyBrief();
+    const planned: AiStage[][] = [];
+    const unsubscribe = useAiDesignStore.subscribe((state, previous) => {
+      if (state.plannedStages !== previous.plannedStages && state.plannedStages.length > 0) {
+        planned.push(state.plannedStages);
+      }
+    });
+    await runPipeline(deps);
+    await runDecision(deps, "api");
+    await runDataModel(deps);
+    unsubscribe();
+    expect(planned).toEqual([["decisions", "api"], ["decisions"], ["data-model"]]);
+
+    current.brief = makeBrief();
+    await runPipeline(deps);
+    expect(runState().plannedStages).toEqual(["requirements", "components", "decisions", "api"]);
+  });
+
   it("keeps errors and warnings of stages that do not run", async () => {
     current.nodes = existingNodes();
     current.brief = graphOnlyBrief();

@@ -1,28 +1,25 @@
-import { useState } from "react";
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { useDesignPipeline } from "@/hooks/useDesignPipeline";
 import { cn } from "@/lib/utils";
 import type { DesignBrief } from "@/schemas/aiDesign";
+import { useUIStore, type QuestionDraft } from "@/store/uiStore";
 import { answerQuestion, assumeRemaining } from "@/utils/aiDesign/inputs";
 import { editBrief, inputClass, newId, tagClass } from "./briefEdits";
 
 type Question = DesignBrief["questions"][number];
 
-/** A chosen option, or a written answer (`custom`). */
-interface Draft {
-  custom: boolean;
-  text: string;
-}
+type Draft = QuestionDraft;
 
-/** Selected answers stay local until Continue or Assume; a new round of questions starts empty. */
+/**
+ * Selected answers are kept in the UI store until Continue or Assume, by question text, so they
+ * survive the inspector taking the panel's slot. A new round of questions starts empty.
+ */
 function useDrafts(questions: Question[]) {
-  const [state, setState] = useState<{ questions: Question[]; drafts: Record<string, Draft> }>({
-    questions,
-    drafts: {},
-  });
-  const drafts = state.questions === questions ? state.drafts : {};
-  const setDraft = (id: string, draft: Draft) =>
-    setState({ questions, drafts: { ...drafts, [id]: draft } });
+  const stored = useUIStore((state) => state.questionDrafts);
+  const setQuestionDraft = useUIStore((state) => state.setQuestionDraft);
+  const drafts = stored.questions === questions ? stored.drafts : {};
+  const setDraft = (question: string, draft: Draft) => setQuestionDraft(questions, question, draft);
   return { drafts, setDraft };
 }
 
@@ -37,6 +34,7 @@ function QuestionCard({
 }) {
   const freeText = question.options.length === 0;
   const writing = freeText || draft?.custom === true;
+  const hintId = useId();
   return (
     <fieldset className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
       <legend className="sr-only">{question.question}</legend>
@@ -75,7 +73,8 @@ function QuestionCard({
             type="text"
             aria-label={question.question}
             value={draft?.custom ? draft.text : ""}
-            placeholder={freeText ? question.recommended : "Your answer"}
+            placeholder="Your answer"
+            aria-describedby={freeText ? hintId : undefined}
             onChange={(event) => onChange({ custom: true, text: event.target.value })}
             className={inputClass}
           />
@@ -91,6 +90,11 @@ function QuestionCard({
             </Button>
           )
         )}
+        {freeText && (
+          <p id={hintId} className="text-xs text-muted-foreground">
+            Recommended: <span className="text-foreground">{question.recommended}</span>
+          </p>
+        )}
       </div>
     </fieldset>
   );
@@ -101,7 +105,7 @@ export function Questions({ brief }: { brief: DesignBrief }) {
   const pipeline = useDesignPipeline();
   const { questions } = brief;
   const { drafts, setDraft } = useDrafts(questions);
-  const answerOf = (question: Question) => drafts[question.id]?.text.trim() ?? "";
+  const answerOf = (question: Question) => drafts[question.question]?.text.trim() ?? "";
   const allAnswered = questions.every((question) => answerOf(question) !== "");
   const updating = brief.ranFrom.components !== undefined;
 
@@ -140,8 +144,8 @@ export function Questions({ brief }: { brief: DesignBrief }) {
         <QuestionCard
           key={question.id}
           question={question}
-          draft={drafts[question.id]}
-          onChange={(draft) => setDraft(question.id, draft)}
+          draft={drafts[question.question]}
+          onChange={(draft) => setDraft(question.question, draft)}
         />
       ))}
       <div className="flex flex-wrap gap-2">

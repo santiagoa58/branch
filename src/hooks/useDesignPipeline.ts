@@ -170,6 +170,7 @@ function beginRun(deps: PipelineDeps, stages: readonly AiStage[]): Session | nul
   const diagramId = opened.id;
   const { errors: previousErrors, warnings: previousWarnings } = deps.run;
   const signal = deps.run.start(diagramId);
+  deps.run.setPlannedStages(stages);
   for (const stage of aiStageSchema.options) {
     const message = previousErrors[stage];
     if (!stages.includes(stage) && message !== undefined) {
