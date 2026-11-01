@@ -32,7 +32,7 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
   localStorage, never in undo/redo. `setMode` resets the previous mode.
 - `animationStore` — pending-deletion orchestration. Use `requestDelete()` for
   user-initiated deletes (animated shatter), **not** `diagramStore.deleteNode()`.
-- `workspaceStore`, `uiStore`, `themeStore`, `aiStore`.
+- `workspaceStore`, `uiStore`, `themeStore`, `aiDesignStore` (ephemeral state of the current AI design run).
 
 ## Hard rules (enforced conventions — breaking these is a bug)
 
@@ -46,9 +46,10 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
   `#animation-overlay` div is for shatter fragments only.
 - **Graph algorithms** in `src/utils/graphTraversal.ts` (BFS path trace, blast radius,
   Union-Find partition) are pure — no side effects.
-- **AI:** providers implement `AIProvider` (`src/types/ai.ts`). API keys are
-  client-side only (localStorage via `aiStore`); never send keys to the backend, and
-  always check for a key before making a call.
+- **AI:** AI calls go through `POST /api/ai/:stage` using the server-held AI Gateway
+  key; the browser never holds a provider key. Stage input/output schemas live in
+  `src/schemas/aiDesign.ts`. The model proposes; code owns freshness, ids, layout and
+  persistence.
 - **Validation:** all untrusted data (API requests/responses, imports, share URLs,
   AI/provider responses, and browser preferences) must cross
   a Zod schema in `src/schemas/`. Do not use handwritten structural validators or
@@ -62,7 +63,8 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
   `ArchitectureEdge`, palette/properties/simulation panels.
 - `hooks/` — `useSimulationAnimation`, `useChaosSimulation`, `useEdgeAnimation`,
   `useDestroyAnimation`.
-- `services/api.ts` + `services/ai/providers/` — backend client and AI integrations.
+- `services/api.ts` + `services/api/` — backend client, including the AI stage calls (`services/api/ai.ts`).
+- `server/ai/` — AI design stage prompts, model selection, examples and prompt evaluation.
 
 ## Cloud persistence and deployment
 
