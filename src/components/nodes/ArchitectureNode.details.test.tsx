@@ -3,6 +3,8 @@ import { ReactFlowProvider } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ArchitectureNode as ArchitectureFlowNode, ArchitectureNodeData } from "@/types";
+import { act } from "react";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { ArchitectureNode } from "./ArchitectureNode";
@@ -35,6 +37,7 @@ function renderNode(data: ArchitectureNodeData) {
 beforeEach(() => {
   useSimulationStore.getState().setMode("idle");
   useAnimationStore.setState({ pendingDeletions: new Set() });
+  useAiDesignStore.setState(useAiDesignStore.getInitialState());
   vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected network request"));
 });
 
@@ -47,6 +50,20 @@ afterEach(() => {
 });
 
 describe("architecture node details", () => {
+  it("rings the node while its id is highlighted", () => {
+    const { container } = renderNode({ label: "Read cache", type: "cache" });
+    const node = container.querySelector("[data-node-id='cache']");
+    expect(node).not.toHaveAttribute("data-highlighted");
+
+    act(() => useAiDesignStore.getState().setHighlight(["other"]));
+    expect(node).not.toHaveAttribute("data-highlighted");
+    act(() => useAiDesignStore.getState().setHighlight(["cache"]));
+    expect(node).toHaveAttribute("data-highlighted", "true");
+    expect(node).toHaveClass("ring-primary");
+    act(() => useAiDesignStore.getState().setHighlight([]));
+    expect(node).not.toHaveAttribute("data-highlighted");
+  });
+
   it("shows the first three attributes with units and includes all facts in the summary tooltip", () => {
     renderNode({
       label: "Read cache",

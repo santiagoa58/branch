@@ -7,6 +7,7 @@ import { NODE_TYPES_CONFIG } from "@/constants";
 import type { ArchitectureNode as ArchitectureFlowNode } from "@/types";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { getNodeAttributes, formatArchitectureAttribute } from "@/utils/architectureAttributes";
 import { getDocumentedDecision, hasDesignDecision } from "@/utils/designDecision";
@@ -63,13 +64,16 @@ export const ArchitectureNode = memo(
     const isSource = sourceNodeId === id;
     const isProtected = protectedNodeIds.includes(id) && simulationMode === "chaos";
 
+    // A transient mark from the AI design panel: an update's changes, or an endpoint's components.
+    const isHighlighted = useAiDesignStore((s) => s.highlight.has(id));
+
     // Animation state — hide node during shatter animation
     const isPendingDeletion = useAnimationStore((s) => s.isPendingDeletion(id));
 
     return (
       <div
         data-node-id={id}
-
+        data-highlighted={isHighlighted || undefined}
         className={cn(
           "relative flex flex-col items-center gap-2 p-3 min-w-30 rounded-xl bg-white/90 dark:bg-zinc-900/90 border backdrop-blur-sm cursor-grab active:cursor-grabbing transition-all hover:border-zinc-400 dark:hover:border-zinc-600",
           selected
@@ -83,6 +87,8 @@ export const ArchitectureNode = memo(
             "border-blue-400 dark:border-blue-400 ring-1 ring-blue-400/40",
           isAffected && "opacity-40 grayscale",
           isProtected && "border-cyan-400 dark:border-cyan-400 ring-2 ring-cyan-400/50",
+          isHighlighted &&
+            "ring-2 ring-primary ring-offset-2 ring-offset-background motion-safe:animate-pulse",
           isPendingDeletion && "opacity-0 pointer-events-none",
         )}
         onMouseEnter={() => {

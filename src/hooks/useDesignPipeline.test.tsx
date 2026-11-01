@@ -531,6 +531,43 @@ describe("runPipeline", () => {
     expect(undo).toHaveBeenCalledTimes(1);
   });
 
+  describe("change highlight", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      current.nodes = existingNodes();
+      current.edges = existingEdges();
+      apply.mockImplementation((next) => {
+        Object.assign(current, next);
+        historyTop = {};
+      });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("marks the added and changed nodes for 4 seconds", async () => {
+      const before = { nodes: existingNodes(), edges: existingEdges() };
+      await runPipeline(deps);
+
+      const changed = diffDiagrams(before, current)
+        .nodes.filter(({ status }) => status === "added" || status === "modified")
+        .map(({ node }) => node.id);
+      expect(changed.length).toBeGreaterThan(0);
+      expect([...runState().highlight].sort()).toEqual([...changed].sort());
+      vi.advanceTimersByTime(3999);
+      expect(runState().highlight.size).toBe(changed.length);
+      vi.advanceTimersByTime(1);
+      expect(runState().highlight.size).toBe(0);
+    });
+
+    it("leaves a highlight set in the meantime alone", async () => {
+      await runPipeline(deps);
+      runState().setHighlight(["api"]);
+      vi.advanceTimersByTime(4000);
+      expect([...runState().highlight]).toEqual(["api"]);
+    });
+  });
+
   it("Undo does nothing once another history entry follows the run", async () => {
     apply.mockImplementation((next) => {
       Object.assign(current, next);

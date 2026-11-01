@@ -29,6 +29,8 @@ import { diffDiagrams, type DiagramSide } from "@/utils/diagramDiff";
 
 export const VERSION_LABEL = "Before AI update";
 export const NO_COMPONENTS_ERROR = "The AI returned no usable components";
+/** How long an update's added and changed nodes stay marked on the canvas. */
+export const HIGHLIGHT_MS = 4000;
 
 interface PipelineDiagram {
   id: string | null;
@@ -301,8 +303,26 @@ async function runApi(
   }
 }
 
+/** Highlights `ids`, then clears them unless something else has taken over the highlight. */
+function markChanged(deps: PipelineDeps, ids: string[]) {
+  deps.run.setHighlight(ids);
+  const marked = useAiDesignStore.getState().highlight;
+  setTimeout(() => {
+    if (useAiDesignStore.getState().highlight === marked) {
+      deps.run.setHighlight([]);
+    }
+  }, HIGHLIGHT_MS);
+}
+
 function summarizeChange(deps: PipelineDeps, before: DiagramSide, after: DiagramSide) {
-  const { added, modified, removed } = diffDiagrams(before, after).counts;
+  const diff = diffDiagrams(before, after);
+  const { added, modified, removed } = diff.counts;
+  markChanged(
+    deps,
+    diff.nodes.flatMap(({ node, status }) =>
+      status === "added" || status === "modified" ? [node.id] : [],
+    ),
+  );
   deps.run.setLastChange({ added, changed: modified, removed });
   // A run is one history entry. Once the current entry is anything else (an edit, an undo or a
   // redo), Undo would revert something other than this run, so it does nothing.

@@ -7,8 +7,11 @@ import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type DesignTabId } from "@/store/uiStore";
 import { outdatedStages } from "@/utils/aiDesign/fingerprint";
+import { ApiTab } from "./ApiTab";
 import { BriefTab } from "./BriefTab";
 import { SCOPES } from "./Composer";
+import { DataModelTab } from "./DataModelTab";
+import { DesignTab } from "./DesignTab";
 import { RunNotes, RunProgress, UpdateBar } from "./UpdateBar";
 
 export type { DesignTabId };
@@ -32,13 +35,6 @@ export function outdatedTabs(
     dataModel,
   };
 }
-
-// Placeholders until the Design, API and Data model tabs are built.
-const PENDING_TABS: Record<Exclude<DesignTabId, "brief">, string> = {
-  design: "Components, their choices and tradeoffs appear here after an update.",
-  api: "Endpoints and events appear here after an update.",
-  dataModel: "Generate entities, keys and relations for this design when you need them.",
-};
 
 function DesignTabs({
   value,
@@ -130,6 +126,19 @@ function showQuestionsAfterRuns(): () => void {
   });
 }
 
+function TabContent({ tab }: { tab: DesignTabId }) {
+  switch (tab) {
+    case "brief":
+      return <BriefTab />;
+    case "design":
+      return <DesignTab />;
+    case "api":
+      return <ApiTab />;
+    case "dataModel":
+      return <DataModelTab />;
+  }
+}
+
 /** The docked AI design panel: composer, run progress, or the four tabs with the update bar. */
 export function DesignPanel() {
   const brief = useDiagramStore((state) => state.brief);
@@ -158,13 +167,7 @@ export function DesignPanel() {
         <>
           <DesignTabs value={tab} onChange={setTab} outdated={outdated} />
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            {tab === "brief" ? (
-              <BriefTab />
-            ) : (
-              <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
-                {PENDING_TABS[tab]}
-              </p>
-            )}
+            <TabContent tab={tab} />
           </div>
           <RunNotes />
           <UpdateBar />

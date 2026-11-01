@@ -19,6 +19,8 @@ export interface AiDesignState {
   lastChange: { added: number; changed: number; removed: number } | null;
   /** Incremented by every `start()`; lets the diagram store group a run's applies into one undo step. */
   runId: number;
+  /** Ids of the nodes briefly marked on the canvas: an update's added and changed nodes, or an endpoint's components. */
+  highlight: Set<string>;
 
   start: (diagramId: string) => AbortSignal;
   setStage: (stage: AiStage | null) => void;
@@ -27,6 +29,8 @@ export interface AiDesignState {
   addWarnings: (warnings: string[]) => void;
   setError: (stage: AiStage, message: string | null) => void;
   setLastChange: (change: AiDesignState["lastChange"]) => void;
+  /** Replaces the highlighted node ids; an empty list clears them. */
+  setHighlight: (ids: readonly string[]) => void;
   /** running=false, controller=null, stage=null. */
   finish: () => void;
   /** Abort the controller, then finish. */
@@ -44,6 +48,7 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
   diagramId: null,
   lastChange: null,
   runId: 0,
+  highlight: new Set(),
 
   start: (diagramId) => {
     // A new run replaces any run still in flight.
@@ -59,6 +64,7 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
       controller,
       diagramId,
       lastChange: null,
+      highlight: new Set(),
       runId: state.runId + 1,
     }));
     return controller.signal;
@@ -83,6 +89,8 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
     }),
 
   setLastChange: (lastChange) => set({ lastChange }),
+
+  setHighlight: (ids) => set({ highlight: new Set(ids) }),
 
   finish: () => set({ running: false, controller: null, stage: null }),
 

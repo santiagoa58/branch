@@ -120,6 +120,21 @@ describe("DesignPanel", () => {
     expect(screen.getByRole("button", { name: "Update design" })).toBeVisible();
   });
 
+  it("shows the design, API and data model in their tabs", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({
+      brief: { ...freshBrief(), summary: "A short design." },
+      nodes: [service],
+      edges: [],
+    });
+    render(<DesignPanel />);
+    await user.click(tab("Design"));
+    expect(screen.getByText("A short design.")).toBeVisible();
+    expect(screen.getByRole("article", { name: "API" })).toBeVisible();
+    await user.click(tab("Data model"));
+    expect(screen.getByText("The data model has no entities.")).toBeVisible();
+  });
+
   it("shows progress instead of the tabs during a run, and cannot be closed", () => {
     useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
     useAiDesignStore.getState().start("d1");
