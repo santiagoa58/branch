@@ -6,7 +6,7 @@ export interface StagePrompt {
 }
 
 // Scope definitions from spec section 3.1; every stage designs at this level of detail.
-export const SCOPE_DEFINITIONS: Record<Scope, string> = {
+const SCOPE_DEFINITIONS: Record<Scope, string> = {
   frontend: "detail the client side; the backend is a single box",
   backend: "detail services, data and infrastructure; clients are one box per kind",
   fullstack: "detail both the client side and the backend",

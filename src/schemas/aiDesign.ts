@@ -23,9 +23,9 @@ const keySchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 // --- 4.1 Shared types ---
 
-export const scopeSchema = z.enum(["frontend", "backend", "fullstack"]);
-export const requirementKindSchema = z.enum(["functional", "nonFunctional", "constraint"]);
-export const nfrCategorySchema = z.enum([
+const scopeSchema = z.enum(["frontend", "backend", "fullstack"]);
+const requirementKindSchema = z.enum(["functional", "nonFunctional", "constraint"]);
+const nfrCategorySchema = z.enum([
   "scale",
   "latency",
   "availability",
@@ -52,7 +52,7 @@ export const designContextSchema = z.strictObject({
 
 // --- 4.2 Stage 1: requirements ---
 
-export const requirementsInputSchema = z.strictObject({
+const requirementsInputSchema = z.strictObject({
   prompt: z.string(),
   scope: scopeSchema,
   requirements: z.array(z.strictObject({ kind: requirementKindSchema, text: z.string() })),
@@ -94,7 +94,7 @@ export const requirementsOutputSchema = z.strictObject({
 
 // --- 4.3 Stage 2: components ---
 
-export const componentsInputSchema = z.strictObject({
+const componentsInputSchema = z.strictObject({
   context: designContextSchema,
   previousKeys: z.array(z.string()),
 });
@@ -132,7 +132,7 @@ export const componentsOutputSchema = z.strictObject({
 
 // --- 4.4 Stage 3: decisions (one call per node) ---
 
-export const decisionsInputSchema = z.strictObject({
+const decisionsInputSchema = z.strictObject({
   context: designContextSchema,
   summary: z.string(),
   node: z.strictObject({
@@ -177,7 +177,7 @@ const graphSummarySchema = z.strictObject({
   ),
 });
 
-export const apiInputSchema = z.strictObject({
+const apiInputSchema = z.strictObject({
   context: designContextSchema,
   summary: z.string(),
   graph: graphSummarySchema,
@@ -186,7 +186,7 @@ export const apiInputSchema = z.strictObject({
 // Field name to type, as in template contracts.
 const fieldMapSchema = z.record(z.string(), z.string());
 
-export const endpointSchema = z.strictObject({
+const endpointSchema = z.strictObject({
   key: z.string(),
   service: z.string(),
   calledBy: z.array(z.string()),
@@ -200,7 +200,7 @@ export const endpointSchema = z.strictObject({
   errors: z.array(z.strictObject({ status: z.number().int(), when: z.string() })),
 });
 
-export const apiEventSchema = z.strictObject({
+const apiEventSchema = z.strictObject({
   name: z.string(),
   producer: z.string(),
   consumers: z.array(z.string()),
@@ -214,7 +214,7 @@ export const apiOutputSchema = z.strictObject({
 
 // --- 4.6 Stage 5: data model ---
 
-export const dataModelInputSchema = z.strictObject({
+const dataModelInputSchema = z.strictObject({
   context: designContextSchema,
   graph: graphSummarySchema,
   endpoints: z.array(
@@ -222,7 +222,7 @@ export const dataModelInputSchema = z.strictObject({
   ),
 });
 
-export const entitySchema = z.strictObject({
+const entitySchema = z.strictObject({
   name: z.string(),
   // Key of the component that owns the entity.
   store: z.string(),
@@ -241,7 +241,7 @@ export const entitySchema = z.strictObject({
   ),
 });
 
-export const dataModelOutputSchema = z.strictObject({
+const dataModelOutputSchema = z.strictObject({
   entities: z.array(entitySchema),
 });
 
@@ -300,7 +300,6 @@ export type StageInput<S extends AiStage> = z.infer<(typeof stageSchemas)[S]["in
 export type StageOutput<S extends AiStage> = z.infer<(typeof stageSchemas)[S]["output"]>;
 export type Scope = z.infer<typeof scopeSchema>;
 export type RequirementKind = z.infer<typeof requirementKindSchema>;
-export type NfrCategory = z.infer<typeof nfrCategorySchema>;
 export type DesignContext = z.infer<typeof designContextSchema>;
 export type RequirementsInput = z.infer<typeof requirementsInputSchema>;
 export type RequirementsOutput = z.infer<typeof requirementsOutputSchema>;
@@ -313,6 +312,4 @@ export type ApiOutput = z.infer<typeof apiOutputSchema>;
 export type DataModelInput = z.infer<typeof dataModelInputSchema>;
 export type DataModelOutput = z.infer<typeof dataModelOutputSchema>;
 export type Endpoint = z.infer<typeof endpointSchema>;
-export type ApiEvent = z.infer<typeof apiEventSchema>;
-export type Entity = z.infer<typeof entitySchema>;
 export type DesignBrief = z.infer<typeof designBriefSchema>;

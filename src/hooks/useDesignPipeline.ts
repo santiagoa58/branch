@@ -13,7 +13,7 @@ import {
   edgeProtocolSchema,
   groupNodeTypeSchema,
 } from "@/schemas/catalogEnums";
-import { aiApi } from "@/services/api/ai";
+import { aiApi } from "@/services/api";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
 import { useAiDesignStore, type AiDesignState } from "@/store/aiDesignStore";
@@ -26,10 +26,10 @@ import { nextStages, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import { buildDesignContext, requirementsInput } from "@/utils/aiDesign/inputs";
 import { diffDiagrams, type DiagramSide } from "@/utils/diagramDiff";
 
-export const VERSION_LABEL = "Before AI update";
-export const NO_COMPONENTS_ERROR = "The AI returned no usable components";
+const VERSION_LABEL = "Before AI update";
+const NO_COMPONENTS_ERROR = "The AI returned no usable components";
 /** How long an update's added and changed nodes stay marked on the canvas. */
-export const HIGHLIGHT_MS = 4000;
+const HIGHLIGHT_MS = 4000;
 
 interface PipelineDiagram {
   id: string | null;

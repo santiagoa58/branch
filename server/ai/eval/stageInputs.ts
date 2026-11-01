@@ -32,7 +32,7 @@ export function componentsInput(context: DesignContext): ComponentsInput {
   return { context, previousKeys: [] };
 }
 
-export function graphOf(components: ComponentsOutput): ApiInput["graph"] {
+function graphOf(components: ComponentsOutput): ApiInput["graph"] {
   return {
     nodes: components.components.map(({ key, type, label }) => ({ key, type, label })),
     edges: components.connections.map(({ from, to, protocol, async }) => ({

@@ -17,7 +17,7 @@ export interface QuestionDraft {
  */
 export const COMPACT_LAYOUT_QUERY = "(max-width: 1023px)";
 
-export function isCompactLayout(): boolean {
+function isCompactLayout(): boolean {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&

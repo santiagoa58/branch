@@ -34,7 +34,7 @@ const LEGEND_DOTS: Record<Exclude<DiffStatus, "unchanged">, string> = {
 
 export type DiffView = "before" | "after" | "diff";
 
-export interface DiffLegendLabels {
+interface DiffLegendLabels {
   added: string;
   removed: string;
   modified: string;

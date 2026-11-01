@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const paymentsPlatform = defineTemplate({
+const paymentsPlatform = defineTemplate({
   id: "payments-platform",
   name: "Payments API",
   category: "commerce",
@@ -174,7 +174,7 @@ export const paymentsPlatform = defineTemplate({
   },
 });
 
-export const onlineBanking = defineTemplate({
+const onlineBanking = defineTemplate({
   id: "online-banking",
   name: "Digital banking app",
   category: "commerce",
@@ -362,7 +362,7 @@ export const onlineBanking = defineTemplate({
   },
 });
 
-export const storefrontSaas = defineTemplate({
+const storefrontSaas = defineTemplate({
   id: "storefront-saas",
   name: "Multi-tenant online store builder",
   category: "commerce",
@@ -520,7 +520,7 @@ export const storefrontSaas = defineTemplate({
   },
 });
 
-export const ticketing = defineTemplate({
+const ticketing = defineTemplate({
   id: "flash-sale-ticketing",
   name: "High-demand ticketing",
   category: "commerce",

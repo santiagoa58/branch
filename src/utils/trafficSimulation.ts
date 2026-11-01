@@ -15,7 +15,7 @@ export const DEFAULT_HOP_MS = 100;
 
 export type HopKind = "request" | "response" | "error" | "message";
 
-export interface TrafficHop {
+interface TrafficHop {
   edgeId: string;
   from: string;
   to: string;
@@ -52,7 +52,7 @@ export interface TrafficPlan {
 export type HopDuration = (edge: Edge) => number;
 
 /** The diagram's own illustrative latency for an edge. */
-export function hopDuration(edge: Edge): number {
+function hopDuration(edge: Edge): number {
   const latency = edge.data?.["latencyMs"];
   return typeof latency === "number" && latency > 0 ? latency : DEFAULT_HOP_MS;
 }

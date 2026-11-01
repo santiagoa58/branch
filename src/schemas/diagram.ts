@@ -22,9 +22,9 @@ export const RETIRED_NODE_TYPES = {
   mlpipeline: "training",
 } as const satisfies Record<string, z.infer<typeof architectureNodeTypeSchema>>;
 
-export const commentColorSchema = z.enum(["yellow", "blue", "green", "pink", "purple"]);
-export const nodeStatusSchema = z.enum(["active", "inactive", "warning"]);
-export const groupColorSchema = z.enum(["zinc", "blue", "emerald", "purple", "amber"]);
+const commentColorSchema = z.enum(["yellow", "blue", "green", "pink", "purple"]);
+const nodeStatusSchema = z.enum(["active", "inactive", "warning"]);
+const groupColorSchema = z.enum(["zinc", "blue", "emerald", "purple", "amber"]);
 
 export const dataFormatSchema = z.enum(["json", "protobuf", "avro", "xml", "binary", "text"]);
 export const simulationSpeedSchema = z.union([
@@ -65,7 +65,7 @@ export const architectureAttributeInputSchema = architectureAttributeSchema.supe
   },
 );
 
-export const consideredOptionSchema = z
+const consideredOptionSchema = z
   .object({
     option: z.string(),
     whyNot: z.string().exactOptional(),
@@ -129,7 +129,7 @@ export const commentNodeDataSchema = z
   })
   .strict();
 
-export const dataContractSchema = z
+const dataContractSchema = z
   .object({
     format: dataFormatSchema,
     schemaName: z.string().exactOptional(),
@@ -155,13 +155,13 @@ export const architectureEdgeDataSchema = z
   })
   .strict();
 
-export const positionSchema = z.object({ x: z.number(), y: z.number() }).strict();
-export const nodeOriginSchema = z.tuple([z.number(), z.number()]);
-export const coordinateExtentSchema = z.tuple([
+const positionSchema = z.object({ x: z.number(), y: z.number() }).strict();
+const nodeOriginSchema = z.tuple([z.number(), z.number()]);
+const coordinateExtentSchema = z.tuple([
   z.tuple([z.number(), z.number()]),
   z.tuple([z.number(), z.number()]),
 ]);
-export const handlePositionSchema = z.enum(ReactFlowPosition);
+const handlePositionSchema = z.enum(ReactFlowPosition);
 
 const cssValueSchema = z.union([z.string(), z.number()]);
 // Persist CSS scalar values, never arbitrary objects or executable React props.
@@ -235,7 +235,7 @@ const reactFlowNodeFields = {
   dragHandle: z.string().exactOptional(),
 };
 
-export const architectureNodeSchema = z
+const architectureNodeSchema = z
   .object({
     ...reactFlowNodeFields,
     type: z.literal("architecture"),
@@ -243,7 +243,7 @@ export const architectureNodeSchema = z
   })
   .strict();
 
-export const groupNodeSchema = z
+const groupNodeSchema = z
   .object({
     ...reactFlowNodeFields,
     type: z.literal("group"),
@@ -251,7 +251,7 @@ export const groupNodeSchema = z
   })
   .strict();
 
-export const commentNodeSchema = z
+const commentNodeSchema = z
   .object({
     ...reactFlowNodeFields,
     type: z.literal("comment"),
@@ -302,7 +302,7 @@ function migrateRetiredNodeType(value: unknown): unknown {
   return value;
 }
 
-export const reactFlowNodeSchema = z.preprocess(
+const reactFlowNodeSchema = z.preprocess(
   migrateRetiredNodeType,
   z.union([architectureNodeSchema, groupNodeSchema, commentNodeSchema]),
 );
@@ -355,12 +355,9 @@ function migrateRetiredHandles(value: unknown): unknown {
   return edge;
 }
 
-export const architectureEdgeSchema = z.preprocess(
-  migrateRetiredHandles,
-  architectureEdgeObjectSchema,
-);
+const architectureEdgeSchema = z.preprocess(migrateRetiredHandles, architectureEdgeObjectSchema);
 
-export const viewportSchema = z
+const viewportSchema = z
   .object({
     x: z.number(),
     y: z.number(),
@@ -368,7 +365,7 @@ export const viewportSchema = z
   })
   .strict();
 
-export const namedFlowSchema = z
+const namedFlowSchema = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -381,7 +378,7 @@ export const namedFlowSchema = z
   })
   .strict();
 
-export const diagramStructureSchema = z
+const diagramStructureSchema = z
   .object({
     nodes: z.array(reactFlowNodeSchema),
     edges: z.array(architectureEdgeSchema),
@@ -391,10 +388,7 @@ export const diagramStructureSchema = z
   })
   .strict() satisfies z.ZodType<DiagramData>;
 
-export function refineDiagramReferences(
-  data: Pick<DiagramData, "nodes" | "edges">,
-  ctx: z.RefinementCtx,
-) {
+function refineDiagramReferences(data: Pick<DiagramData, "nodes" | "edges">, ctx: z.RefinementCtx) {
   const nodeIds = new Set<string>();
   data.nodes.forEach((node, index) => {
     if (nodeIds.has(node.id)) {
@@ -434,33 +428,6 @@ export function refineDiagramReferences(
 }
 
 export const diagramDataSchema = diagramStructureSchema.superRefine(refineDiagramReferences);
-
-export type ArchitectureNodeType = z.infer<typeof architectureNodeTypeSchema>;
-export type GroupNodeType = z.infer<typeof groupNodeTypeSchema>;
-export type CommentColor = z.infer<typeof commentColorSchema>;
-export type NodeStatus = z.infer<typeof nodeStatusSchema>;
-export type GroupColor = z.infer<typeof groupColorSchema>;
-export type EdgeProtocol = z.infer<typeof edgeProtocolSchema>;
-export type HttpMethod = z.infer<typeof httpMethodSchema>;
-export type DataFormat = z.infer<typeof dataFormatSchema>;
-export type SimulationSpeed = z.infer<typeof simulationSpeedSchema>;
-export type ArchitectureAttribute = z.infer<typeof architectureAttributeSchema>;
-export type ArchitectureNodeData = z.infer<typeof architectureNodeDataSchema>;
-export type GroupNodeData = z.infer<typeof groupNodeDataSchema>;
-export type CommentNodeData = z.infer<typeof commentNodeDataSchema>;
-export type DataContract = z.infer<typeof dataContractSchema>;
-export type ArchitectureEdgeData = z.infer<typeof architectureEdgeDataSchema>;
-export type Position = z.infer<typeof positionSchema>;
-export type NodeOrigin = z.infer<typeof nodeOriginSchema>;
-export type CoordinateExtent = z.infer<typeof coordinateExtentSchema>;
-export type HandlePosition = z.infer<typeof handlePositionSchema>;
-export type ArchitectureNode = z.infer<typeof architectureNodeSchema>;
-export type GroupNode = z.infer<typeof groupNodeSchema>;
-export type CommentNode = z.infer<typeof commentNodeSchema>;
-export type ReactFlowNode = z.infer<typeof reactFlowNodeSchema>;
-export type ArchitectureEdge = z.infer<typeof architectureEdgeSchema>;
-export type Viewport = z.infer<typeof viewportSchema>;
-export type NamedFlow = z.infer<typeof namedFlowSchema>;
 
 export interface FormattedZodIssue {
   code: z.core.$ZodIssue["code"];

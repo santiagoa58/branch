@@ -10,7 +10,7 @@ import { nextStages, type PipelineStage } from "@/utils/aiDesign/fingerprint";
 import { keyedByText } from "./briefEdits";
 
 /** How each stage is named in the panel. */
-export const STAGE_LABELS: Record<AiStage, string> = {
+const STAGE_LABELS: Record<AiStage, string> = {
   requirements: "Requirements",
   components: "Components",
   decisions: "Reasoning",

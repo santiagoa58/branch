@@ -28,7 +28,7 @@ export const aiEnvSchema = z.object({
   AI_MODEL_DATA_MODEL: optionalSetting,
 });
 export type AiEnv = z.infer<typeof aiEnvSchema>;
-export const routeIdSchema = z.uuid();
+const routeIdSchema = z.uuid();
 
 export const projectRouteParamsSchema = z.strictObject({ projectId: routeIdSchema });
 export const diagramRouteParamsSchema = z.strictObject({ diagramId: routeIdSchema });

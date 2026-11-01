@@ -84,7 +84,7 @@ export type GroupNodeType =
 // Comment note colors
 export type CommentColor = "yellow" | "blue" | "green" | "pink" | "purple";
 
-export type NodeStatus = "active" | "inactive" | "warning";
+type NodeStatus = "active" | "inactive" | "warning";
 
 export interface ArchitectureAttribute {
   name: string;
@@ -148,7 +148,7 @@ export type GroupNodeData = {
 } & Record<string, unknown>;
 
 // Data structure for comment/annotation nodes
-export type CommentNodeData = {
+type CommentNodeData = {
   text: string;
   color?: CommentColor;
   author?: string;

@@ -13,7 +13,6 @@ import {
 } from "@/schemas/iconify";
 
 export type IconifySearchResult = IconifySearchResponse;
-export type IconifyCollectionsResponse = Record<string, IconifyCollection>;
 export type { IconifyCollection };
 
 const ICONIFY_API_BASE = "https://api.iconify.design";

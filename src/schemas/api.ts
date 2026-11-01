@@ -10,6 +10,10 @@ export const apiProjectSchema = z.strictObject({
   updatedAt: z.string(),
 });
 
+/**
+ * Duplicate of apiProjectSchema; knip suppression pending plan item 26.
+ * @alias
+ */
 export const apiProjectSummarySchema = apiProjectSchema;
 
 export const apiDiagramSchema = z.strictObject({
@@ -25,7 +29,7 @@ export const apiDiagramSchema = z.strictObject({
   updatedAt: z.string(),
 });
 
-export const apiDiagramSummarySchema = apiDiagramSchema.omit({ data: true });
+const apiDiagramSummarySchema = apiDiagramSchema.omit({ data: true });
 
 export const apiDiagramVersionSchema = z.strictObject({
   id: z.string(),
@@ -82,7 +86,7 @@ export const apiErrorBodySchema = z.strictObject({
 
 export const apiProjectListSchema = z.array(apiProjectSummarySchema);
 export const apiDiagramSummaryListSchema = z.array(apiDiagramSummarySchema);
-export const apiWorkspaceProjectSchema = apiProjectSchema.extend({
+const apiWorkspaceProjectSchema = apiProjectSchema.extend({
   diagrams: apiDiagramSummaryListSchema,
 });
 export const apiWorkspaceSchema = z.array(apiWorkspaceProjectSchema);
@@ -90,7 +94,6 @@ export const apiDiagramVersionListSchema = z.array(apiDiagramVersionSchema);
 export const voidResponseSchema = z.void();
 
 export type ApiProject = z.infer<typeof apiProjectSchema>;
-export type ApiProjectSummary = z.infer<typeof apiProjectSummarySchema>;
 export type ApiWorkspaceProject = z.infer<typeof apiWorkspaceProjectSchema>;
 export type ApiDiagram = z.infer<typeof apiDiagramSchema>;
 export type ApiDiagramSummary = z.infer<typeof apiDiagramSummarySchema>;
@@ -102,4 +105,3 @@ export type CreateDiagramRequest = z.infer<typeof createDiagramRequestSchema>;
 export type UpdateDiagramRequest = z.infer<typeof updateDiagramRequestSchema>;
 export type UpdateThumbnailRequest = z.infer<typeof updateThumbnailRequestSchema>;
 export type CreateDiagramVersionRequest = z.infer<typeof createDiagramVersionRequestSchema>;
-export type ApiErrorBody = z.infer<typeof apiErrorBodySchema>;

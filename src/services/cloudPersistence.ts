@@ -19,7 +19,7 @@ export type SaveStatus =
 export type LoadFailure = "unreadable" | "missing" | "unavailable";
 
 /** The copy saved elsewhere while this tab still had unsaved edits. */
-export interface SaveConflict {
+interface SaveConflict {
   /** Null while it is being fetched, or when fetching it failed. */
   remote: ApiDiagram | null;
   failed: boolean;

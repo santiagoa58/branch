@@ -93,9 +93,6 @@ export interface CascadeLevel {
   edgeIds: string[];
 }
 
-/** Transient simulation visual state applied to a node */
-export type NodeSimulationState = "source" | "active" | "failed" | "affected" | "protected" | null;
-
 /** Chaos mode sub-modes */
 export type ChaosSubMode = "random-failure" | "network-partition";
 

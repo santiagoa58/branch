@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const themeSchema = z.enum(["light", "dark", "system"]);
+const themeSchema = z.enum(["light", "dark", "system"]);
 
 export const themeStateSchema = z.strictObject({ theme: themeSchema });
 

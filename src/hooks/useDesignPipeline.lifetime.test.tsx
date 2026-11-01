@@ -4,8 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import App from "@/App";
 import type { DesignBrief, StageOutput } from "@/schemas/aiDesign";
 import { diagramDataSchema } from "@/schemas/diagram";
-import { diagramsApi, type ApiDiagram } from "@/services/api";
-import { aiApi } from "@/services/api/ai";
+import { aiApi, diagramsApi, type ApiDiagram } from "@/services/api";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";

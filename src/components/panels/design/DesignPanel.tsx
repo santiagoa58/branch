@@ -22,9 +22,7 @@ const TABS: readonly { id: DesignTabId; label: string }[] = [
 ];
 
 /** Which tabs show content that is out of date (spec 9.2). */
-export function outdatedTabs(
-  outdated: ReturnType<typeof outdatedStages>,
-): Record<DesignTabId, boolean> {
+function outdatedTabs(outdated: ReturnType<typeof outdatedStages>): Record<DesignTabId, boolean> {
   const { stages, dataModel } = outdated;
   return {
     brief: stages.includes("requirements"),
