@@ -1,10 +1,19 @@
+import type { Edge, Node } from "@xyflow/react";
 import type {
+  ApiInput,
+  DecisionsInput,
   DesignBrief,
   DesignContext,
   RequirementKind,
   RequirementsInput,
   Scope,
 } from "@/schemas/aiDesign";
+import {
+  architectureNodeTypeSchema,
+  edgeProtocolSchema,
+  groupNodeTypeSchema,
+} from "@/schemas/catalogEnums";
+import type { ArchitectureNodeType, GroupNodeType } from "@/types";
 
 // Every user action in the AI design panel is an edit to the brief's inputs (spec 3.1). These pure
 // helpers return a new brief and leave stage outputs untouched until stage 1 re-runs.
@@ -190,5 +199,97 @@ export function requirementsInput(brief: DesignBrief): RequirementsInput {
       answer,
       assumed,
     })),
+  };
+}
+
+// --- Inputs of the stages after stage 2, built from the diagram ---
+
+/** A node's label (its id when it has none) and its catalog type when that is a valid one. */
+export type NodeIdentity =
+  | { kind: "architecture"; label: string; type: ArchitectureNodeType | undefined }
+  | { kind: "group"; label: string; type: GroupNodeType | undefined }
+  | { kind: "other"; label: string; type: undefined };
+
+export function nodeIdentity(node: Node): NodeIdentity {
+  const label = typeof node.data["label"] === "string" ? node.data["label"] : node.id;
+  if (node.type === "architecture") {
+    const type = architectureNodeTypeSchema.safeParse(node.data["type"]).data;
+    return { kind: "architecture", label, type };
+  }
+  if (node.type === "group") {
+    const type = groupNodeTypeSchema.safeParse(node.data["groupType"]).data;
+    return { kind: "group", label, type };
+  }
+  return { kind: "other", label, type: undefined };
+}
+
+function edgeProtocol(edge: Edge) {
+  const parsed = edgeProtocolSchema.safeParse(edge.data?.["protocol"]);
+  return parsed.success ? parsed.data : undefined;
+}
+
+/** The architecture nodes with a valid type, and the edges with a valid protocol. */
+export function graphSummary(nodes: Node[], edges: Edge[]): ApiInput["graph"] {
+  return {
+    nodes: nodes.flatMap((node) => {
+      const { kind, type, label } = nodeIdentity(node);
+      return kind === "architecture" && type ? [{ key: node.id, type, label }] : [];
+    }),
+    edges: edges.flatMap((edge) => {
+      const protocol = edgeProtocol(edge);
+      return protocol
+        ? [{ from: edge.source, to: edge.target, protocol, async: edge.data?.["async"] === true }]
+        : [];
+    }),
+  };
+}
+
+/** What the stages after stage 2 are told about a design. */
+export interface StageDesign {
+  context: DesignContext;
+  /** Stage 2's summary of the design. */
+  summary: string;
+  nodes: Node[];
+  edges: Edge[];
+}
+
+/** The decisions input of an architecture or group node with a valid type, else undefined. */
+export function decisionInput(design: StageDesign, node: Node): DecisionsInput | undefined {
+  const { type, label } = nodeIdentity(node);
+  if (!type) {
+    return undefined;
+  }
+  const byId = new Map(design.nodes.map((entry) => [entry.id, entry]));
+  const neighbours = design.edges.flatMap((edge): DecisionsInput["neighbours"] => {
+    const direction = edge.source === node.id ? "out" : edge.target === node.id ? "in" : undefined;
+    const other = byId.get(direction === "out" ? edge.target : edge.source);
+    const protocol = edgeProtocol(edge);
+    if (!direction || !other || !protocol) {
+      return [];
+    }
+    const identity = nodeIdentity(other);
+    return [
+      {
+        key: other.id,
+        type: identity.type ?? other.type ?? "",
+        label: identity.label,
+        protocol,
+        direction,
+      },
+    ];
+  });
+  const description = node.data["description"];
+  return {
+    context: design.context,
+    summary: design.summary,
+    node: {
+      key: node.id,
+      type,
+      label,
+      ...(typeof description === "string" && description !== ""
+        ? { responsibility: description }
+        : {}),
+    },
+    neighbours,
   };
 }

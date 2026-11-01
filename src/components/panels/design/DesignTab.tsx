@@ -3,10 +3,10 @@ import { useMemo } from "react";
 import { TradeoffList } from "@/components/ui/TradeoffList";
 import { GROUP_TYPES_CONFIG, NODE_TYPES_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
-import { architectureNodeTypeSchema, groupNodeTypeSchema } from "@/schemas/catalogEnums";
 import { designDecisionSchema } from "@/schemas/diagram";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { DesignDecision } from "@/types";
+import { nodeIdentity, type NodeIdentity } from "@/utils/aiDesign/inputs";
 import { getDocumentedDecision, hasDesignDecision } from "@/utils/designDecision";
 import { Button } from "@/components/ui/button";
 import { sectionLabelClass } from "./briefEdits";
@@ -20,26 +20,25 @@ interface Component {
   decision: DesignDecision | undefined;
 }
 
-function kindLabel(node: Node): string {
-  if (node.type === "group") {
-    const parsed = groupNodeTypeSchema.safeParse(node.data["groupType"]);
-    return parsed.success ? GROUP_TYPES_CONFIG[parsed.data].label : "Group";
+function kindLabel(identity: NodeIdentity): string {
+  if (identity.kind === "group") {
+    return identity.type ? GROUP_TYPES_CONFIG[identity.type].label : "Group";
   }
-  const parsed = architectureNodeTypeSchema.safeParse(node.data["type"]);
-  return parsed.success ? NODE_TYPES_CONFIG[parsed.data].label : "Component";
+  return identity.type ? NODE_TYPES_CONFIG[identity.type].label : "Component";
 }
 
 function componentsOf(nodes: readonly Node[]): Component[] {
   return nodes.flatMap((node) => {
-    if (node.type !== "architecture" && node.type !== "group") {
+    const identity = nodeIdentity(node);
+    if (identity.kind === "other") {
       return [];
     }
-    const label = node.data["label"];
     return [
       {
         id: node.id,
-        label: typeof label === "string" && label !== "" ? label : node.id,
-        kind: kindLabel(node),
+        // Unlike the AI stage inputs, which send it as it is, an empty label shows the id.
+        label: identity.label === "" ? node.id : identity.label,
+        kind: kindLabel(identity),
         decision: designDecisionSchema.safeParse(node.data["decision"]).data,
       },
     ];

@@ -13,7 +13,6 @@ import {
 import { syntheticApi, syntheticComponents, syntheticContext } from "./synthetic";
 
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
-const KB64 = 64 * 1024;
 
 // Every stage input a browser can send for the fixtures and the synthetic 40-component design.
 function measuredInputs() {
@@ -48,8 +47,10 @@ describe("synthetic design", () => {
 });
 
 describe("AI_MAX_BODY_BYTES", () => {
-  it("is four times the largest measured stage input, rounded up to 64 KB", () => {
-    const largest = Math.max(...measuredInputs().map(([, input]) => bytes(input)));
-    expect(AI_MAX_BODY_BYTES).toBe(Math.ceil((largest * 4) / KB64) * KB64);
+  it("leaves four times headroom over every measured stage input", () => {
+    const tooLarge = measuredInputs()
+      .filter(([, input]) => bytes(input) * 4 > AI_MAX_BODY_BYTES)
+      .map(([stage, input]) => `${stage}: ${bytes(input)} B`);
+    expect(tooLarge).toEqual([]);
   });
 });

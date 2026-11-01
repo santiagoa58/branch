@@ -1,5 +1,6 @@
+import type { Edge, Node } from "@xyflow/react";
 import { describe, expect, it } from "vite-plus/test";
-import type { DesignBrief } from "@/schemas/aiDesign";
+import type { DesignBrief, DesignContext } from "@/schemas/aiDesign";
 import {
   addOutOfScopeLine,
   addRequirementLine,
@@ -10,14 +11,18 @@ import {
   changeAssumption,
   confirmAssumption,
   createBrief,
+  decisionInput,
   editOutOfScopeLine,
   editRequirementLine,
+  graphSummary,
+  nodeIdentity,
   normalizeText,
   removeDerivedRequirement,
   removeOutOfScopeLine,
   removeRequirementLine,
   requireCondition,
   requirementsInput,
+  type StageDesign,
 } from "./inputs";
 
 function ids() {
@@ -342,4 +347,146 @@ describe("normalizeText", () => {
 
   it("returns an empty string for whitespace-only text", () =>
     expect(normalizeText(" \n\t ")).toBe(""));
+});
+
+// --- Inputs of the stages after stage 2 ---
+
+function node(id: string, type: string, data: Record<string, unknown>): Node {
+  return { id, type, position: { x: 0, y: 0 }, data };
+}
+
+function edge(source: string, target: string, data?: Record<string, unknown>): Edge {
+  return { id: `${source}-${target}`, source, target, ...(data ? { data } : {}) };
+}
+
+const api = node("api", "architecture", { type: "service", label: "API", description: "Serves" });
+const db = node("db", "architecture", { type: "database", label: "Orders DB" });
+const web = node("web", "architecture", { type: "webapp", label: "Web" });
+const vpc = node("vpc", "group", { groupType: "vpc", label: "VPC" });
+const note = node("note", "comment", { label: "Remember backups" });
+
+const shopContext: DesignContext = {
+  prompt: "Shop",
+  scope: "backend",
+  requirements: [],
+  outOfScope: [],
+};
+
+const design = (nodes: Node[], edges: Edge[]): StageDesign => ({
+  context: shopContext,
+  summary: "A shop",
+  nodes,
+  edges,
+});
+
+describe("nodeIdentity", () => {
+  it("reads the label and the type of an architecture node", () =>
+    expect(nodeIdentity(api)).toEqual({ kind: "architecture", label: "API", type: "service" }));
+
+  it("reads a group's type from groupType", () =>
+    expect(nodeIdentity(vpc)).toEqual({ kind: "group", label: "VPC", type: "vpc" }));
+
+  it("leaves out a type the catalog does not have", () => {
+    expect(nodeIdentity(node("x", "architecture", { type: "mainframe", label: "X" })).type).toBe(
+      undefined,
+    );
+    expect(nodeIdentity(node("g", "group", { groupType: "service", label: "G" })).type).toBe(
+      undefined,
+    );
+  });
+
+  it("gives other nodes no type", () =>
+    expect(nodeIdentity(note)).toEqual({
+      kind: "other",
+      label: "Remember backups",
+      type: undefined,
+    }));
+
+  it("falls back to the id when the label is not a string", () =>
+    expect(nodeIdentity(node("cache", "architecture", { type: "cache" })).label).toBe("cache"));
+
+  it("keeps an empty label", () =>
+    expect(nodeIdentity(node("cache", "architecture", { type: "cache", label: "" })).label).toBe(
+      "",
+    ));
+});
+
+describe("graphSummary", () => {
+  it("keeps architecture nodes with a valid type and skips the rest", () => {
+    const invalid = node("bad", "architecture", { type: "mainframe", label: "Bad" });
+    expect(graphSummary([vpc, api, invalid, note, db], []).nodes).toEqual([
+      { key: "api", type: "service", label: "API" },
+      { key: "db", type: "database", label: "Orders DB" },
+    ]);
+  });
+
+  it("drops edges without a valid protocol and reads async", () => {
+    const edges = [
+      edge("api", "db", { protocol: "sql" }),
+      edge("web", "api"),
+      edge("api", "web", { protocol: "carrier-pigeon" }),
+      edge("api", "web", { protocol: "kafka", async: true }),
+    ];
+    expect(graphSummary([], edges).edges).toEqual([
+      { from: "api", to: "db", protocol: "sql", async: false },
+      { from: "api", to: "web", protocol: "kafka", async: true },
+    ]);
+  });
+
+  it("labels an unnamed node with its id", () =>
+    expect(graphSummary([node("q", "architecture", { type: "queue" })], []).nodes).toEqual([
+      { key: "q", type: "queue", label: "q" },
+    ]));
+});
+
+describe("decisionInput", () => {
+  it("lists neighbours with the direction of each edge", () => {
+    const input = decisionInput(
+      design(
+        [web, api, db],
+        [edge("web", "api", { protocol: "http" }), edge("api", "db", { protocol: "sql" })],
+      ),
+      api,
+    );
+    expect(input).toEqual({
+      context: shopContext,
+      summary: "A shop",
+      node: { key: "api", type: "service", label: "API", responsibility: "Serves" },
+      neighbours: [
+        { key: "web", type: "webapp", label: "Web", protocol: "http", direction: "in" },
+        { key: "db", type: "database", label: "Orders DB", protocol: "sql", direction: "out" },
+      ],
+    });
+  });
+
+  it("drops neighbours whose edge has no protocol or whose node is missing", () => {
+    const edges = [edge("web", "api"), edge("api", "gone", { protocol: "http" })];
+    expect(decisionInput(design([web, api], edges), api)?.neighbours).toEqual([]);
+  });
+
+  it("falls back to the raw node type and the id for a neighbour outside the catalog", () => {
+    const other = node("ext", "architecture", { type: "mainframe" });
+    const input = decisionInput(
+      design([api, other], [edge("api", "ext", { protocol: "tcp" })]),
+      api,
+    );
+    expect(input?.neighbours).toEqual([
+      { key: "ext", type: "architecture", label: "ext", protocol: "tcp", direction: "out" },
+    ]);
+  });
+
+  it("builds an input for a group and leaves out an empty responsibility", () => {
+    const group = node("vpc", "group", { groupType: "vpc", description: "" });
+    expect(decisionInput(design([group], []), group)?.node).toEqual({
+      key: "vpc",
+      type: "vpc",
+      label: "vpc",
+    });
+  });
+
+  it("skips nodes without a valid catalog type", () => {
+    const invalid = node("bad", "architecture", { type: "mainframe", label: "Bad" });
+    expect(decisionInput(design([invalid, note], []), invalid)).toBe(undefined);
+    expect(decisionInput(design([invalid, note], []), note)).toBe(undefined);
+  });
 });

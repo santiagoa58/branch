@@ -1,19 +1,7 @@
-// oxlint-disable max-lines -- debt: 519 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 457 lines (limit 450); split the module
 import type { Edge, Node } from "@xyflow/react";
-import type {
-  AiStage,
-  ApiInput,
-  DecisionsInput,
-  DesignBrief,
-  StageInput,
-  StageOutput,
-} from "@/schemas/aiDesign";
+import type { AiStage, DesignBrief, StageInput, StageOutput } from "@/schemas/aiDesign";
 import { aiStageSchema } from "@/schemas/aiDesign";
-import {
-  architectureNodeTypeSchema,
-  edgeProtocolSchema,
-  groupNodeTypeSchema,
-} from "@/schemas/catalogEnums";
 import { aiApi } from "@/services/api";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
@@ -24,7 +12,13 @@ import { applyComponents } from "@/utils/aiDesign/applyComponents";
 import { applyRequirements } from "@/utils/aiDesign/applyRequirements";
 import { applyApi, applyDataModel, applyDecision } from "@/utils/aiDesign/applyResults";
 import { nextStages, resultFingerprint } from "@/utils/aiDesign/fingerprint";
-import { buildDesignContext, requirementsInput } from "@/utils/aiDesign/inputs";
+import {
+  buildDesignContext,
+  decisionInput,
+  graphSummary,
+  requirementsInput,
+  type StageDesign,
+} from "@/utils/aiDesign/inputs";
 import { diffDiagrams, type DiagramSide } from "@/utils/diagramDiff";
 
 const VERSION_LABEL = "Before AI update";
@@ -76,78 +70,12 @@ function errorMessage(error: unknown): string {
 
 const isGenerated = (node: Node) => node.type === "architecture" || node.type === "group";
 
-/** The catalog type of an architecture or group node, when it is a valid one. */
-function nodeType(node: Node): DecisionsInput["node"]["type"] | undefined {
-  const parsed =
-    node.type === "architecture"
-      ? architectureNodeTypeSchema.safeParse(node.data["type"])
-      : node.type === "group"
-        ? groupNodeTypeSchema.safeParse(node.data["groupType"])
-        : undefined;
-  return parsed?.success ? parsed.data : undefined;
-}
-
-const nodeLabel = (node: Node) =>
-  typeof node.data["label"] === "string" ? node.data["label"] : node.id;
-
-function edgeProtocol(edge: Edge) {
-  const parsed = edgeProtocolSchema.safeParse(edge.data?.["protocol"]);
-  return parsed.success ? parsed.data : undefined;
-}
-
-function graphSummary(nodes: Node[], edges: Edge[]): ApiInput["graph"] {
-  return {
-    nodes: nodes.flatMap((node) => {
-      const type = node.type === "architecture" ? nodeType(node) : undefined;
-      return type ? [{ key: node.id, type, label: nodeLabel(node) }] : [];
-    }),
-    edges: edges.flatMap((edge) => {
-      const protocol = edgeProtocol(edge);
-      return protocol
-        ? [{ from: edge.source, to: edge.target, protocol, async: edge.data?.["async"] === true }]
-        : [];
-    }),
-  };
-}
-
-function decisionInput(diagram: LiveDiagram, node: Node): DecisionsInput | undefined {
-  const type = nodeType(node);
-  if (!isGenerated(node) || !type) {
-    return undefined;
-  }
-  const byId = new Map(diagram.nodes.map((entry) => [entry.id, entry]));
-  const neighbours = diagram.edges.flatMap((edge): DecisionsInput["neighbours"] => {
-    const direction = edge.source === node.id ? "out" : edge.target === node.id ? "in" : undefined;
-    const other = byId.get(direction === "out" ? edge.target : edge.source);
-    const protocol = edgeProtocol(edge);
-    if (!direction || !other || !protocol) {
-      return [];
-    }
-    return [
-      {
-        key: other.id,
-        type: nodeType(other) ?? other.type ?? "",
-        label: nodeLabel(other),
-        protocol,
-        direction,
-      },
-    ];
-  });
-  const description = node.data["description"];
-  return {
-    context: buildDesignContext(diagram.brief),
-    summary: diagram.brief.summary ?? "",
-    node: {
-      key: node.id,
-      type,
-      label: nodeLabel(node),
-      ...(typeof description === "string" && description !== ""
-        ? { responsibility: description }
-        : {}),
-    },
-    neighbours,
-  };
-}
+const stageDesign = (diagram: LiveDiagram): StageDesign => ({
+  context: buildDesignContext(diagram.brief),
+  summary: diagram.brief.summary ?? "",
+  nodes: diagram.nodes,
+  edges: diagram.edges,
+});
 
 // --- Runs ---
 
@@ -244,8 +172,9 @@ async function runDecisions(
   ranFrom: string,
   concurrency: number,
 ): Promise<void> {
+  const design = stageDesign(base);
   const inputs = base.nodes.flatMap((node) => {
-    const input = decisionInput(base, node);
+    const input = decisionInput(design, node);
     return input ? [input] : [];
   });
   let done = 0;
@@ -484,7 +413,11 @@ export async function runPipeline(
 export async function runDecision(deps: PipelineDeps, nodeId: string): Promise<void> {
   const opened = deps.diagram();
   const node = opened.nodes.find((entry) => entry.id === nodeId);
-  if (!node || !opened.brief || !decisionInput({ ...opened, brief: opened.brief }, node)) {
+  if (
+    !node ||
+    !opened.brief ||
+    !decisionInput(stageDesign({ ...opened, brief: opened.brief }), node)
+  ) {
     return;
   }
   const session = beginRun(deps, ["decisions"]);
@@ -493,7 +426,7 @@ export async function runDecision(deps: PipelineDeps, nodeId: string): Promise<v
   }
   try {
     const base = session.current();
-    const input = base ? decisionInput(base, node) : undefined;
+    const input = base ? decisionInput(stageDesign(base), node) : undefined;
     if (!input) {
       return;
     }

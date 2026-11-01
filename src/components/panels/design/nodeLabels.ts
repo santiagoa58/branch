@@ -1,11 +1,13 @@
 import type { Node } from "@xyflow/react";
+import { nodeIdentity } from "@/utils/aiDesign/inputs";
 
 /** Node id to its label, for turning the keys the AI returns into names. */
 export function labelLookup(nodes: readonly Node[]): (key: string) => string {
   const labels = new Map<string, string>();
   for (const node of nodes) {
-    const label = node.data["label"];
-    if (typeof label === "string" && label !== "") {
+    // An empty label reads as none, so the key stays.
+    const { label } = nodeIdentity(node);
+    if (label !== "") {
       labels.set(node.id, label);
     }
   }
