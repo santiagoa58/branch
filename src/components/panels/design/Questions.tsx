@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type QuestionDraft } from "@/store/uiStore";
-import { nextStages } from "@/utils/aiDesign/fingerprint";
 import { answerQuestion, assumeRemaining } from "@/utils/aiDesign/inputs";
 import { keyedByText } from "@/lib/keyedByText";
 import { editBrief, inputClass, newId, tagClass } from "./briefEdits";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
+import { useOutdatedStages } from "./useOutdatedStages";
 
 type Question = DesignBrief["questions"][number];
 
@@ -127,7 +127,7 @@ export function Questions({ brief }: { brief: DesignBrief }) {
   const allAnswered = questions.every((question) => answerOf(question) !== "");
   const updating = brief.ranFrom.components !== undefined;
   const nodes = useDiagramStore((state) => state.nodes);
-  const edges = useDiagramStore((state) => state.edges);
+  const { nextFor } = useOutdatedStages();
   const noticeId = useId();
 
   const record = (current: DesignBrief) => recordAnswers(current, drafts, newId);
@@ -141,9 +141,9 @@ export function Questions({ brief }: { brief: DesignBrief }) {
     const previewId = () => "preview";
     const recorded = recordAnswers(brief, drafts, previewId);
     return [recorded, assumeRemaining(recorded, previewId)].some((next) =>
-      nextStages(next, nodes, edges).includes("components"),
+      nextFor(next).includes("components"),
     );
-  }, [brief, drafts, nodes, edges]);
+  }, [brief, drafts, nodes, nextFor]);
 
   const submit = (assumeRest: boolean) => {
     editBrief((current) =>

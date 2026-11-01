@@ -42,7 +42,7 @@ needs no edit.
 ## State (Zustand stores in `src/store/`)
 
 - `diagramStore` — nodes, edges, clipboard, undo/redo. Call `saveToHistory()` before
-  user-initiated changes; persist via `debouncedSave()`. Never mutate state directly.
+  user-initiated changes; persist via `saveDiagram()`. Never mutate state directly.
 - `simulationStore` — flow/failure/chaos state. **Ephemeral**: never persisted to
   localStorage, never in undo/redo. `setMode` resets the previous mode.
 - `animationStore` — pending-deletion orchestration. Use `requestDelete()` for

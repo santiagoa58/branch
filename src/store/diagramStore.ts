@@ -1,4 +1,4 @@
-// oxlint-disable max-lines -- debt: 861 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 863 lines (limit 450); split the module
 import { create } from "zustand";
 import {
   type Connection,
@@ -143,8 +143,18 @@ export interface DiagramStore {
   playFlow: (id: string) => boolean;
 }
 
-// Capture the document contents and identity at the edit, not when a timer fires.
-const debouncedSave = (saveFn: () => void) => saveFn();
+/**
+ * The persisted document for a store state. The persisted schema treats the brief as exactly
+ * optional, so it is omitted when absent.
+ */
+export function documentOf({
+  nodes,
+  edges,
+  flows,
+  brief,
+}: Pick<DiagramStore, "nodes" | "edges" | "flows" | "brief">) {
+  return brief ? { nodes, edges, flows, brief } : { nodes, edges, flows };
+}
 
 // A missing brief is stored as an absent key, so entries stay identical to pre-brief snapshots.
 function historyEntry(nodes: Node[], edges: Edge[], brief: DesignBrief | null): HistoryState {
@@ -167,7 +177,7 @@ function setIfEditable(
   }
 }
 
-// oxlint-disable-next-line max-lines-per-function -- debt: 741 lines; split into smaller units
+// oxlint-disable-next-line max-lines-per-function -- debt: 735 lines; split into smaller units
 export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Initial state
   nodes: [],
@@ -201,7 +211,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     );
     if (hasPositionChange) {
       get().saveToHistory();
-      debouncedSave(get().saveDiagram);
+      get().saveDiagram();
     }
   },
 
@@ -214,7 +224,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     const hasRemove = changes.some((c) => c.type === "remove");
     if (hasRemove) {
       get().saveToHistory();
-      debouncedSave(get().saveDiagram);
+      get().saveDiagram();
     }
   },
 
@@ -243,7 +253,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     }));
 
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Add new node
@@ -252,7 +262,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       nodes: [...state.nodes, node],
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Update node data
@@ -263,7 +273,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       ),
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Delete node
@@ -274,7 +284,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Delete selected nodes
@@ -294,7 +304,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       selectedNodeId: null,
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Duplicate nodes
@@ -473,7 +483,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     });
 
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Copy selected nodes to clipboard
@@ -633,7 +643,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     }));
 
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Check if clipboard has content
@@ -652,7 +662,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       };
     });
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Send node to back (decrease zIndex below all other group nodes)
@@ -665,7 +675,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       };
     });
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Update group data
@@ -676,7 +686,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       ),
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Toggle group collapse. Only flips the flag — child/edge visibility and
@@ -697,7 +707,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       ),
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Add node to group
@@ -777,7 +787,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       return { nodes: reorderedNodes };
     });
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Remove node from group
@@ -815,7 +825,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       };
     });
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Update edge data
@@ -826,7 +836,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       ),
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Delete edge
@@ -836,7 +846,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId,
     }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // Selection
@@ -897,7 +907,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
         brief: prevState.brief ?? null,
         historyIndex: historyIndex - 1,
       });
-      debouncedSave(get().saveDiagram);
+      get().saveDiagram();
     }
   },
 
@@ -915,14 +925,13 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
         brief: nextState.brief ?? null,
         historyIndex: historyIndex + 1,
       });
-      debouncedSave(get().saveDiagram);
+      get().saveDiagram();
     }
   },
 
+  // Capture the document contents and identity at the edit, not when a timer fires.
   saveDiagram: () => {
-    const { nodes, edges, flows, brief } = get();
-    // The persisted schema treats the brief as exactly optional, so omit it when absent.
-    cloudWorkspace.schedule(brief ? { nodes, edges, flows, brief } : { nodes, edges, flows });
+    cloudWorkspace.schedule(documentOf(get()));
   },
 
   hydrateDiagram: (input) => {
@@ -942,12 +951,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   },
 
   // Export diagram data
-  exportDiagram: () => {
-    const { nodes, edges, flows, brief } = get();
-    return diagramDataSchema.parse(
-      brief ? { nodes, edges, flows, brief } : { nodes, edges, flows },
-    );
-  },
+  exportDiagram: () => diagramDataSchema.parse(documentOf(get())),
 
   // Import diagram data
   importDiagram: (data) => {
@@ -1005,7 +1009,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       ...partial,
     };
     setIfEditable((state) => ({ flows: [...state.flows, flow] }));
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
     return flow;
   },
 
@@ -1013,12 +1017,12 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     setIfEditable((state) => ({
       flows: state.flows.map((f) => (f.id === id ? { ...f, ...patch } : f)),
     }));
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   deleteFlow: (id) => {
     setIfEditable((state) => ({ flows: state.flows.filter((f) => f.id !== id) }));
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   // ── Design brief ───────────────────────────────────────────
@@ -1028,7 +1032,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     }
     setIfEditable((state) => ({ brief: update(state.brief) }));
     get().saveToHistory();
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
   },
 
   applyAiResult: (next) => {
@@ -1123,7 +1127,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       history: nextHistory,
       historyIndex: nextHistory.length - 1,
     });
-    debouncedSave(get().saveDiagram);
+    get().saveDiagram();
     return true;
   },
 }));

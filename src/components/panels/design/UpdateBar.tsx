@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDesignPipeline } from "@/hooks/useDesignPipeline";
@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils";
 import { aiStageSchema, type AiStage } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
-import { nextStages, type PipelineStage } from "@/utils/aiDesign/fingerprint";
+import type { PipelineStage } from "@/utils/aiDesign/fingerprint";
 import { keyedByText } from "@/lib/keyedByText";
+import { useOutdatedStages } from "./useOutdatedStages";
 
 /** How each stage is named in the panel. */
 const STAGE_LABELS: Record<AiStage, string> = {
@@ -45,13 +46,7 @@ export function UpdateBar() {
   const running = useAiDesignStore((state) => state.running);
   const brief = useDiagramStore((state) => state.brief);
   const nodes = useDiagramStore((state) => state.nodes);
-  const edges = useDiagramStore((state) => state.edges);
-
-  // Fingerprinting hashes the graph; redo it only when the brief or the graph changes.
-  const stages = useMemo(
-    () => (brief ? nextStages(brief, nodes, edges) : []),
-    [brief, nodes, edges],
-  );
+  const stages = useOutdatedStages().next;
   if (!brief || running || brief.questions.length > 0 || stages.length === 0) {
     return null;
   }

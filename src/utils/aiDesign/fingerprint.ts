@@ -75,13 +75,15 @@ export function resultFingerprint(brief: DesignBrief, nodes: Node[], edges: Edge
   return `${inputsFingerprint(brief.inputs)}:${graphFingerprint(nodes, edges)}`;
 }
 
-export function outdatedStages(
-  brief: DesignBrief,
-  nodes: Node[],
-  edges: Edge[],
-): { stages: PipelineStage[]; dataModel: boolean } {
+export interface OutdatedStages {
+  stages: PipelineStage[];
+  dataModel: boolean;
+}
+
+/** `outdatedStages` against a precomputed `graphFingerprint`, so one graph hash serves any brief. */
+export function outdatedAgainst(brief: DesignBrief, graph: string): OutdatedStages {
   const inputs = inputsFingerprint(brief.inputs);
-  const result = resultFingerprint(brief, nodes, edges);
+  const result = `${inputs}:${graph}`;
   const expected: Record<PipelineStage, string> = {
     requirements: inputs,
     components: inputs,
@@ -94,18 +96,26 @@ export function outdatedStages(
   };
 }
 
+export function outdatedStages(brief: DesignBrief, nodes: Node[], edges: Edge[]): OutdatedStages {
+  return outdatedAgainst(brief, graphFingerprint(nodes, edges));
+}
+
 /**
- * The stages an update should run: the first outdated stage and every stage after it.
- * Stage 1 open questions stop the pipeline while requirements is fresh.
+ * The stages an update should run, given the brief's outdated stages: the first outdated stage
+ * and every stage after it. Stage 1 open questions stop the pipeline while requirements is fresh.
  */
-export function nextStages(brief: DesignBrief, nodes: Node[], edges: Edge[]): PipelineStage[] {
-  const { stages } = outdatedStages(brief, nodes, edges);
-  if (stages.includes("requirements")) {
+export function stagesToRun(brief: DesignBrief, outdated: PipelineStage[]): PipelineStage[] {
+  if (outdated.includes("requirements")) {
     return [...PIPELINE];
   }
   if (brief.questions.length > 0) {
     return [];
   }
-  const first = stages[0];
+  const first = outdated[0];
   return first ? PIPELINE.slice(PIPELINE.indexOf(first)) : [];
+}
+
+/** The stages an update should run for the brief against the graph. */
+export function nextStages(brief: DesignBrief, nodes: Node[], edges: Edge[]): PipelineStage[] {
+  return stagesToRun(brief, outdatedStages(brief, nodes, edges).stages);
 }

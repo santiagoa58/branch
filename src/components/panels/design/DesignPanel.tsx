@@ -6,13 +6,14 @@ import type { DesignBrief } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type DesignTabId } from "@/store/uiStore";
-import { outdatedStages } from "@/utils/aiDesign/fingerprint";
+import type { OutdatedStages } from "@/utils/aiDesign/fingerprint";
 import { ApiTab } from "./ApiTab";
 import { BriefTab } from "./BriefTab";
 import { SCOPES } from "./Composer";
 import { DataModelTab } from "./DataModelTab";
 import { DesignTab } from "./DesignTab";
 import { RunNotes, RunProgress, UpdateBar } from "./UpdateBar";
+import { useOutdatedStages } from "./useOutdatedStages";
 
 const TABS: readonly { id: DesignTabId; label: string }[] = [
   { id: "brief", label: "Brief" },
@@ -22,7 +23,7 @@ const TABS: readonly { id: DesignTabId; label: string }[] = [
 ];
 
 /** Which tabs show content that is out of date (spec 9.2). */
-function outdatedTabs(outdated: ReturnType<typeof outdatedStages>): Record<DesignTabId, boolean> {
+function outdatedTabs(outdated: OutdatedStages): Record<DesignTabId, boolean> {
   const { stages, dataModel } = outdated;
   return {
     brief: stages.includes("requirements"),
@@ -138,16 +139,12 @@ function TabContent({ tab }: { tab: DesignTabId }) {
 /** The docked AI design panel: composer, run progress, or the four tabs with the update bar. */
 export function DesignPanel() {
   const brief = useDiagramStore((state) => state.brief);
-  const nodes = useDiagramStore((state) => state.nodes);
-  const edges = useDiagramStore((state) => state.edges);
+  const stale = useOutdatedStages().outdated;
   const running = useAiDesignStore((state) => state.running);
   const tab = useUIStore((state) => state.designTab);
   const setTab = useUIStore((state) => state.setDesignTab);
   useEffect(() => showQuestionsAfterRuns(), []);
-  const outdated = useMemo(
-    () => (brief ? outdatedTabs(outdatedStages(brief, nodes, edges)) : null),
-    [brief, nodes, edges],
-  );
+  const outdated = useMemo(() => (stale ? outdatedTabs(stale) : null), [stale]);
 
   return (
     <aside

@@ -3,21 +3,17 @@ import { Button } from "@/components/ui/button";
 import { useDesignPipeline } from "@/hooks/useDesignPipeline";
 import { cn } from "@/lib/utils";
 import { useDiagramStore } from "@/store/diagramStore";
-import { outdatedStages } from "@/utils/aiDesign/fingerprint";
 import { tagClass } from "./briefEdits";
 import { labelLookup } from "./nodeLabels";
+import { useOutdatedStages } from "./useOutdatedStages";
 
 /** The Data model tab: an empty state with Generate data model, then the entities. */
 export function DataModelTab() {
   const pipeline = useDesignPipeline();
   const brief = useDiagramStore((state) => state.brief);
   const nodes = useDiagramStore((state) => state.nodes);
-  const edges = useDiagramStore((state) => state.edges);
   const labelOf = useMemo(() => labelLookup(nodes), [nodes]);
-  const outdated = useMemo(
-    () => (brief ? outdatedStages(brief, nodes, edges).dataModel : false),
-    [brief, nodes, edges],
-  );
+  const outdated = useOutdatedStages().outdated?.dataModel ?? false;
   const waitingId = useId();
   const dataModel = brief?.dataModel;
   // The data model is built from the components, so it needs a components run to start from.
