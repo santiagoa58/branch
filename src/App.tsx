@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { DiagramEditor } from "@/components/DiagramEditor";
 import { NodePalette } from "@/components/panels/NodePalette";
-import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
+import { EditorRightPanel } from "@/components/panels/EditorRightPanel";
 import { Navbar } from "@/components/Navbar";
 import { LoadingState } from "@/components/ui/loading";
 import { DiagramLoadError } from "@/components/DiagramLoadError";
@@ -68,11 +68,8 @@ function App() {
               </div>
             )}
             <DiagramEditor />
-            {rightPanelVisible && (
-              <div className="flex max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:max-w-full max-lg:shadow-2xl">
-                <PropertiesPanel />
-              </div>
-            )}
+            {/* Outside the editor, so the design panel stays usable while an AI run locks the canvas. */}
+            <EditorRightPanel />
           </main>
         )}
         {loaded && locked && (

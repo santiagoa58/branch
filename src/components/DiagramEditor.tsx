@@ -49,6 +49,7 @@ import {
   Plus,
   Presentation,
   Route,
+  Sparkles,
 } from "lucide-react";
 import { useSimulationAnimation } from "@/hooks/useSimulationAnimation";
 import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
@@ -160,6 +161,24 @@ export function DiagramEditor() {
     sendNodeToBack,
   } = useDiagramStore();
   const aiRunning = useAiDesignStore((state) => state.running);
+
+  // "Design with AI" shows the design panel in the right-hand slot. Selection gives the slot to the
+  // inspector, so opening the panel clears it.
+  const designPanelShown = useUIStore((state) => state.designPanelOpen && state.rightPanelVisible);
+  const hasSelection = useDiagramStore(
+    (state) => state.selectedNodeId !== null || state.selectedEdgeId !== null,
+  );
+  const openDesignPanel = useCallback(() => {
+    setSelectedNode(null);
+    useUIStore.getState().openDesignPanel();
+  }, [setSelectedNode]);
+  const toggleDesignPanel = () => {
+    if (designPanelShown && !hasSelection) {
+      useUIStore.getState().closeDesignPanel();
+    } else {
+      openDesignPanel();
+    }
+  };
 
   // Display graph — children of collapsed groups hidden, boundary edges
   // aggregated into synthetic rollup edges. The store keeps the real graph;
@@ -672,6 +691,14 @@ export function DiagramEditor() {
             <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
               <LayoutTemplate className="size-4" aria-hidden="true" />
             </ToolbarButton>
+            <ToolbarButton
+              label="Design with AI"
+              showLabel="Design with AI"
+              active={designPanelShown && !hasSelection}
+              onClick={toggleDesignPanel}
+            >
+              <Sparkles className="size-4" aria-hidden="true" />
+            </ToolbarButton>
             <ToolbarDivider />
             <ToolbarButton
               label="Simulate requests and failures"
@@ -828,13 +855,23 @@ export function DiagramEditor() {
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 max-w-57.5">
                 Start from a pre-designed architecture, or drag components from the left palette.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowTemplateGallery(true)}
-                className="mt-4 text-xs font-medium px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
-              >
-                Browse starter templates
-              </button>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateGallery(true)}
+                  className="text-xs font-medium px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+                >
+                  Browse starter templates
+                </button>
+                <button
+                  type="button"
+                  onClick={openDesignPanel}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <Sparkles className="size-3.5" aria-hidden="true" />
+                  Design with AI
+                </button>
+              </div>
             </div>
           </div>
         )}

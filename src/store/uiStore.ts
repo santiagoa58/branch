@@ -24,6 +24,16 @@ interface UIState {
   toggleRightPanel: () => void;
   closePanels: () => void;
 
+  /**
+   * The AI design panel shares the right-hand slot with the inspector, which takes precedence
+   * while something is selected.
+   */
+  designPanelOpen: boolean;
+  /** Shows the right-hand slot with the design panel; a compact screen closes the palette. */
+  openDesignPanel: () => void;
+  /** On a compact screen this also hides the right-hand slot instead of revealing the inspector. */
+  closeDesignPanel: () => void;
+
   /** A component chosen in the palette by click or tap, added by the editor at the view center. */
   pendingPaletteAdd: PaletteNodeType | null;
   requestPaletteAdd: (type: PaletteNodeType) => void;
@@ -59,7 +69,22 @@ export const useUIStore = create<UIState>((set) => ({
         ? { rightPanelVisible, leftPanelVisible: false }
         : { rightPanelVisible };
     }),
-  closePanels: () => set({ leftPanelVisible: false, rightPanelVisible: false }),
+  closePanels: () =>
+    set({ leftPanelVisible: false, rightPanelVisible: false, designPanelOpen: false }),
+
+  designPanelOpen: false,
+  openDesignPanel: () =>
+    set(
+      isCompactLayout()
+        ? { designPanelOpen: true, rightPanelVisible: true, leftPanelVisible: false }
+        : { designPanelOpen: true, rightPanelVisible: true },
+    ),
+  closeDesignPanel: () =>
+    set(
+      isCompactLayout()
+        ? { designPanelOpen: false, rightPanelVisible: false }
+        : { designPanelOpen: false },
+    ),
 
   pendingPaletteAdd: null,
   requestPaletteAdd: (type) => set({ pendingPaletteAdd: type }),
