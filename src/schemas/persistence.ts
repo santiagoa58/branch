@@ -1,22 +1,5 @@
 import { z } from "zod";
 
-export const aiProviderTypeSchema = z.enum(["openai", "anthropic"]);
-export const aiModelSchema = z.enum([
-  "gpt-4",
-  "gpt-4-turbo",
-  "gpt-3.5-turbo",
-  "claude-3-opus",
-  "claude-3-sonnet",
-]);
-
-export const aiSettingsSchema = z
-  .object({
-    provider: aiProviderTypeSchema,
-    apiKey: z.string().nullable(),
-    model: aiModelSchema,
-  })
-  .strict();
-
 const analysisIssueSchema = z
   .object({
     id: z.string(),

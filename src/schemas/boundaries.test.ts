@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vite-plus/test";
-import { architectureAnalysisResponseSchema, connectionSuggestionsResponseSchema } from "./ai";
 import { apiDiagramSchema, updateDiagramRequestSchema } from "./api";
 import { diagramDataSchema } from "./diagram";
 import { iconifySearchResponseSchema } from "./iconify";
@@ -20,43 +19,6 @@ const analysis = {
 };
 
 describe("external response contracts", () => {
-  it.each([
-    {},
-    { ...analysis, score: "70" },
-    { ...analysis, score: null },
-    { ...analysis, issues: [null] },
-    { ...analysis, issues: [{ severity: "unknown" }] },
-    { ...analysis, recommendations: "none" },
-  ])("rejects malformed AI analysis instead of inventing defaults: %j", (input) => {
-    expect(architectureAnalysisResponseSchema.safeParse(input).success).toBe(false);
-  });
-
-  it("accepts a valid analysis and adds its timestamp", () => {
-    const parsed = architectureAnalysisResponseSchema.parse(analysis);
-    expect(parsed.score).toBe(70);
-    expect(parsed.analyzedAt).toBeInstanceOf(Date);
-  });
-
-  it.each([
-    {},
-    { suggestions: "none" },
-    { suggestions: [{ sourceId: "a", targetId: "b", protocol: "invalid" }] },
-    {
-      suggestions: [
-        {
-          id: "s",
-          sourceId: "a",
-          targetId: "b",
-          protocol: "http",
-          reason: "Connect",
-          confidence: null,
-        },
-      ],
-    },
-  ])("rejects malformed AI suggestions: %j", (input) => {
-    expect(connectionSuggestionsResponseSchema.safeParse(input).success).toBe(false);
-  });
-
   it.each([{}, { icons: "bad", total: 2 }, { icons: [], total: null }, { icons: [], total: "2" }])(
     "rejects malformed Iconify search responses: %j",
     (input) => {

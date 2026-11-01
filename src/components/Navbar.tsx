@@ -31,7 +31,6 @@ import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { AccountControls } from "@/components/CloudAuth";
 import { Brand } from "@/components/Brand";
 import { notify } from "@/services/notify";
-import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { VersionsPanel } from "@/components/panels/VersionsPanel";
 import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
@@ -70,7 +69,6 @@ export function Navbar() {
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [isExporting] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false);
   const [selectedExportFormat, setSelectedExportFormat] = useState<"png" | "svg" | "pdf" | "json">(
     "png",
@@ -430,9 +428,6 @@ export function Navbar() {
           )}
         </div>
       </div>
-
-      {/* Settings Modal */}
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Export Preview Modal */}
       <ExportPreviewDialog

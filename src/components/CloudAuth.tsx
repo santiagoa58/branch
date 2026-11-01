@@ -11,7 +11,6 @@ import {
 } from "@/services/cloudWorkspace";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
-import { useAIStore } from "@/store/aiStore";
 import { LoadingState } from "@/components/ui/loading";
 import { BrandMark, BRANCH_MARK_SRC } from "@/components/Brand";
 
@@ -146,7 +145,6 @@ function UserWorkspace({ ownerId }: { ownerId: string }) {
         cloudWorkspace.reset();
         useDiagramStore.getState().resetDiagramState();
       }
-      useAIStore.getState().clearSessionAnalysis();
     },
     [queryClient],
   );

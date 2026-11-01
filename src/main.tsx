@@ -7,6 +7,13 @@ import { initializeTheme } from "@/store/themeStore";
 import { LoadingState } from "@/components/ui/loading";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { loadEditor } from "@/lib/editorRoute";
+import { removeLegacyAiSettings } from "@/lib/legacyAiCleanup";
+
+try {
+  removeLegacyAiSettings(window.localStorage);
+} catch {
+  // Accessing localStorage can throw when site data is blocked.
+}
 
 const disposeTheme = initializeTheme();
 import.meta.hot?.dispose(disposeTheme);

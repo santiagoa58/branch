@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
-  aiSettingsSchema,
   analysisCacheSchema,
   onboardingStateSchema,
   persistedThemeStoreSchema,
@@ -33,19 +32,6 @@ const validAnalysis = {
 };
 
 describe("persistence schemas", () => {
-  it("accepts supported AI settings", () => {
-    expect(
-      aiSettingsSchema.parse({ provider: "openai", apiKey: null, model: "gpt-4-turbo" }),
-    ).toEqual({ provider: "openai", apiKey: null, model: "gpt-4-turbo" });
-  });
-
-  it("rejects unknown AI providers and models", () => {
-    expect(
-      aiSettingsSchema.safeParse({ provider: "unknown", apiKey: "secret", model: "unknown" })
-        .success,
-    ).toBe(false);
-  });
-
   it("hydrates cached analysis dates", () => {
     const result = analysisCacheSchema.parse({
       diagramHash: "hash",
