@@ -11,6 +11,10 @@ import type {
   StageOutput,
 } from "@/schemas/aiDesign";
 import { ApiError } from "@/services/api/errors";
+import type { ApiDiagram } from "@/schemas/api";
+import { diagramDataSchema } from "@/schemas/diagram";
+import type { CloudState } from "@/services/cloudPersistence";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
@@ -19,6 +23,7 @@ import type { NamedFlow } from "@/types/simulation";
 import { diffDiagrams } from "@/utils/diagramDiff";
 import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import {
+  cancelIfDiagramChanged,
   runDataModel,
   runDecision,
   runPipeline,
@@ -154,6 +159,11 @@ const apply = vi.fn<PipelineDeps["apply"]>((next) => {
   current.flows = next.flows ?? current.flows;
   current.brief = next.brief;
 });
+/** A fake history: each run is one entry, as in the diagram store. */
+let historyIndex = 0;
+const undo = vi.fn<() => void>(() => {
+  historyIndex -= 1;
+});
 const createVersion = vi.fn<PipelineDeps["createVersion"]>(async () => ({}));
 
 const runState = () => useAiDesignStore.getState();
@@ -176,6 +186,8 @@ const untilAborted = (signal: AbortSignal) =>
 beforeEach(() => {
   useAiDesignStore.setState(useAiDesignStore.getInitialState());
   run.mockClear();
+  undo.mockClear();
+  historyIndex = 0;
   apply.mockClear();
   createVersion.mockReset();
   createVersion.mockResolvedValue({});
@@ -195,6 +207,8 @@ beforeEach(() => {
     createVersion,
     run: useAiDesignStore.getState(),
     now: () => NOW,
+    historyIndex: () => historyIndex,
+    undo,
   };
 });
 
@@ -451,7 +465,10 @@ describe("runPipeline", () => {
     current.nodes = existingNodes();
     current.edges = existingEdges();
     const before = { nodes: existingNodes(), edges: existingEdges() };
-    const undo = vi.spyOn(useDiagramStore.getState(), "undo").mockImplementation(() => {});
+    apply.mockImplementation((next) => {
+      Object.assign(current, next);
+      historyIndex = 1;
+    });
 
     await runPipeline(deps);
 
@@ -471,6 +488,56 @@ describe("runPipeline", () => {
     expect(toast?.button?.title).toBe("Undo");
     toast?.button?.onClick();
     expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("Undo does nothing once another history entry follows the run", async () => {
+    apply.mockImplementation((next) => {
+      Object.assign(current, next);
+      historyIndex = 1;
+    });
+    await runPipeline(deps);
+    historyIndex = 2; // a user edit after the run
+    vi.mocked(notify.success).mock.lastCall?.[0].button?.onClick();
+    expect(undo).not.toHaveBeenCalled();
+  });
+
+  describe("with the real diagram store", () => {
+    const store = () => useDiagramStore.getState();
+    const clickUndo = () => vi.mocked(notify.success).mock.lastCall?.[0].button?.onClick();
+    const ids = () => store().nodes.map((node) => node.id);
+
+    beforeEach(() => {
+      useDiagramStore.setState(useDiagramStore.getInitialState());
+      store().hydrateDiagram({
+        nodes: existingNodes(),
+        edges: existingEdges(),
+        flows: [],
+        brief: makeBrief(),
+      });
+      deps.diagram = () => {
+        const { nodes, edges, flows, brief } = store();
+        return { id: "d1", nodes, edges, flows, brief };
+      };
+      deps.apply = (next) => store().applyAiResult(next);
+      deps.historyIndex = () => store().historyIndex;
+      deps.undo = () => store().undo();
+    });
+
+    it("Undo reverts the whole run when nothing followed it", async () => {
+      await runPipeline(deps);
+      expect(ids()).toContain("cache");
+      clickUndo();
+      expect(ids()).toEqual(["web", "api", "db"]);
+      expect(store().brief).toEqual(makeBrief());
+    });
+
+    it("Undo leaves a later user edit in place", async () => {
+      await runPipeline(deps);
+      store().updateBrief((brief) => brief && { ...brief, summary: "Edited by hand" });
+      clickUndo();
+      expect(store().brief?.summary).toBe("Edited by hand");
+      expect(ids()).toContain("cache");
+    });
   });
 
   it("shows no change summary when stage 2 did not run", async () => {
@@ -624,7 +691,77 @@ describe("runDataModel", () => {
   });
 });
 
+const cloudState: CloudState = {
+  diagram: null,
+  status: "saved",
+  dirty: false,
+  locked: false,
+  transitioning: false,
+  message: null,
+};
+const diagramWithId = (id: string): ApiDiagram => ({
+  id,
+  projectId: "p1",
+  name: "Shortener",
+  description: null,
+  thumbnail: null,
+  data: diagramDataSchema.parse({ nodes: [], edges: [] }),
+  revision: 1,
+  version: 0,
+  createdAt: NOW,
+  updatedAt: NOW,
+});
+
+describe("cancelIfDiagramChanged", () => {
+  it("cancels a run that belongs to another diagram", () => {
+    const signal = useAiDesignStore.getState().start("d1");
+    cancelIfDiagramChanged("d2");
+    expect(signal.aborted).toBe(true);
+    expect(runState().running).toBe(false);
+  });
+
+  it("cancels a run when no diagram is open", () => {
+    const signal = useAiDesignStore.getState().start("d1");
+    cancelIfDiagramChanged(null);
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("keeps a run on its own diagram, and ignores idle state", () => {
+    const signal = useAiDesignStore.getState().start("d1");
+    cancelIfDiagramChanged("d1");
+    expect(signal.aborted).toBe(false);
+    useAiDesignStore.getState().finish();
+    const cancel = vi.spyOn(useAiDesignStore.getState(), "cancel");
+    cancelIfDiagramChanged("d2");
+    expect(cancel).not.toHaveBeenCalled();
+  });
+});
+
 describe("useDesignPipeline", () => {
+  it("cancels the run when the active diagram changes, until unmounted", () => {
+    let notifyChange = () => {};
+    const unsubscribe = vi.fn<() => void>();
+    vi.spyOn(cloudWorkspace, "subscribe").mockImplementation((listener) => {
+      notifyChange = listener;
+      return unsubscribe;
+    });
+    let activeId = "d1";
+    vi.spyOn(cloudWorkspace, "getState").mockImplementation(() => ({
+      ...cloudState,
+      diagram: diagramWithId(activeId),
+    }));
+    const { unmount } = renderHook(() => useDesignPipeline());
+    const signal = useAiDesignStore.getState().start("d1");
+
+    notifyChange();
+    expect(signal.aborted).toBe(false);
+    activeId = "d2";
+    notifyChange();
+    expect(signal.aborted).toBe(true);
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it("delegates cancel to the run store", () => {
     const { result } = renderHook(() => useDesignPipeline());
     const signal = useAiDesignStore.getState().start("d1");

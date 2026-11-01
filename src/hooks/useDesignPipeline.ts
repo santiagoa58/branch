@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import { useEffect } from "react";
 import type {
   AiStage,
   ApiInput,
@@ -49,6 +50,9 @@ export interface PipelineDeps {
   /** aiDesignStore state read when the call starts; only its actions are used afterwards. */
   run: AiDesignState;
   now: () => string;
+  /** The diagram store's history position; Undo in the summary toast reverts only this run. */
+  historyIndex: () => number;
+  undo: () => void;
 }
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; message: string | null };
@@ -293,10 +297,20 @@ async function runApi(
 function summarizeChange(deps: PipelineDeps, before: DiagramSide, after: DiagramSide) {
   const { added, modified, removed } = diffDiagrams(before, after).counts;
   deps.run.setLastChange({ added, changed: modified, removed });
+  // A run is one history entry. Once anything else is added or undone, Undo would revert
+  // something other than this run, so it does nothing.
+  const runEntry = deps.historyIndex();
   notify.success({
     title: "Design updated",
     message: `+${added} added · ${modified} changed · ${removed} removed`,
-    button: { title: "Undo", onClick: () => useDiagramStore.getState().undo() },
+    button: {
+      title: "Undo",
+      onClick: () => {
+        if (deps.historyIndex() === runEntry) {
+          deps.undo();
+        }
+      },
+    },
   });
 }
 
@@ -506,6 +520,8 @@ function storeDeps(): PipelineDeps {
     createVersion: (label) => cloudWorkspace.createVersion(label),
     run: useAiDesignStore.getState(),
     now: () => new Date().toISOString(),
+    historyIndex: () => useDiagramStore.getState().historyIndex,
+    undo: () => useDiagramStore.getState().undo(),
   };
 }
 
@@ -524,6 +540,14 @@ const pipeline = {
   cancel: () => useAiDesignStore.getState().cancel(),
 };
 
+/** Cancels the run when the user is no longer on the diagram it belongs to. */
+export function cancelIfDiagramChanged(activeDiagramId: string | null): void {
+  const run = useAiDesignStore.getState();
+  if (run.running && run.diagramId !== activeDiagramId) {
+    run.cancel();
+  }
+}
+
 export function useDesignPipeline(): {
   update(): Promise<void>;
   regenerateDecision(nodeId: string): Promise<void>;
@@ -531,5 +555,12 @@ export function useDesignPipeline(): {
   retry(stage: AiStage): Promise<void>;
   cancel(): void;
 } {
+  useEffect(
+    () =>
+      cloudWorkspace.subscribe(() =>
+        cancelIfDiagramChanged(cloudWorkspace.getState().diagram?.id ?? null),
+      ),
+    [],
+  );
   return pipeline;
 }
