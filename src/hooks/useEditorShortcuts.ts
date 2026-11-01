@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { cloudWorkspace } from "@/services/cloudWorkspace";
-import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason } from "@/store/editLock";
 import { useUIStore } from "@/store/uiStore";
 import {
   getEditorShortcut,
@@ -183,13 +182,7 @@ export function useEditorShortcuts(actions: EditorShortcutActions) {
       if (isTextEditingEvent(event) || hasBlockingEditorOverlay()) {
         return;
       }
-      const cloud = cloudWorkspace.getState();
-      if (
-        cloud.locked ||
-        useAiDesignStore.getState().running ||
-        cloud.status === "loading" ||
-        useAnimationStore.getState().pendingDeletions.size > 0
-      ) {
+      if (editBlockReason() !== null) {
         return;
       }
       if (command.type === "copy-selection" && window.getSelection()?.toString()) {

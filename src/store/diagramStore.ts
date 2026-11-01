@@ -26,6 +26,7 @@ import { cloudWorkspace, setDiagramHydrator } from "@/services/cloudWorkspace";
 import { diagramDataSchema } from "@/schemas/diagram";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { cancelIfDiagramChanged, useAiDesignStore } from "@/store/aiDesignStore";
+import { editBlockReason, STORE_EDIT_CHECKS } from "@/store/editLock";
 
 // Undefined explicitly removes a field; persisted schemas still require core fields.
 type DataPatch<T> = { [K in keyof T]?: T[K] | undefined };
@@ -154,7 +155,7 @@ function historyEntry(nodes: Node[], edges: Edge[], brief: DesignBrief | null): 
 let aiHistoryRunId: number | null = null;
 
 function isEditable() {
-  return !cloudWorkspace.getState().locked && !useAiDesignStore.getState().running;
+  return editBlockReason(STORE_EDIT_CHECKS) === null;
 }
 
 // UI locks must also cover delayed callbacks and direct store actions.

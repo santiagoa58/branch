@@ -20,9 +20,9 @@ import {
   EllipsisHorizontalIcon,
 } from "@heroicons/react/24/outline";
 import { useAiDesignStore } from "@/store/aiDesignStore";
-import { useAnimationStore } from "@/store/animationStore";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason, VERSION_EDIT_CHECKS } from "@/store/editLock";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useUIStore } from "@/store/uiStore";
 
@@ -52,6 +52,11 @@ const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
   versioning: "Saving version…",
   restoring: "Restoring…",
 };
+
+const SAVE_VERSION_BLOCKED = {
+  "ai-running": "Wait for the AI design run to finish before saving a version.",
+  "deletions-pending": "Wait for deletions to finish before saving a version.",
+} satisfies Record<(typeof VERSION_EDIT_CHECKS)[number], string>;
 
 // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 22, 394 lines; extract branches and split into smaller units
 export function Navbar() {
@@ -86,11 +91,9 @@ export function Navbar() {
 
   const saveVersionMutation = useMutation({
     mutationFn: (label: string) => {
-      if (useAiDesignStore.getState().running) {
-        throw new Error("Wait for the AI design run to finish before saving a version.");
-      }
-      if (useAnimationStore.getState().pendingDeletions.size) {
-        throw new Error("Wait for deletions to finish before saving a version.");
+      const blocked = editBlockReason(VERSION_EDIT_CHECKS);
+      if (blocked) {
+        throw new Error(SAVE_VERSION_BLOCKED[blocked]);
       }
       return cloudWorkspace.createVersion(label || undefined);
     },

@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useReactFlow } from "@xyflow/react";
-import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
-import { useAiDesignStore } from "@/store/aiDesignStore";
-import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason, useEditBlocked } from "@/store/editLock";
 
 /** Shared command for the toolbar and keyboard; layout itself stays pure and DOM-free. */
 export function useAutoFormat() {
   const { fitView } = useReactFlow();
   const nodeCount = useDiagramStore((state) => state.nodes.length);
-  const pendingDeletes = useAnimationStore((state) => state.pendingDeletions.size);
-  const cloud = useCloudWorkspace();
-  const aiRunning = useAiDesignStore((state) => state.running);
+  const editBlocked = useEditBlocked();
   const frame = useRef<number | null>(null);
 
   const cancelFrame = useCallback(() => {
@@ -25,13 +22,7 @@ export function useAutoFormat() {
 
   const autoFormat = useCallback(() => {
     const current = cloudWorkspace.getState();
-    if (
-      current.locked ||
-      useAiDesignStore.getState().running ||
-      current.status === "loading" ||
-      useDiagramStore.getState().nodes.length === 0 ||
-      useAnimationStore.getState().pendingDeletions.size > 0
-    ) {
+    if (editBlockReason() !== null || useDiagramStore.getState().nodes.length === 0) {
       return;
     }
     cancelFrame();
@@ -72,11 +63,6 @@ export function useAutoFormat() {
 
   return {
     autoFormat,
-    disabled:
-      nodeCount === 0 ||
-      cloud.locked ||
-      aiRunning ||
-      cloud.status === "loading" ||
-      pendingDeletes > 0,
+    disabled: nodeCount === 0 || editBlocked,
   };
 }

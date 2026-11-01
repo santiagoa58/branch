@@ -12,8 +12,8 @@ import {
 import { versionsApi, type ApiDiagramVersion } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { useAiDesignStore } from "@/store/aiDesignStore";
-import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason, VERSION_EDIT_CHECKS } from "@/store/editLock";
 import { notify } from "@/services/notify";
 import { VersionPreviewModal } from "@/components/ui/VersionPreviewModal";
 import { LoadingIndicator, LoadingState } from "@/components/ui/loading";
@@ -35,6 +35,11 @@ function formatDate(iso: string): string {
     minute: "2-digit",
   });
 }
+
+const RESTORE_BLOCKED = {
+  "ai-running": "Wait for the AI design run to finish before restoring.",
+  "deletions-pending": "Wait for deletions to finish before restoring.",
+} satisfies Record<(typeof VERSION_EDIT_CHECKS)[number], string>;
 
 export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps) {
   const queryClient = useQueryClient();
@@ -80,11 +85,9 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
 
   const restoreMutation = useMutation({
     mutationFn: (versionId: string) => {
-      if (useAiDesignStore.getState().running) {
-        throw new Error("Wait for the AI design run to finish before restoring.");
-      }
-      if (useAnimationStore.getState().pendingDeletions.size) {
-        throw new Error("Wait for deletions to finish before restoring.");
+      const blocked = editBlockReason(VERSION_EDIT_CHECKS);
+      if (blocked) {
+        throw new Error(RESTORE_BLOCKED[blocked]);
       }
       return cloudWorkspace.restoreVersion(versionId);
     },
