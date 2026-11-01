@@ -32,7 +32,9 @@
     "test:run": "vp test run",
     "test:coverage": "vp test run --coverage",
     "type-check": "tsc --noEmit",
-    "audit": "pnpm audit"
+    "audit": "pnpm audit",
+    "eval:ai": "AI_EVAL=1 node --env-file=.env.local ./node_modules/vite-plus/bin/vp test run server/ai/eval/live.test.ts",
+    "eval:prompts": "AI_EVAL_DUMP=1 vp test run server/ai/eval/dump.test.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "4.0.132",

@@ -7,13 +7,14 @@ import {
 } from "../../src/schemas/aiDesign";
 import { toAiHttpError } from "../ai/errors";
 import type { AiStageRunner } from "../ai/runner";
-import { jsonBody, MAX_BODY_BYTES } from "../http/body";
+import { jsonBody } from "../http/body";
 import { methodNotAllowed, rejectHead } from "../http/middleware";
 import { HttpError } from "../repository";
 import type { WorkspaceEnv } from "../types";
 
-// Set from measurement once the largest realistic stage input is known.
-export const AI_MAX_BODY_BYTES = MAX_BODY_BYTES;
+// Largest measured stage input is 9,747 bytes (data-model input for a synthetic 40-component design
+// with 32 endpoints, server/ai/eval/limits.test.ts); 4 x 9,747 = 38,988, rounded up to 64 KB.
+export const AI_MAX_BODY_BYTES = 64 * 1024;
 
 async function runStage<S extends AiStage>(
   ai: AiStageRunner,

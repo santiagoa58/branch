@@ -79,3 +79,6 @@ coverage/
 .clerk/
 
 .neon
+
+# Prompts written by pnpm eval:prompts
+.superpowers/eval-prompts/
