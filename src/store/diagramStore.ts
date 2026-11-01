@@ -18,6 +18,8 @@ import { getDefaultProtocolForNode, MAX_HISTORY_LENGTH } from "@/constants";
 import { autoLayoutDiagram } from "@/utils/layout";
 import { cloudWorkspace, setDiagramHydrator } from "@/services/cloudWorkspace";
 import { diagramDataSchema } from "@/schemas/diagram";
+import type { DesignBrief } from "@/schemas/aiDesign";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 
 // Undefined explicitly removes a field; persisted schemas still require core fields.
 type DataPatch<T> = { [K in keyof T]?: T[K] | undefined };
@@ -31,6 +33,7 @@ function mergeDataPatch(data: Record<string, unknown>, patch: Record<string, unk
 interface HistoryState {
   nodes: Node[];
   edges: Edge[];
+  brief?: DesignBrief | null;
 }
 
 interface ClipboardState {
@@ -47,6 +50,9 @@ interface DiagramStore {
 
   /** Saved playable flow scenarios. Persisted with the diagram. */
   flows: NamedFlow[];
+
+  /** AI design brief persisted with the diagram; null for hand-made diagrams. */
+  brief: DesignBrief | null;
 
   // Clipboard
   clipboard: ClipboardState;
@@ -112,6 +118,20 @@ interface DiagramStore {
   addFlow: (flow: Omit<NamedFlow, "id" | "createdAt">) => NamedFlow;
   updateFlow: (id: string, patch: Partial<Omit<NamedFlow, "id" | "createdAt">>) => void;
   deleteFlow: (id: string) => void;
+
+  // Design brief
+  /** User edit of the brief: honours the edit guard, then saves history and the diagram. */
+  updateBrief: (update: (brief: DesignBrief | null) => DesignBrief | null) => void;
+  /**
+   * Apply an AI pipeline result. Bypasses the edit guard (the guard exists to keep users out
+   * during the run) and saves. All applies of one run share a single undo step.
+   */
+  applyAiResult: (next: {
+    nodes?: Node[];
+    edges?: Edge[];
+    flows?: NamedFlow[];
+    brief: DesignBrief;
+  }) => void;
   /** Trigger flow simulation for the named flow. Returns true on success. */
   playFlow: (id: string) => boolean;
 }
@@ -119,11 +139,23 @@ interface DiagramStore {
 // Capture the document contents and identity at the edit, not when a timer fires.
 const debouncedSave = (saveFn: () => void) => saveFn();
 
+// A missing brief is stored as an absent key, so entries stay identical to pre-brief snapshots.
+function historyEntry(nodes: Node[], edges: Edge[], brief: DesignBrief | null): HistoryState {
+  return brief ? { nodes, edges, brief } : { nodes, edges };
+}
+
+// Run id of the history entry the last AI apply pushed; later applies of that run replace it.
+let aiHistoryRunId: number | null = null;
+
+function isEditable() {
+  return !cloudWorkspace.getState().locked && !useAiDesignStore.getState().running;
+}
+
 // UI locks must also cover delayed callbacks and direct store actions.
 function setIfEditable(
   partial: Partial<DiagramStore> | ((state: DiagramStore) => Partial<DiagramStore>),
 ) {
-  if (!cloudWorkspace.getState().locked) {
+  if (isEditable()) {
     useDiagramStore.setState(partial);
   }
 }
@@ -135,6 +167,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   selectedNodeId: null,
   selectedEdgeId: null,
   flows: [],
+  brief: null,
   clipboard: { nodes: [], edges: [] },
   history: [],
   historyIndex: -1,
@@ -798,16 +831,15 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Save current state to history
   saveToHistory: () => {
-    const { nodes, edges, history, historyIndex } = get();
+    const { nodes, edges, brief, history, historyIndex } = get();
 
     // Remove any future states if we're not at the end
     const newHistory = history.slice(0, historyIndex + 1);
 
     // Add current state
-    newHistory.push({
-      nodes: structuredClone(nodes),
-      edges: structuredClone(edges),
-    });
+    newHistory.push(
+      historyEntry(structuredClone(nodes), structuredClone(edges), structuredClone(brief)),
+    );
 
     // Trim history if too long
     if (newHistory.length > MAX_HISTORY_LENGTH) {
@@ -843,6 +875,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       setIfEditable({
         nodes: prevState.nodes,
         edges: prevState.edges,
+        brief: prevState.brief ?? null,
         historyIndex: historyIndex - 1,
       });
       debouncedSave(get().saveDiagram);
@@ -860,6 +893,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       setIfEditable({
         nodes: nextState.nodes,
         edges: nextState.edges,
+        brief: nextState.brief ?? null,
         historyIndex: historyIndex + 1,
       });
       debouncedSave(get().saveDiagram);
@@ -867,19 +901,22 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   },
 
   saveDiagram: () => {
-    const { nodes, edges, flows } = get();
-    cloudWorkspace.schedule({ nodes, edges, flows });
+    const { nodes, edges, flows, brief } = get();
+    // The persisted schema treats the brief as exactly optional, so omit it when absent.
+    cloudWorkspace.schedule(brief ? { nodes, edges, flows, brief } : { nodes, edges, flows });
   },
 
   hydrateDiagram: (input) => {
     const data = diagramDataSchema.parse(input);
+    aiHistoryRunId = null;
     set({
       nodes: data.nodes,
       edges: data.edges,
       flows: data.flows ?? [],
+      brief: data.brief ?? null,
       selectedNodeId: null,
       selectedEdgeId: null,
-      history: [{ nodes: data.nodes, edges: data.edges }],
+      history: [historyEntry(data.nodes, data.edges, data.brief ?? null)],
       historyIndex: 0,
     });
     useSimulationStore.getState().setMode("idle");
@@ -887,8 +924,10 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Export diagram data
   exportDiagram: () => {
-    const { nodes, edges, flows } = get();
-    return diagramDataSchema.parse({ nodes, edges, flows });
+    const { nodes, edges, flows, brief } = get();
+    return diagramDataSchema.parse(
+      brief ? { nodes, edges, flows, brief } : { nodes, edges, flows },
+    );
   },
 
   // Import diagram data
@@ -898,6 +937,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       nodes: validated.nodes,
       edges: validated.edges,
       flows: validated.flows ?? [],
+      brief: validated.brief ?? null,
       selectedNodeId: null,
       selectedEdgeId: null,
     });
@@ -922,10 +962,12 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   resetDiagramState: () => {
     useSimulationStore.getState().setMode("idle");
     useAnimationStore.setState({ pendingDeletions: new Set() });
+    aiHistoryRunId = null;
     set({
       nodes: [],
       edges: [],
       flows: [],
+      brief: null,
       clipboard: { nodes: [], edges: [] },
       selectedNodeId: null,
       selectedEdgeId: null,
@@ -956,6 +998,49 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   deleteFlow: (id) => {
     setIfEditable((state) => ({ flows: state.flows.filter((f) => f.id !== id) }));
     debouncedSave(get().saveDiagram);
+  },
+
+  // ── Design brief ───────────────────────────────────────────
+  updateBrief: (update) => {
+    if (!isEditable()) {
+      return;
+    }
+    setIfEditable((state) => ({ brief: update(state.brief) }));
+    get().saveToHistory();
+    debouncedSave(get().saveDiagram);
+  },
+
+  applyAiResult: (next) => {
+    const runId = useAiDesignStore.getState().runId;
+    const state = get();
+    const nodes = next.nodes ?? state.nodes;
+    const edges = next.edges ?? state.edges;
+    const flows = next.flows ?? state.flows;
+    const entry = historyEntry(
+      structuredClone(nodes),
+      structuredClone(edges),
+      structuredClone(next.brief),
+    );
+
+    // History stores post-change snapshots. The first apply of a run pushes one entry (the one
+    // before it is the pre-run state); later applies of that run replace it, so one undo reverts
+    // the whole run.
+    const sameRun = aiHistoryRunId === runId && state.historyIndex >= 0;
+    const base = sameRun
+      ? state.history.slice(0, state.historyIndex)
+      : state.history.slice(0, state.historyIndex + 1);
+    const history = [...base, entry].slice(-MAX_HISTORY_LENGTH);
+    aiHistoryRunId = runId;
+
+    set({
+      nodes,
+      edges,
+      flows,
+      brief: next.brief,
+      history,
+      historyIndex: history.length - 1,
+    });
+    get().saveDiagram();
   },
 
   playFlow: (id) => {
@@ -1005,7 +1090,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     const nextHistory = [
       ...history.slice(0, Math.max(0, historyIndex)),
       before,
-      { nodes: structuredClone(formatted), edges: structuredClone(edges) },
+      historyEntry(structuredClone(formatted), structuredClone(edges), before.brief ?? null),
     ].slice(-MAX_HISTORY_LENGTH);
     setIfEditable({
       nodes: formatted,

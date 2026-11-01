@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore } from "@/store/uiStore";
@@ -184,6 +185,7 @@ export function useEditorShortcuts(actions: EditorShortcutActions) {
       const cloud = cloudWorkspace.getState();
       if (
         cloud.locked ||
+        useAiDesignStore.getState().running ||
         cloud.status === "loading" ||
         useAnimationStore.getState().pendingDeletions.size > 0
       ) {

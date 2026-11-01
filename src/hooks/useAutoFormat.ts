@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 
@@ -11,6 +12,7 @@ export function useAutoFormat() {
   const nodeCount = useDiagramStore((state) => state.nodes.length);
   const pendingDeletes = useAnimationStore((state) => state.pendingDeletions.size);
   const cloud = useCloudWorkspace();
+  const aiRunning = useAiDesignStore((state) => state.running);
   const frame = useRef<number | null>(null);
 
   const cancelFrame = useCallback(() => {
@@ -25,6 +27,7 @@ export function useAutoFormat() {
     const current = cloudWorkspace.getState();
     if (
       current.locked ||
+      useAiDesignStore.getState().running ||
       current.status === "loading" ||
       useDiagramStore.getState().nodes.length === 0 ||
       useAnimationStore.getState().pendingDeletions.size > 0
@@ -68,6 +71,11 @@ export function useAutoFormat() {
 
   return {
     autoFormat,
-    disabled: nodeCount === 0 || cloud.locked || cloud.status === "loading" || pendingDeletes > 0,
+    disabled:
+      nodeCount === 0 ||
+      cloud.locked ||
+      aiRunning ||
+      cloud.status === "loading" ||
+      pendingDeletes > 0,
   };
 }
