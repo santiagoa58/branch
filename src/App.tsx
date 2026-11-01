@@ -9,6 +9,7 @@ import { CloudNavigationGuard, CloudSaveError } from "@/components/CloudSaveStat
 import { ToastNotifications } from "@/components/ui/ToastNotifications";
 import { useUIStore } from "@/store/uiStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -26,6 +27,9 @@ function App() {
     }
     return () => {
       cloudWorkspace.cancelLoad();
+      // Leaving the diagram (another diagram, or another page) ends its AI run. Another page keeps
+      // the document active, so the cloudWorkspace subscription alone would let the run finish.
+      useAiDesignStore.getState().cancel();
     };
   }, [projectId, diagramId, setCurrentProject, setCurrentDiagram]);
 

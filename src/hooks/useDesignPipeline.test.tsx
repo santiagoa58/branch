@@ -12,19 +12,15 @@ import type {
 } from "@/schemas/aiDesign";
 import { MAX_HISTORY_LENGTH } from "@/constants";
 import { ApiError } from "@/services/api/errors";
-import type { ApiDiagram } from "@/schemas/api";
-import { diagramDataSchema } from "@/schemas/diagram";
-import type { CloudState } from "@/services/cloudPersistence";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
-import { useAiDesignStore } from "@/store/aiDesignStore";
+import { cancelIfDiagramChanged, useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { archEdge, archNode, groupNode } from "@/templates/builders";
 import type { NamedFlow } from "@/types/simulation";
 import { diffDiagrams } from "@/utils/diagramDiff";
 import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import {
-  cancelIfDiagramChanged,
   runDataModel,
   runDecision,
   runPipeline,
@@ -851,27 +847,6 @@ describe("runDataModel", () => {
   });
 });
 
-const cloudState: CloudState = {
-  diagram: null,
-  status: "saved",
-  dirty: false,
-  locked: false,
-  transitioning: false,
-  message: null,
-};
-const diagramWithId = (id: string): ApiDiagram => ({
-  id,
-  projectId: "p1",
-  name: "Shortener",
-  description: null,
-  thumbnail: null,
-  data: diagramDataSchema.parse({ nodes: [], edges: [] }),
-  revision: 1,
-  version: 0,
-  createdAt: NOW,
-  updatedAt: NOW,
-});
-
 describe("cancelIfDiagramChanged", () => {
   it("cancels a run that belongs to another diagram", () => {
     const signal = useAiDesignStore.getState().start("d1");
@@ -898,28 +873,10 @@ describe("cancelIfDiagramChanged", () => {
 });
 
 describe("useDesignPipeline", () => {
-  it("cancels the run when the active diagram changes, until unmounted", () => {
-    let notifyChange = () => {};
-    const unsubscribe = vi.fn<() => void>();
-    vi.spyOn(cloudWorkspace, "subscribe").mockImplementation((listener) => {
-      notifyChange = listener;
-      return unsubscribe;
-    });
-    let activeId = "d1";
-    vi.spyOn(cloudWorkspace, "getState").mockImplementation(() => ({
-      ...cloudState,
-      diagram: diagramWithId(activeId),
-    }));
-    const { unmount } = renderHook(() => useDesignPipeline());
-    const signal = useAiDesignStore.getState().start("d1");
-
-    notifyChange();
-    expect(signal.aborted).toBe(false);
-    activeId = "d2";
-    notifyChange();
-    expect(signal.aborted).toBe(true);
-    unmount();
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  it("leaves cancelling on a diagram change to always-mounted code", () => {
+    const subscribe = vi.spyOn(cloudWorkspace, "subscribe");
+    renderHook(() => useDesignPipeline());
+    expect(subscribe).not.toHaveBeenCalled();
   });
 
   it("delegates cancel to the run store", () => {

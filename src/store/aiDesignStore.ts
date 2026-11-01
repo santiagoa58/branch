@@ -99,3 +99,11 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
     get().finish();
   },
 }));
+
+/** Cancels the run when the user is no longer on the diagram it belongs to. */
+export function cancelIfDiagramChanged(activeDiagramId: string | null): void {
+  const run = useAiDesignStore.getState();
+  if (run.running && run.diagramId !== activeDiagramId) {
+    run.cancel();
+  }
+}

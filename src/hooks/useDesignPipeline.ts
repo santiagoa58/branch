@@ -1,5 +1,4 @@
 import type { Edge, Node } from "@xyflow/react";
-import { useEffect } from "react";
 import type {
   AiStage,
   ApiInput,
@@ -582,14 +581,6 @@ const pipeline = {
   cancel: () => useAiDesignStore.getState().cancel(),
 };
 
-/** Cancels the run when the user is no longer on the diagram it belongs to. */
-export function cancelIfDiagramChanged(activeDiagramId: string | null): void {
-  const run = useAiDesignStore.getState();
-  if (run.running && run.diagramId !== activeDiagramId) {
-    run.cancel();
-  }
-}
-
 export function useDesignPipeline(): {
   update(): Promise<void>;
   regenerateDecision(nodeId: string): Promise<void>;
@@ -597,12 +588,7 @@ export function useDesignPipeline(): {
   retry(stage: AiStage): Promise<void>;
   cancel(): void;
 } {
-  useEffect(
-    () =>
-      cloudWorkspace.subscribe(() =>
-        cancelIfDiagramChanged(cloudWorkspace.getState().diagram?.id ?? null),
-      ),
-    [],
-  );
+  // Leaving the diagram cancels the run from always-mounted code: the diagram store's
+  // cloudWorkspace subscription, App's route cleanup and `resetDiagramState`.
   return pipeline;
 }

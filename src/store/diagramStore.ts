@@ -19,7 +19,7 @@ import { autoLayoutDiagram } from "@/utils/layout";
 import { cloudWorkspace, setDiagramHydrator } from "@/services/cloudWorkspace";
 import { diagramDataSchema } from "@/schemas/diagram";
 import type { DesignBrief } from "@/schemas/aiDesign";
-import { useAiDesignStore } from "@/store/aiDesignStore";
+import { cancelIfDiagramChanged, useAiDesignStore } from "@/store/aiDesignStore";
 
 // Undefined explicitly removes a field; persisted schemas still require core fields.
 type DataPatch<T> = { [K in keyof T]?: T[K] | undefined };
@@ -970,6 +970,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Reset in-memory state without persisting — safe to call when switching diagrams
   resetDiagramState: () => {
+    useAiDesignStore.getState().cancel();
     useSimulationStore.getState().setMode("idle");
     useAnimationStore.setState({ pendingDeletions: new Set() });
     aiHistoryRunId = null;
@@ -1118,3 +1119,8 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 }));
 
 setDiagramHydrator((data) => useDiagramStore.getState().hydrateDiagram(data));
+// An AI run belongs to one diagram. Registered once, here, rather than in the editor: the editor
+// unmounts before a load clears the active diagram, so its subscription would never see the change.
+cloudWorkspace.subscribe(() =>
+  cancelIfDiagramChanged(cloudWorkspace.getState().diagram?.id ?? null),
+);
