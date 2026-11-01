@@ -2,20 +2,12 @@ import { describe, expect, it } from "vite-plus/test";
 import { apiDiagramSchema, updateDiagramRequestSchema } from "./api";
 import { diagramDataSchema } from "./diagram";
 import { iconifySearchResponseSchema } from "./iconify";
-import { analysisCacheSchema } from "./persistence";
 
 const node = {
   id: "service-1",
   type: "architecture",
   position: { x: 0, y: 0 },
   data: { label: "API", type: "service" },
-};
-
-const analysis = {
-  summary: "A single service",
-  score: 70,
-  issues: [],
-  recommendations: [],
 };
 
 describe("external response contracts", () => {
@@ -68,16 +60,6 @@ describe("external response contracts", () => {
       updateDiagramRequestSchema.safeParse({ data: { nodes: [], edges: [] }, expectedRevision: 1 })
         .success,
     ).toBe(true);
-  });
-
-  it.each([null, true, 123])("rejects invalid persisted analysis timestamps: %j", (analyzedAt) => {
-    expect(
-      analysisCacheSchema.safeParse({
-        diagramHash: "hash",
-        analysis: { ...analysis, analyzedAt },
-        expiresAt: 123,
-      }).success,
-    ).toBe(false);
   });
 
   it("rejects dangling edges at every diagram boundary", () => {

@@ -1,48 +1,5 @@
 import { z } from "zod";
 
-const analysisIssueSchema = z
-  .object({
-    id: z.string(),
-    severity: z.enum(["critical", "warning", "info"]),
-    category: z.enum(["security", "performance", "reliability", "scalability"]),
-    title: z.string(),
-    description: z.string(),
-    affectedNodes: z.array(z.string()),
-    suggestedFix: z.string().optional(),
-  })
-  .strict()
-  .transform(({ suggestedFix, ...issue }) =>
-    suggestedFix === undefined ? issue : { ...issue, suggestedFix },
-  );
-
-const recommendationSchema = z
-  .object({
-    id: z.string(),
-    title: z.string(),
-    description: z.string(),
-    priority: z.enum(["high", "medium", "low"]),
-    effort: z.enum(["low", "medium", "high"]),
-  })
-  .strict();
-
-export const persistedArchitectureAnalysisSchema = z
-  .object({
-    summary: z.string(),
-    score: z.number().min(0).max(100),
-    issues: z.array(analysisIssueSchema),
-    recommendations: z.array(recommendationSchema),
-    analyzedAt: z.union([z.date(), z.iso.datetime().transform((value) => new Date(value))]),
-  })
-  .strict();
-
-export const analysisCacheSchema = z
-  .object({
-    diagramHash: z.string(),
-    analysis: persistedArchitectureAnalysisSchema,
-    expiresAt: z.number(),
-  })
-  .strict();
-
 export const themeSchema = z.enum(["light", "dark", "system"]);
 
 export const themeStateSchema = z.strictObject({ theme: themeSchema });

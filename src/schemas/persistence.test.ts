@@ -1,68 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
-  analysisCacheSchema,
   onboardingStateSchema,
   persistedThemeStoreSchema,
   themeStateSchema,
 } from "@/schemas/persistence";
 
-const validAnalysis = {
-  summary: "Healthy architecture",
-  score: 90,
-  issues: [
-    {
-      id: "issue-1",
-      severity: "info",
-      category: "reliability",
-      title: "Looks good",
-      description: "No action required",
-      affectedNodes: [],
-    },
-  ],
-  recommendations: [
-    {
-      id: "recommendation-1",
-      title: "Keep monitoring",
-      description: "Retain existing observability",
-      priority: "low",
-      effort: "low",
-    },
-  ],
-  analyzedAt: "2026-01-01T00:00:00.000Z",
-};
-
 describe("persistence schemas", () => {
-  it("hydrates cached analysis dates", () => {
-    const result = analysisCacheSchema.parse({
-      diagramHash: "hash",
-      analysis: validAnalysis,
-      expiresAt: Date.now() + 1_000,
-    });
-
-    expect(result.analysis.analyzedAt).toBeInstanceOf(Date);
-    expect(result.analysis.issues[0]).not.toHaveProperty("suggestedFix");
-  });
-
-  it("retains an optional suggested fix", () => {
-    const result = analysisCacheSchema.parse({
-      diagramHash: "hash",
-      analysis: {
-        ...validAnalysis,
-        issues: [{ ...validAnalysis.issues[0], suggestedFix: "Add a replica" }],
-      },
-      expiresAt: Date.now() + 1_000,
-    });
-
-    expect(result.analysis.issues[0]).toHaveProperty("suggestedFix", "Add a replica");
-  });
-
-  it("rejects malformed cached analysis", () => {
-    expect(
-      analysisCacheSchema.safeParse({ diagramHash: "hash", analysis: {}, expiresAt: "later" })
-        .success,
-    ).toBe(false);
-  });
-
   it("accepts valid theme state and persisted wrappers", () => {
     expect(themeStateSchema.parse({ theme: "dark" }).theme).toBe("dark");
     expect(
