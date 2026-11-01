@@ -3,6 +3,7 @@ export { setApiTokenProvider } from "./api/auth";
 export { projectsApi } from "./api/projects";
 export { diagramsApi } from "./api/diagrams";
 export { versionsApi } from "./api/versions";
+export { aiApi } from "./api/ai";
 export { ApiError, ApiRequestValidationError, ApiResponseValidationError } from "./api/errors";
 export type { ApiReadOptions } from "./api/types";
 export type {
