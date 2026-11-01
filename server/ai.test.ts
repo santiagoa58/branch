@@ -115,6 +115,32 @@ describe("POST /api/ai/:stage", () => {
     expect(response.headers.get("Retry-After")).toBe("7");
     expect(apiErrorBodySchema.parse(await response.json()).message).not.toBe("");
   });
+  it("logs a failed stage", async () => {
+    run.mockRejectedValue(new Error("boom"));
+    await post("/ai/requirements", valid);
+    expect(console.error).toHaveBeenCalledWith(
+      "AI stage failed",
+      "requirements",
+      expect.any(Error),
+    );
+  });
+  it("does not log a stage the client cancelled", async () => {
+    const controller = new AbortController();
+    run.mockImplementation(async () => {
+      controller.abort();
+      throw new DOMException("aborted", "AbortError");
+    });
+    await handle(
+      new Request("https://branch.test/api/ai/requirements", {
+        method: "POST",
+        headers: { "x-test-user": "alice", "Content-Type": "application/json" },
+        body: JSON.stringify(valid),
+        signal: controller.signal,
+      }),
+    );
+    expect(run).toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
   it("rejects GET and HEAD", async () => {
     for (const method of ["GET", "HEAD"]) {
       const response = await handle(

@@ -27,7 +27,10 @@ async function runStage<S extends AiStage>(
     return await ai.run(stage, input, owner, signal);
   } catch (error) {
     const { status, message, retryAfter } = toAiHttpError(error);
-    console.error("AI stage failed", stage, error);
+    // A client that cancelled (the user left or started another run) is not a failure.
+    if (!signal.aborted) {
+      console.error("AI stage failed", stage, error);
+    }
     throw new HttpError(status, message, retryAfter ? { "Retry-After": retryAfter } : {});
   }
 }

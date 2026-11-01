@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from "vite-plus/test";
 import { APICallError, RetryError } from "ai";
-import { GatewayInternalServerError } from "@ai-sdk/gateway";
+import { GatewayInternalServerError, GatewayRateLimitError } from "@ai-sdk/gateway";
 import { toAiHttpError } from "./errors";
 import { StageOutputTooLargeError } from "./runner";
 
@@ -34,6 +34,15 @@ describe("toAiHttpError", () => {
     expect(mapped.status).toBe(429);
     expect(mapped.message).not.toBe("");
     expect(mapped.retryAfter).toBe("12");
+  });
+  it("maps the gateway's rate-limit error and reads Retry-After from its provider call", () => {
+    const error = new GatewayRateLimitError({
+      message: "rate limited",
+      statusCode: 429,
+      cause: apiCallError(429, { "retry-after": "9" }),
+    });
+    expect(toAiHttpError(error)).toMatchObject({ status: 429, retryAfter: "9" });
+    expect(toAiHttpError(retryError(error))).toMatchObject({ status: 429, retryAfter: "9" });
   });
   it("maps a 429 without Retry-After and omits the field", () => {
     expect(toAiHttpError(gatewayError(429))).not.toHaveProperty("retryAfter");
