@@ -59,29 +59,34 @@ speed second.
 
 | Stage | Input | AI output (structured) | Re-runs when |
 | --- | --- | --- | --- |
-| 1 Requirements | prompt, scope, criteria the user typed | ≤5 questions with options (one marked recommended), plus draft requirements, assumptions, out-of-scope | Initial run, or the user presses "Re-check requirements" |
+| 1 Requirements | prompt, scope, criteria the user typed, current requirements (as settled) | questions (with options when applicable, and a recommended answer), plus new requirements, assumptions, out-of-scope | Prompt or scope changes, or the user presses "Re-check requirements". Editing requirements never re-runs it. |
 | 2 Components | prompt, scope, enabled requirements, previous graph keys | groups, components, connections, 2–3 sentence summary, main flow entry | Its input hash changes |
 | 3 Decisions | enabled requirements, summary, one component and its neighbours | choice, reason, gains, costs, alternatives, revisit-when | That component is new, or its type/label/responsibility/neighbours changed; or the user asks per node |
 | 4 API | enabled requirements, graph | endpoints, events | Its input hash changes |
 | 5 Data model | enabled requirements, graph, endpoints | entities | Only on explicit request |
 
-Stage 3 runs one request per component (concurrency 6). Batching several components per call is an
-option the prompt trials may choose instead; the interface does not change.
+Stage 3 runs one request per component, concurrently. The concurrency level, and whether to batch
+several components per call instead, are decided from measurements in the prompt trials; the
+interface does not change.
+
+Stage 1 is **additive**: it receives the current requirements as settled and returns only new
+questions, requirements, assumptions and out-of-scope items. Code appends them; nothing the user
+has is removed or rewritten by a re-run.
 
 ### 3.1 What is deterministic (our code)
 
-- **Staleness.** Every stage output stores a stamp: a stable hash of exactly the inputs it was
-  generated from. A stage is stale when its current input hash differs. "New design", "continue an
+- **Staleness.** Every stage output stores `generatedFrom`: a fingerprint (stable hash) of exactly
+  the inputs it was generated from. A stage is stale when its current input hash differs. "New design", "continue an
   unfinished design" and "apply my change" are one operation: run the first stale stage, then every
   stage that becomes stale as a result.
-- **Stamp inputs.** Stage 2's stamp covers prompt, scope and enabled requirements only
+- **Fingerprint inputs.** Stage 2's fingerprint covers prompt, scope and enabled requirements only
   (`previousKeys` is a hint, not an input). Hand edits to the graph therefore never make stage 2
   stale; they make stage 4 stale and stage 3 stale for the edited components. A component's
   `responsibility` is stored as the node `description`, so hand-added nodes take part in the same
-  stamps.
+  fingerprints.
 - **Answers → requirements.** Each question has a short `topic`. Answering produces a requirement
   `"<topic>: <answer>"` with `basis: "answered"`. "Assume for me" picks each unanswered question's
-  recommended option and produces a requirement with `basis: "assumed"`. No AI call.
+  recommended answer and produces a requirement with `basis: "assumed"`. No AI call.
 - **Requirement edits.** Add, edit, enable/disable, confirm an assumption (`basis` → `stated`),
   bring an out-of-scope item into scope, require a "revisit when" condition. All plain document edits.
 - **Ids.** Stage 2 returns slug `key`s so connections can reference components. Code validates them
@@ -106,7 +111,12 @@ requirements, why each was chosen and at what cost, and what the API looks like.
 
 All schemas live in `src/schemas/aiDesign.ts` (shared by server and client, per the Zod rule). Types
 are inferred from them. Enums reuse the catalog sources of truth (`NODE_TYPES_CONFIG`,
-`GROUP_TYPES_CONFIG`, `PROTOCOL_CONFIG`). Limits below are schema-enforced (`max`) to bound output.
+`GROUP_TYPES_CONFIG`, `PROTOCOL_CONFIG`).
+
+**Limits policy.** A schema enforces only invariants our code or the feature's purpose depends on;
+each one below states its reason. Stylistic guidance (length, how many items) lives in the prompts
+and is never validated. Size and usage guards (body size, concurrency, rate limit) are configuration
+set from measurement or by the owner, not constants chosen up front.
 
 ### Request envelope (every stage)
 
@@ -117,11 +127,13 @@ are inferred from them. Enums reuse the catalog sources of truth (`NODE_TYPES_CO
 ### Stage 1 — requirements
 
 ```ts
-input:  { prompt: string; scope: Scope; criteria: { functional: string[]; nonFunctional: string[]; constraints: string[] } }
+input:  { prompt: string; scope: Scope; criteria: { functional: string[]; nonFunctional: string[]; constraints: string[] };
+          settled: Requirement[] }
 output: {
   questions: { id: string; topic: string; question: string; why: string;
-               options: { label: string; impact: string }[];          // 2–4
-               recommended: number; allowsCustom: boolean }[];          // ≤5
+               options: { label: string; impact: string }[];   // empty = free-text answer; otherwise ≥2 (one option is not a choice)
+               recommended: string;                             // required: lets "Assume for me" answer without an AI call
+               allowsCustom: boolean }[];
   functional:    { text: string }[];
   nonFunctional: { text: string; category: "scale" | "latency" | "availability" | "consistency" | "durability" | "security" | "cost" | "other" }[];
   constraints:   { text: string }[];
@@ -136,8 +148,8 @@ output: {
 - `backend`: services, data and infrastructure in detail; clients are one box per client kind.
 - `fullstack`: both in detail.
 
-Asking rule: ask only when the answer changes which components exist or a major technology choice;
-anything smaller is assumed and listed. At most 5 questions.
+Asking rule (prompt guidance, not validated): ask only when the answer changes which components
+exist or a major technology choice; anything smaller is assumed and listed. No fixed question count.
 
 ### Stage 2 — components
 
@@ -158,14 +170,14 @@ output: {
 input:  { requirements; summary; component: Component; neighbours: { key; type; label; protocol; direction: "in" | "out" }[] }
 output: {
   choice: string; reason: string;
-  gains: string[];                                   // 1–3
-  costs: string[];                                   // 1–3
-  considered: { option: string; whyNot: string }[];  // 1–3
-  revisitWhen: { condition: string; kind: RequirementKind }[];  // 0–2
+  gains: string[];                                   // ≥1: a decision with no gain or no cost is not a tradeoff
+  costs: string[];                                   // ≥1
+  considered: { option: string; whyNot: string }[];  // ≥1: reasoning needs an alternative
+  revisitWhen: { condition: string; kind: RequirementKind }[];
 }
 ```
 
-Maps onto the existing `DesignDecision` (`gains` → `benefits`, `costs` → `drawbacks`,
+Prompt guidance: short phrases, most significant items only. Maps onto the existing `DesignDecision` (`gains` → `benefits`, `costs` → `drawbacks`,
 `revisitWhen[].condition` → `revisitWhen`). Groups get decisions too, like templates.
 
 ### Stage 4 — API
@@ -206,14 +218,19 @@ interface DesignBrief {
                   category?: NfrCategory }[];
   outOfScope: { id: string; text: string }[];
   summary?: string;
-  api?: { endpoints: Endpoint[]; events: ApiEvent[]; dataModel?: Entity[] };
-  stamps: { requirements?: string; components?: string; api?: string; dataModel?: string;
-            decisions: Record<string /* node id */, string> };
-  graphStamp?: string;   // hash of the graph as generated, to detect manual edits
+  api?: { endpoints: Endpoint[]; events: ApiEvent[]; generatedFrom: string };
+  dataModel?: { entities: Entity[]; generatedFrom: string };
+  requirementsGeneratedFrom?: string;
+  componentsGeneratedFrom?: string;
+  decisionsGeneratedFrom: Record<string /* node id */, string>;
+  generatedGraph?: string;   // fingerprint of the graph as generated, to detect hand edits
 }
 ```
 
 `RequirementKind` = `"functional" | "nonFunctional" | "constraint"`.
+
+`generatedFrom` values are fingerprints (short hashes) of a stage's inputs at the time it ran, not
+content. Comparing one with a fingerprint of the current inputs is how code knows a stage is stale.
 
 The graph itself is the diagram; it is not duplicated in the brief.
 
@@ -223,17 +240,19 @@ The graph itself is the diagram; it is not duplicated in the brief.
   default to a fast gateway model chosen during prompt trials.
 - `server/ai/stages/<stage>.ts` — builds system and user prompts, calls
   `generateText({ model, system, prompt, output: Output.object({ schema }) })`, low temperature.
-  On schema failure, one retry that includes the validation error. Returns the parsed output.
+  On schema failure, one retry that includes the validation error; a second failure is surfaced
+  rather than retried again. Returns the parsed output.
 - `server/ai/examples/` — one compact worked example derived from a starter template, used as a
   few-shot example in the stage 2/3/4 prompts. A test asserts it still matches the template it was
   taken from, so the two cannot drift.
-- `server/routes/ai.ts` — `POST /api/ai/:stage`. Behind existing `requireOwner`; 64 KB body limit;
+- `server/routes/ai.ts` — `POST /api/ai/:stage`. Behind existing `requireOwner`; a body limit set from the largest measured
+  legitimate stage input with headroom (measured in the prompt trials);
   request validated with the stage input schema; rate limit; returns JSON. 400/413/415/429 as for
   other routes; gateway failures return 502 with a safe message; truncated output (finish reason
   `length`) returns 502 with "the design was too large".
 - Rate limit: `migrations/002_ai_usage.sql` adds `ai_usage(owner_id, stage, created_at)` with an index;
-  the repository counts calls in the last hour against `AI_HOURLY_LIMIT` (default 300, sized for the
-  decision fan-out). Applied manually like other migrations.
+  the repository counts calls in the last hour against `AI_HOURLY_LIMIT`, a required setting with no
+  built-in default, because it is a cost decision for the owner. Applied manually like other migrations.
 - `serverEnvSchema` gains `AI_GATEWAY_API_KEY` (optional when OIDC is present), `AI_MODEL`,
   `AI_HOURLY_LIMIT`. `vercel.json` sets the function `maxDuration` to cover the slowest stage.
 - Responses are not streamed. Each stage is small; progress is shown stage by stage and decisions
@@ -245,7 +264,7 @@ The graph itself is the diagram; it is not duplicated in the brief.
 - `src/services/api/ai.ts` — one helper per stage, composed from the existing transport helpers;
   responses validated with the stage output schemas.
 - `src/utils/aiDesign/` (pure, unit-tested):
-  - `stamps.ts` — stable hashing and staleness per stage
+  - `fingerprints.ts` — stable hashing and staleness per stage
   - `requirements.ts` — answers, assume-for-me, confirm, bring into scope, require condition
   - `applyComponents.ts` — stage 2 output → nodes, edges, flow, with reference cleanup
   - `applyDecisions.ts`, `applyApi.ts` — merge into nodes, edge contracts and brief
@@ -357,7 +376,7 @@ Stale `ai-settings` localStorage entries are removed once on load.
 
 - **Unit:**
   - schemas (valid and invalid fixtures)
-  - stamps and staleness
+  - fingerprints and staleness
   - requirement operations
   - apply functions, including reference cleanup, parent ordering and contract mapping
 - **Server:**
@@ -369,7 +388,7 @@ Stale `ai-settings` localStorage entries are removed once on load.
 - **Prompt evaluation (next phase):**
   - golden briefs from `docs/system-design-capability-audit.md` (vague, partial, complete,
     conflicting; frontend, backend and full-stack)
-  - checks: schema conformance, question discipline (asks when it should, ≤5, recommended option
+  - checks: schema conformance, question discipline (asks when it should, asks nothing when the brief is complete, recommended answer
     present), structural expectations (for example, realtime transport for chat; every component
     has a decision), output size
   - run first through a small, fast subagent, later against the real gateway via a script
