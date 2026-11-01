@@ -74,24 +74,36 @@ function resolveGroupParents(groups: Group[], warnings: string[]): Map<string, s
   return parents;
 }
 
-/** Parents come before children, as React Flow requires. */
-function parentsFirst(groups: Group[], parents: Map<string, string | undefined>): Group[] {
-  const byKey = new Map(groups.map((group) => [group.key, group]));
-  const ordered: Group[] = [];
-  const emitted = new Set<string>();
-  const emit = (group: Group) => {
-    if (emitted.has(group.key)) {
-      return;
+/**
+ * Kept comments may sit inside groups the user dragged them into. Those groups are replaced, so
+ * such a comment becomes a top-level node at the position it had on the canvas. A comment inside
+ * another (kept) comment keeps its parent.
+ */
+function detachFromReplacedParents(comments: Node[], previous: Node[]): Node[] {
+  const byId = new Map(previous.map((node) => [node.id, node]));
+  const absolute = (node: Node): { x: number; y: number } => {
+    let { x, y } = node.position;
+    const seen = new Set([node.id]);
+    for (
+      let parent = node.parentId === undefined ? undefined : byId.get(node.parentId);
+      parent !== undefined && !seen.has(parent.id);
+      parent = parent.parentId === undefined ? undefined : byId.get(parent.parentId)
+    ) {
+      seen.add(parent.id);
+      x += parent.position.x;
+      y += parent.position.y;
     }
-    emitted.add(group.key);
-    const parent = parents.get(group.key);
-    if (parent !== undefined) {
-      emit(byKey.get(parent)!);
-    }
-    ordered.push(group);
+    return { x, y };
   };
-  groups.forEach(emit);
-  return ordered;
+  return comments.map((comment) => {
+    const parent = comment.parentId === undefined ? undefined : byId.get(comment.parentId);
+    if (comment.parentId === undefined || parent?.type === "comment") {
+      return comment;
+    }
+    const { parentId: _node, extent: _extent, ...rest } = comment;
+    const { parentId: _data, ...data } = comment.data;
+    return { ...rest, position: absolute(comment), data };
+  });
 }
 
 /**
@@ -119,7 +131,7 @@ export function applyComponents(
   const groupKeys = new Set(groups.map((group) => group.key));
   const componentKeys = new Set(components.map((component) => component.key));
 
-  const groupNodes = parentsFirst(groups, parents).map((group) => {
+  const groupNodes = groups.map((group) => {
     const parent = parents.get(group.key);
     return groupNode(
       group.key,
@@ -169,7 +181,10 @@ export function applyComponents(
     }
   });
 
-  const nodes = [...autoLayoutDiagram([...groupNodes, ...componentNodes], edges), ...comments];
+  const nodes = [
+    ...autoLayoutDiagram([...groupNodes, ...componentNodes], edges),
+    ...detachFromReplacedParents(comments, current.nodes),
+  ];
 
   const entry = output.mainFlow.entry;
   const aiFlow: NamedFlow | undefined = componentKeys.has(entry)

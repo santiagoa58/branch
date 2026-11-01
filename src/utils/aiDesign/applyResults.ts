@@ -2,9 +2,13 @@ import type { Node } from "@xyflow/react";
 import type { ApiOutput, DataModelOutput, DecisionsOutput, DesignBrief } from "@/schemas/aiDesign";
 import type { DesignDecision } from "@/types";
 
-/** Stage 3: write one decision to its node. An unknown key leaves the nodes unchanged. */
+/**
+ * Stage 3: write one decision to its architecture or group node. Any other id (unknown, or a
+ * comment) leaves the nodes unchanged.
+ */
 export function applyDecision(nodes: Node[], key: string, output: DecisionsOutput): Node[] {
-  if (!nodes.some((node) => node.id === key)) {
+  const target = nodes.find((node) => node.id === key);
+  if (target?.type !== "architecture" && target?.type !== "group") {
     return nodes;
   }
   const decision: DesignDecision = {

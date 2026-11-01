@@ -162,9 +162,13 @@ describe("applyComponents", () => {
   it("builds groups before children with parentId and extent parent", () => {
     const r = ok(applyComponents(current(), nestedOutput, NOW));
     const ids = r.nodes.map((n) => n.id);
-    expect(ids.indexOf("backend")).toBeLessThan(ids.indexOf("lists-svc"));
-    expect(ids.indexOf("lists-svc")).toBeLessThan(ids.indexOf("lists"));
-    expect(ids.indexOf("backend")).toBeLessThan(ids.indexOf("api"));
+    const parented = r.nodes.filter((n) => n.parentId !== undefined);
+    expect(parented.map((n) => n.id).sort()).toEqual(["api", "lists", "lists-svc"]);
+    for (const node of parented) {
+      expect(ids.indexOf(node.parentId!), `${node.parentId} before ${node.id}`).toBeGreaterThan(-1);
+      expect(ids.indexOf(node.parentId!)).toBeLessThan(ids.indexOf(node.id));
+      expect(node.extent).toBe("parent");
+    }
     expect(r.nodes.find((n) => n.id === "lists")).toMatchObject({
       parentId: "lists-svc",
       extent: "parent",
@@ -177,6 +181,74 @@ describe("applyComponents", () => {
     expect(r.nodes.find((n) => n.id === "web")?.parentId).toBeUndefined();
     expect(r.warnings).toEqual([]);
     expect(() => validates(r)).not.toThrow();
+  });
+
+  it("turns a comment inside a replaced (nested) group into a top-level comment", () => {
+    const outer: Node = {
+      id: "outer",
+      type: "group",
+      position: { x: 100, y: 200 },
+      data: { label: "Outer", groupType: "vpc", collapsed: false },
+    };
+    const inner: Node = {
+      id: "inner",
+      type: "group",
+      position: { x: 10, y: 20 },
+      parentId: "outer",
+      extent: "parent",
+      data: { label: "Inner", groupType: "cluster", collapsed: false, parentId: "outer" },
+    };
+    const nested: Node = {
+      id: "note-nested",
+      type: "comment",
+      position: { x: 1, y: 2 },
+      parentId: "inner",
+      extent: "parent",
+      data: { text: "Inside", parentId: "inner" },
+    };
+    const r = ok(
+      applyComponents(current({ nodes: [outer, inner, nested, comment] }), nestedOutput, NOW),
+    );
+    const moved = r.nodes.find((n) => n.id === "note-nested")!;
+    expect(moved.position).toEqual({ x: 111, y: 222 });
+    expect(moved.parentId).toBeUndefined();
+    expect(moved.extent).toBeUndefined();
+    expect(moved.data).toEqual({ text: "Inside" });
+    expect(r.nodes.find((n) => n.id === "note-1")).toEqual(comment);
+    expect(() => validates(r)).not.toThrow();
+  });
+
+  it("detaches a comment whose group key is reused, and keeps comment-in-comment", () => {
+    const old: Node = {
+      id: "backend",
+      type: "group",
+      position: { x: 50, y: 60 },
+      data: { label: "Old backend", groupType: "vpc", collapsed: false },
+    };
+    const inOld: Node = {
+      id: "note-a",
+      type: "comment",
+      position: { x: 5, y: 5 },
+      parentId: "backend",
+      extent: "parent",
+      data: { text: "A", parentId: "backend" },
+    };
+    const inComment: Node = {
+      id: "note-b",
+      type: "comment",
+      position: { x: 3, y: 3 },
+      parentId: "note-a",
+      extent: "parent",
+      data: { text: "B", parentId: "note-a" },
+    };
+    const r = ok(applyComponents(current({ nodes: [old, inOld, inComment] }), nestedOutput, NOW));
+    const a = r.nodes.find((n) => n.id === "note-a")!;
+    expect(a.parentId).toBeUndefined();
+    expect(a.position).toEqual({ x: 55, y: 65 });
+    expect(r.nodes.find((n) => n.id === "note-b")).toEqual(inComment);
+    expect(r.nodes.indexOf(a)).toBeLessThan(
+      r.nodes.indexOf(r.nodes.find((n) => n.id === "note-b")!),
+    );
   });
 
   it("builds components with description, empty attributes and no decision", () => {
@@ -407,6 +479,24 @@ describe("stage 3 to 5 results", () => {
 
   it("leaves nodes unchanged for an unknown key", () => {
     expect(applyDecision(nodes, "ghost", decision)).toEqual(nodes);
+  });
+
+  it("writes to group nodes but never to a comment", () => {
+    const group: Node = {
+      id: "grp",
+      type: "group",
+      position: { x: 0, y: 0 },
+      data: { label: "G", groupType: "vpc", collapsed: false },
+    };
+    const all = [...nodes, group];
+    expect(
+      applyDecision(all, "grp", decision).find((n) => n.id === "grp")?.data["decision"],
+    ).toMatchObject({
+      choice: "Queue",
+    });
+    const unchanged = applyDecision(all, "note-1", decision);
+    expect(unchanged).toEqual(all);
+    expect(unchanged.find((n) => n.id === "note-1")?.data).toEqual(comment.data);
   });
 
   const endpoint = (key: string, service: string, calledBy: string[]): Endpoint => ({
