@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ConsideredOption, DesignDecision } from "@/types";
@@ -10,6 +10,12 @@ import type { DesignDecisionView } from "@/utils/designDecision";
 interface Props {
   value: DesignDecision | undefined;
   onChange: (value: DesignDecision) => void;
+  /**
+   * Turns a "Revisit when" item into a requirement. Each non-blank item then shows "Require this",
+   * or a "Required" tag once `isConditionRequired` says it already is. Omit both for a plain editor.
+   */
+  onRequireCondition?: (text: string) => void;
+  isConditionRequired?: (text: string) => boolean;
 }
 
 // Short limits keep each entry scannable instead of growing into paragraphs.
@@ -141,6 +147,7 @@ function ItemList({
   placeholder,
   items,
   onChange,
+  renderAction,
 }: {
   id: string;
   label: string;
@@ -149,13 +156,15 @@ function ItemList({
   placeholder: string;
   items: string[];
   onChange: (items: string[]) => void;
+  renderAction?: ((value: string) => ReactNode) | undefined;
 }) {
   const { keys, remove } = useRowKeys(items.length);
   const rows = items.map((value, index) => ({ key: keys[index], value }));
   return (
     <ListFieldset id={id} label={label} hint={hint}>
-      {rows.map(({ key, value }, index) => (
-        <div key={key} className="flex min-w-0 items-center gap-1">
+      {rows.map(({ key, value }, index) => {
+        const action = renderAction?.(value);
+        const field = (
           <input
             {...keyboardSafety}
             aria-label={`${label} ${index + 1}`}
@@ -167,15 +176,30 @@ function ItemList({
             }
             className={inputClassName}
           />
-          <RemoveButton
-            label={`Remove ${item} ${index + 1}`}
-            onClick={() => {
-              remove(index);
-              onChange(items.filter((_, i) => i !== index));
-            }}
-          />
-        </div>
-      ))}
+        );
+        return (
+          <div
+            key={key}
+            className={cn("flex min-w-0 gap-1", action ? "items-start" : "items-center")}
+          >
+            {action ? (
+              <div className="grid min-w-0 flex-1 justify-items-start gap-1">
+                {field}
+                {action}
+              </div>
+            ) : (
+              field
+            )}
+            <RemoveButton
+              label={`Remove ${item} ${index + 1}`}
+              onClick={() => {
+                remove(index);
+                onChange(items.filter((_, i) => i !== index));
+              }}
+            />
+          </div>
+        );
+      })}
       <AddButton label={`Add ${item}`} onClick={() => onChange([...items, ""])} />
     </ListFieldset>
   );
@@ -237,17 +261,66 @@ function ConsideredList({
   );
 }
 
-export function DesignDecisionEditor({ value, onChange }: Props) {
+function RequireCondition({
+  text,
+  required,
+  onRequire,
+}: {
+  text: string;
+  required: boolean;
+  onRequire: (text: string) => void;
+}) {
+  if (required) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+        <Check aria-hidden="true" className="size-3" />
+        Required
+      </span>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      aria-label={`Require this: ${text}`}
+      onClick={() => onRequire(text)}
+      {...keyboardSafety}
+    >
+      Require this
+    </Button>
+  );
+}
+
+export function DesignDecisionEditor({
+  value,
+  onChange,
+  onRequireCondition,
+  isConditionRequired,
+}: Props) {
   const id = useId();
   const view = getDesignDecision(value);
   const update = (patch: Partial<DesignDecisionView>) =>
     onChange(toDesignDecision({ ...view, ...patch }));
+  const renderRequireAction = onRequireCondition
+    ? (item: string) => {
+        const text = item.trim();
+        return text ? (
+          <RequireCondition
+            text={text}
+            required={isConditionRequired?.(text) ?? false}
+            onRequire={onRequireCondition}
+          />
+        ) : null;
+      }
+    : undefined;
   const renderList = (key: ListKey) => (
     <ItemList
       id={`${id}-${key}`}
       {...listFields[key]}
       items={view[key]}
       onChange={(items) => update({ [key]: items })}
+      renderAction={key === "revisitWhen" ? renderRequireAction : undefined}
     />
   );
 

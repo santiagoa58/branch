@@ -12,12 +12,15 @@ import {
 } from "@/schemas/diagram";
 import { getIconDisplayName } from "@/services/iconify";
 import { useAnimationStore } from "@/store/animationStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { useDesignPipeline } from "@/hooks/useDesignPipeline";
 import { getNodeAttributes } from "@/utils/architectureAttributes";
 import { hasDesignDecision } from "@/utils/designDecision";
 import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
+import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 
 const fieldClass =
@@ -36,6 +39,10 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const { nodes, updateNodeData, setSelectedNode, addNodeToGroup, removeNodeFromGroup } =
     useDiagramStore();
   const requestDelete = useAnimationStore((state) => state.requestDelete);
+  const hasBrief = useDiagramStore((state) => state.brief !== null);
+  const running = useAiDesignStore((state) => state.running);
+  const pipeline = useDesignPipeline();
+  const requireProps = useRequireCondition();
   const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
   const Icon = config.icon;
@@ -84,7 +91,21 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
             <DesignDecisionEditor
               value={data.decision}
               onChange={(decision) => updateNodeData(node.id, { decision })}
+              {...requireProps}
             />
+            {hasBrief && (
+              <button
+                type="button"
+                disabled={running}
+                onClick={() => void pipeline.regenerateDecision(node.id)}
+                className={cn(
+                  buttonClass,
+                  "w-full disabled:pointer-events-none disabled:opacity-50",
+                )}
+              >
+                Regenerate reasoning
+              </button>
+            )}
             <ArchitectureFactsEditor
               key={node.id}
               attributes={getNodeAttributes(data)}

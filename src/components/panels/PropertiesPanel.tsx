@@ -25,6 +25,7 @@ import {
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
+import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 
@@ -45,6 +46,7 @@ export function PropertiesPanel() {
 
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
+  const requireProps = useRequireCondition();
 
   // Associate the selected contract side with its edge so changing selection
   // naturally falls back to the request side without an effect-driven reset.
@@ -370,6 +372,7 @@ export function PropertiesPanel() {
                 key={`decision-${selectedNode.id}`}
                 value={groupData.decision}
                 onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
+                {...requireProps}
               />
             </div>
             <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
