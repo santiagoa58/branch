@@ -30,7 +30,7 @@ speed second.
 | --- | --- |
 | Existing AI code | Removed entirely (browser OpenAI provider, `aiStore`, AI settings panel, analysis/suggestion/chat types and schemas, `openai` dependency). |
 | Provider | Vercel AI SDK (`ai@7`) through the Vercel AI Gateway, called only from our backend. |
-| Credentials | Server-held `AI_GATEWAY_API_KEY` (or Vercel OIDC in deployments). No key UI. Signed-in users only, per-user rate limit. |
+| Credentials | Server-held `AI_GATEWAY_API_KEY` (or Vercel OIDC in deployments). No key UI. Signed-in users only. Spend is capped by AI Gateway budgets (team and per user) and request rate by a Vercel Firewall rule — infrastructure configuration, not application code. |
 | Output target | The current diagram. Regenerating the graph saves a version first and is one undo step. |
 | API view | Endpoint catalog (plus async events). Data model is generated only on demand; schema supports it. |
 | Architecture | Staged pipeline mirroring the interview. Each stage regenerates its whole (small) output from its inputs. Code — never the AI — decides what is stale, what re-runs, ids, references, layout and persistence. |
@@ -60,9 +60,9 @@ speed second.
 | Stage | Input | AI output (structured) | Re-runs when |
 | --- | --- | --- | --- |
 | 1 Requirements | prompt, scope, criteria the user typed, current requirements (as settled) | questions (with options when applicable, and a recommended answer), plus new requirements, assumptions, out-of-scope | Prompt or scope changes, or the user presses "Re-check requirements". Editing requirements never re-runs it. |
-| 2 Components | prompt, scope, enabled requirements, previous graph keys | groups, components, connections, 2–3 sentence summary, main flow entry | Its input hash changes |
-| 3 Decisions | enabled requirements, summary, one component and its neighbours | choice, reason, gains, costs, alternatives, revisit-when | That component is new, or its type/label/responsibility/neighbours changed; or the user asks per node |
-| 4 API | enabled requirements, graph | endpoints, events | Its input hash changes |
+| 2 Components | prompt, scope, enabled requirements, previous graph keys | groups, components, connections, summary, main flow entry | Marked out of date by a prompt, scope or requirement edit, or by a stage 1 re-run that added requirements |
+| 3 Decisions | enabled requirements, summary, one component and its neighbours | choice, reason, gains, costs, alternatives, revisit-when | The component has no decision (new key, or its type changed), the user edited that node by hand, or the user asks per node |
+| 4 API | enabled requirements, graph | endpoints, events | Marked out of date by a stage 2 run or a hand edit to the graph |
 | 5 Data model | enabled requirements, graph, endpoints | entities | Only on explicit request |
 
 Stage 3 runs one request per component, concurrently. The concurrency level, and whether to batch
@@ -75,15 +75,22 @@ has is removed or rewritten by a re-run.
 
 ### 3.1 What is deterministic (our code)
 
-- **Staleness.** Every stage output stores `generatedFrom`: a fingerprint (stable hash) of exactly
-  the inputs it was generated from. A stage is stale when its current input hash differs. "New design", "continue an
-  unfinished design" and "apply my change" are one operation: run the first stale stage, then every
-  stage that becomes stale as a result.
-- **Fingerprint inputs.** Stage 2's fingerprint covers prompt, scope and enabled requirements only
-  (`previousKeys` is a hint, not an input). Hand edits to the graph therefore never make stage 2
-  stale; they make stage 4 stale and stage 3 stale for the edited components. A component's
-  `responsibility` is stored as the node `description`, so hand-added nodes take part in the same
-  fingerprints.
+- **Staleness: dependency-ordered dirty flags.** The brief records which stages are out of date.
+  Code sets the flags from what the user did, never by comparing AI output:
+  1. Editing the prompt, scope or requirements marks stage 2 out of date.
+  2. Running a stage marks every stage downstream of it out of date.
+  3. A hand edit to the graph marks stage 4 out of date, and stage 3 for the nodes touched.
+  4. After stage 2 runs, a component with the **same key and same type** keeps its decision;
+     rewording a label or responsibility does not count as a change. Components that are new or
+     changed type get decisions. Identity, not content, decides reuse, so wording drift in AI output
+     never causes needless regeneration.
+
+  "New design", "continue an unfinished design" and "apply my change" are one operation: run the
+  first out-of-date stage, then everything it marks. Because the flags live in the persisted brief,
+  undo, versions and reload restore them for free. Known, accepted cost: changing a requirement and
+  then manually changing it back still shows the design as out of date until the user updates.
+- A component's `responsibility` is stored as the node `description`; `previousKeys` is passed to
+  stage 2 as a hint so unchanged components keep their keys.
 - **Answers → requirements.** Each question has a short `topic`. Answering produces a requirement
   `"<topic>: <answer>"` with `basis: "answered"`. "Assume for me" picks each unanswered question's
   recommended answer and produces a requirement with `basis: "assumed"`. No AI call.
@@ -115,8 +122,8 @@ are inferred from them. Enums reuse the catalog sources of truth (`NODE_TYPES_CO
 
 **Limits policy.** A schema enforces only invariants our code or the feature's purpose depends on;
 each one below states its reason. Stylistic guidance (length, how many items) lives in the prompts
-and is never validated. Size and usage guards (body size, concurrency, rate limit) are configuration
-set from measurement or by the owner, not constants chosen up front.
+and is never validated. Size guards (body size, concurrency) are configuration set from measurement;
+spend and request-rate controls live in Vercel (Section 6), not constants chosen up front.
 
 ### Request envelope (every stage)
 
@@ -218,19 +225,15 @@ interface DesignBrief {
                   category?: NfrCategory }[];
   outOfScope: { id: string; text: string }[];
   summary?: string;
-  api?: { endpoints: Endpoint[]; events: ApiEvent[]; generatedFrom: string };
-  dataModel?: { entities: Entity[]; generatedFrom: string };
-  requirementsGeneratedFrom?: string;
-  componentsGeneratedFrom?: string;
-  decisionsGeneratedFrom: Record<string /* node id */, string>;
-  generatedGraph?: string;   // fingerprint of the graph as generated, to detect hand edits
+  api?: { endpoints: Endpoint[]; events: ApiEvent[] };
+  dataModel?: { entities: Entity[] };
+  outdated: { components: boolean; api: boolean; dataModel: boolean;
+              decisions: string[] /* node ids */ };
+  graphEditedByHand: boolean;   // set by hand edits, cleared when stage 2 applies; drives the replace warning
 }
 ```
 
 `RequirementKind` = `"functional" | "nonFunctional" | "constraint"`.
-
-`generatedFrom` values are fingerprints (short hashes) of a stage's inputs at the time it ran, not
-content. Comparing one with a fingerprint of the current inputs is how code knows a stage is stale.
 
 The graph itself is the diagram; it is not duplicated in the brief.
 
@@ -247,14 +250,18 @@ The graph itself is the diagram; it is not duplicated in the brief.
   taken from, so the two cannot drift.
 - `server/routes/ai.ts` — `POST /api/ai/:stage`. Behind existing `requireOwner`; a body limit set from the largest measured
   legitimate stage input with headroom (measured in the prompt trials);
-  request validated with the stage input schema; rate limit; returns JSON. 400/413/415/429 as for
-  other routes; gateway failures return 502 with a safe message; truncated output (finish reason
-  `length`) returns 502 with "the design was too large".
-- Rate limit: `migrations/002_ai_usage.sql` adds `ai_usage(owner_id, stage, created_at)` with an index;
-  the repository counts calls in the last hour against `AI_HOURLY_LIMIT`, a required setting with no
-  built-in default, because it is a cost decision for the owner. Applied manually like other migrations.
-- `serverEnvSchema` gains `AI_GATEWAY_API_KEY` (optional when OIDC is present), `AI_MODEL`,
-  `AI_HOURLY_LIMIT`. `vercel.json` sets the function `maxDuration` to cover the slowest stage.
+  request validated with the stage input schema; returns JSON. 400/413/415 as for other routes.
+  Gateway budget exceeded (402) returns 402 "AI budget reached"; gateway rate limit (429) returns 429
+  with `Retry-After` when provided; other gateway failures return 502 with a safe message; truncated
+  output (finish reason `length`) returns 502 with "the design was too large".
+- Spend and rate controls are configured in Vercel, not coded:
+  - AI Gateway **budgets**: a team budget and a default per-user budget. Each request passes the
+    Clerk owner id as the gateway user so per-user budgets apply (exact option confirmed during
+    implementation).
+  - Optionally, a Vercel Firewall rate-limit rule on `/api/ai/*`.
+  - `docs/api.md` documents the setup.
+- `serverEnvSchema` gains `AI_GATEWAY_API_KEY` (optional when OIDC is present) and `AI_MODEL`.
+  `vercel.json` sets the function `maxDuration` to cover the slowest stage.
 - Responses are not streamed. Each stage is small; progress is shown stage by stage and decisions
   fill in as they complete, which gives the incremental feel streaming was meant to provide while
   keeping whole-object validation. Revisit streaming for stage 2 only if measured latency calls for it.
@@ -264,7 +271,7 @@ The graph itself is the diagram; it is not duplicated in the brief.
 - `src/services/api/ai.ts` — one helper per stage, composed from the existing transport helpers;
   responses validated with the stage output schemas.
 - `src/utils/aiDesign/` (pure, unit-tested):
-  - `fingerprints.ts` — stable hashing and staleness per stage
+  - `staleness.ts` — dirty-flag transitions for each user action and stage run
   - `requirements.ts` — answers, assume-for-me, confirm, bring into scope, require condition
   - `applyComponents.ts` — stage 2 output → nodes, edges, flow, with reference cleanup
   - `applyDecisions.ts`, `applyApi.ts` — merge into nodes, edge contracts and brief
@@ -364,7 +371,8 @@ Stale `ai-settings` localStorage entries are removed once on load.
 | Failure | Behaviour |
 | --- | --- |
 | Not signed in | AI entry points prompt sign-in; the server returns 401. |
-| Rate limited | 429 with `Retry-After`; the panel shows when the user can retry. |
+| Budget reached | 402; the panel says the AI budget is used up for now. |
+| Rate limited | 429 with `Retry-After` when provided; the panel shows when to retry. |
 | Gateway or model error | 502; the stage shows Retry; nothing applied. |
 | Schema-invalid output | One automatic retry with the error; then the stage fails visibly. |
 | Truncated output | 502 "too large"; the stage fails visibly. |
@@ -376,11 +384,11 @@ Stale `ai-settings` localStorage entries are removed once on load.
 
 - **Unit:**
   - schemas (valid and invalid fixtures)
-  - fingerprints and staleness
+  - staleness transitions (each action sets exactly the expected flags; same key + type keeps a decision)
   - requirement operations
   - apply functions, including reference cleanup, parent ordering and contract mapping
 - **Server:**
-  - route auth, validation, rate limit and error mapping, with the AI call stubbed
+  - route auth, validation and error mapping (402, 429, 502, truncation), with the AI call stubbed
   - prompt builders produce the expected sections
 - **Component:**
   - composer, questions (answer, assume-for-me), requirement toggles marking stale, update bar,
@@ -397,7 +405,7 @@ Stale `ai-settings` localStorage entries are removed once on load.
 
 1. Remove the old AI integration.
 2. Schemas and brief persistence.
-3. Server stage route, rate limit, env.
+3. Server stage route, env, gateway error mapping.
 4. Pure apply/staleness utilities.
 5. Pipeline hook and ephemeral store.
 6. UI, after the mockup review.
