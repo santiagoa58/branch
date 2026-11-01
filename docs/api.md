@@ -23,7 +23,7 @@ The browser talks only to same-origin `/api`. Clerk supplies a session bearer to
 | POST   | `/api/diagrams/:diagramId/versions/:versionId/restore` | expected revision                        | 200 restored diagram                         |
 | POST   | `/api/ai/:stage`                                       | stage input JSON                         | 200 stage output JSON                        |
 
-JSON writes require `Content-Type: application/json` and are limited to 4 MB (except `/api/ai/*`, which is limited to 64 KB) even when `Content-Length` is absent or too low. Invalid request data returns 400; unsupported media returns 415; unknown paths return 404; known paths with unsupported methods, including HEAD, return 405. Missing or foreign owned documents return 404 so existence is not disclosed. Stale revisions return 409. Stored documents failing their response schema return 500, distinct from malformed client input.
+JSON writes require `Content-Type: application/json` and are limited to 4 MB (except `/api/ai/*`, which is limited to 64 KB) even when `Content-Length` is absent or too low. Invalid request data returns 400; unsupported media returns 415; unknown paths return 404; known paths with unsupported methods, including HEAD, return 405. Missing or foreign owned documents return 404 so existence is not disclosed. Stale revisions return 409. Stored documents failing their response schema return 422, distinct from malformed client input (400) and from service failures (500).
 
 The editor save coordinator owns drafts and revision chaining. TanStack Query owns fetched project, diagram, and version server state for the signed-in account; query options live in `src/services/workspaceQuery.ts`.
 

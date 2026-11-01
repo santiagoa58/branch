@@ -1,9 +1,7 @@
 # Branch — Architecture Workspace
 
 React 19 + TypeScript diagram editor built on React Flow v12, with GSAP-powered
-edge/simulation animations and Zustand state. See `README.md` for the feature tour
-and `.cursor/` for deep references (`rules.md`, `features.md`, `components.mdc`,
-`design-system.md`, `glossary.md`).
+edge/simulation animations and Zustand state. See `README.md` for the feature tour.
 
 ## Commands
 
@@ -19,10 +17,27 @@ pnpm build          # TypeScript and Vite+ production build
 ## Source of truth
 
 Node and edge/protocol types are **centralized in `src/constants/index.ts`**
-(`NODE_TYPES_CONFIG`, `PROTOCOL_CONFIG`, `EDGE_STYLES`, `GROUP_TYPES_CONFIG`).
+(`NODE_TYPES_CONFIG`, `PROTOCOL_CONFIG`, `GROUP_TYPES_CONFIG`).
 The type unions live in `src/types/index.ts` (`ArchitectureNodeType`, `EdgeProtocol`,
-`GroupNodeType`). Adding a node type or protocol means updating several files in
-lockstep — use the `add-node-type` skill, or follow that skill's steps manually.
+`GroupNodeType`). Adding a node type, group type or protocol means updating, in lockstep:
+
+1. The union in `src/types/index.ts`.
+2. The Zod enum in `src/schemas/catalogEnums.ts` (`architectureNodeTypeSchema`,
+   `groupNodeTypeSchema`, `edgeProtocolSchema`; `src/schemas/diagram.ts` re-exports them).
+3. The config entry in `src/constants/index.ts`: `NODE_TYPES_CONFIG` via `catalogNode()`
+   (style preset, label, description, Heroicon `icon`, search keywords), `GROUP_TYPES_CONFIG`,
+   or `PROTOCOL_CONFIG` (label, group, colors, style, `requestResponse`, `defaultForNodes`).
+4. Node types: a palette category in `src/constants/nodeCategories.ts`.
+5. Protocols: an `<option>` in the hand-written protocol `<select>` in
+   `src/components/panels/PropertiesPanel.tsx`.
+6. If it applies, the role sets in `src/utils/designRules.ts` (`OUTSIDE_ACTORS`,
+   `ENTRY_POINTS`, `DIRECT_PROTOCOLS`).
+7. Removing or renaming a node type: map the old name in `RETIRED_NODE_TYPES`
+   (`src/schemas/diagram.ts`) so saved documents still load.
+
+`src/constants/nodeCatalog.test.ts` fails when the node union, enum, config and categories
+drift. The AI components prompt (`server/ai/prompts/components.ts`) reads the enums, so it
+needs no edit.
 
 ## State (Zustand stores in `src/store/`)
 
@@ -39,11 +54,15 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
 - **React Flow v12:** use `parentId`, NOT `parentNode`. Parent nodes MUST appear
   before child nodes in the array. Child positions are relative to the parent; convert
   absolute↔relative when adding/removing from a group. Always set `extent: 'parent'`.
-- **GSAP:** import only from `src/lib/gsap.ts`, never directly from `gsap`. Use the
-  `useGSAP()` hook for cleanup. Target React Flow elements via `data-node-id` /
-  `data-edge-id` attributes, NOT React refs. Edge/sim animations use `MotionPathPlugin`;
-  respect `simulationStore.speed` via `timeline.timeScale(speed)`. The
-  `#animation-overlay` div is for shatter fragments only.
+- **GSAP:** import only from `src/lib/gsap.ts` (it registers `MotionPathPlugin`), never
+  directly from `gsap`. Only `useEdgeAnimation` uses `useGSAP()`, on refs to the edge's own
+  SVG elements. `useSimulationAnimation`, `useTrafficSimulation` and `useDestroyAnimation`
+  run GSAP from `useEffect` and clean up manually: simulation and traffic effects kill their
+  timelines and tweens, clear props and remove injected dots in the effect cleanup; shatter
+  timelines remove their fragments on complete. Those hooks reach React Flow elements through
+  `data-node-id` / `data-edge-id` (or React Flow's `.react-flow__edge[data-id]` wrapper), not
+  React refs. Edge/sim animations use `MotionPathPlugin`; respect `simulationStore.speed`
+  via `timeline.timeScale(speed)`. The `#animation-overlay` div is for shatter fragments only.
 - **Graph algorithms** in `src/utils/graphTraversal.ts` (BFS path trace, blast radius,
   Union-Find partition) are pure — no side effects.
 - **AI:** AI calls go through `POST /api/ai/:stage` using the server-held AI Gateway
