@@ -478,8 +478,8 @@ export function DiagramEditor() {
       className="flex-1 relative bg-white dark:bg-zinc-950 overflow-hidden"
       data-onboarding-pulse={onboardingActiveStep === "connect-nodes" ? "connect-nodes" : undefined}
     >
-      {/* The canvas is inert while an AI run edits the diagram. Panels that must stay usable
-          during a run (the AI design panel) render as siblings of this wrapper. */}
+      {/* The canvas is inert while an AI run edits the diagram. */}
+      {/* Panels that must stay usable during a run render as siblings of this wrapper. */}
       <div className="absolute inset-0 overflow-hidden" inert={aiRunning}>
         {/* Grid Background */}
         <div className="absolute inset-0 bg-grid-pattern opacity-50 dark:opacity-60 pointer-events-none z-0" />

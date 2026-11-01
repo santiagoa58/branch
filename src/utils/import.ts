@@ -140,6 +140,8 @@ export function mergeDiagramData(
     nodes: [...current.nodes, ...transformedNodes],
     edges: [...current.edges, ...transformedEdges],
     ...(current.viewport ? { viewport: current.viewport } : {}),
+    // Merging adds content to the current document, so it keeps the current brief.
+    ...(current.brief ? { brief: current.brief } : {}),
   };
 }
 
@@ -162,6 +164,34 @@ export function appendDiagramData(
     nodes: [...current.nodes, ...offsetNodes],
     edges: [...current.edges, ...imported.edges],
     ...(current.viewport ? { viewport: current.viewport } : {}),
+    // Appending adds content to the current document, so it keeps the current brief.
+    ...(current.brief ? { brief: current.brief } : {}),
+  };
+}
+
+/**
+ * The document an import produces. Replace takes the file's own brief; merge and append keep the
+ * current one (see the two functions above). Without the viewport, only document content is kept.
+ */
+export function buildImportData(
+  current: DiagramData,
+  imported: DiagramData,
+  options: ImportOptions,
+): DiagramData {
+  const combined =
+    options.mode === "merge"
+      ? mergeDiagramData(current, imported)
+      : options.mode === "append"
+        ? appendDiagramData(current, imported)
+        : imported;
+  if (options.includeViewport) {
+    return combined;
+  }
+  return {
+    nodes: combined.nodes,
+    edges: combined.edges,
+    ...(combined.flows !== undefined ? { flows: combined.flows } : {}),
+    ...(combined.brief ? { brief: combined.brief } : {}),
   };
 }
 

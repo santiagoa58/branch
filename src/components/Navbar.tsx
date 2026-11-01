@@ -19,6 +19,7 @@ import {
   BookmarkIcon,
   EllipsisHorizontalIcon,
 } from "@heroicons/react/24/outline";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useDiagramStore } from "@/store/diagramStore";
@@ -80,9 +81,13 @@ export function Navbar() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const { autoFormat, disabled: formatDisabled } = useAutoFormat();
+  const aiRunning = useAiDesignStore((state) => state.running);
 
   const saveVersionMutation = useMutation({
     mutationFn: (label: string) => {
+      if (useAiDesignStore.getState().running) {
+        throw new Error("Wait for the AI design run to finish before saving a version.");
+      }
       if (useAnimationStore.getState().pendingDeletions.size) {
         throw new Error("Wait for deletions to finish before saving a version.");
       }
@@ -249,8 +254,9 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setSaveVersionOpen(true)}
+                disabled={aiRunning}
                 aria-label="Save version snapshot"
-                className="flex items-center gap-1 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                className="flex items-center gap-1 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <BookmarkIcon className="w-3.5 h-3.5" />
               </button>
@@ -394,7 +400,11 @@ export function Navbar() {
                 { label: "Redo", onSelect: redo, disabled: !canRedo(), phoneOnly: true },
                 ...(diagramId
                   ? [
-                      { label: "Save version", onSelect: () => setSaveVersionOpen(true) },
+                      {
+                        label: "Save version",
+                        onSelect: () => setSaveVersionOpen(true),
+                        disabled: aiRunning,
+                      },
                       { label: "Version history", onSelect: () => setVersionsOpen(true) },
                     ]
                   : []),

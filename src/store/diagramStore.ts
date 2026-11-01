@@ -174,6 +174,15 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Node changes (drag, select, etc.)
   onNodesChange: (changes) => {
+    if (useAiDesignStore.getState().running) {
+      // The canvas is locked during an AI run, but React Flow must still report measured sizes
+      // for the nodes the run adds. Everything else stays blocked.
+      const measurements = changes.filter((change) => change.type === "dimensions");
+      if (measurements.length > 0 && !cloudWorkspace.getState().locked) {
+        set((state) => ({ nodes: applyNodeChanges(measurements, state.nodes) }));
+      }
+      return;
+    }
     setIfEditable((state) => ({
       nodes: applyNodeChanges(changes, state.nodes),
     }));
@@ -1012,6 +1021,11 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   },
 
   applyAiResult: (next) => {
+    // A result that arrives after the run ended (cancel, navigation) must not touch the document
+    // or the history entry that holds the pre-run state.
+    if (!useAiDesignStore.getState().running) {
+      return;
+    }
     const runId = useAiDesignStore.getState().runId;
     const state = get();
     const nodes = next.nodes ?? state.nodes;

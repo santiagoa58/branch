@@ -4,12 +4,25 @@ import {
   parseJSON,
   mergeDiagramData,
   appendDiagramData,
+  buildImportData,
   parseMarkdown,
   detectFileFormat,
   importDiagram,
   SCHEMA_VERSION,
 } from "@/utils/import";
 import type { DiagramData } from "@/types";
+import type { DesignBrief } from "@/schemas/aiDesign";
+
+function makeBrief(prompt: string): DesignBrief {
+  return {
+    inputs: { prompt, scope: "fullstack", requirements: [], outOfScope: [], answers: [] },
+    questions: [],
+    requirements: [],
+    assumptions: [],
+    outOfScope: [],
+    ranFrom: {},
+  };
+}
 
 function expectDefined<T>(value: T | undefined, message: string): asserts value is T {
   expect(value).toBeDefined();
@@ -519,6 +532,60 @@ describe("import utilities", () => {
 
       const result = mergeDiagramData(current, imported);
       expect(result.viewport).toEqual({ x: 100, y: 100, zoom: 2 });
+    });
+  });
+
+  describe("design brief handling", () => {
+    const currentBrief = makeBrief("current");
+    const fileBrief = makeBrief("file");
+    const current: DiagramData = {
+      nodes: [],
+      edges: [],
+      viewport: { x: 1, y: 2, zoom: 1 },
+      brief: currentBrief,
+    };
+    const imported: DiagramData = {
+      nodes: [],
+      edges: [],
+      viewport: { x: 5, y: 5, zoom: 2 },
+      brief: fileBrief,
+    };
+
+    it("merge and append keep the current brief, not the imported one", () => {
+      expect(mergeDiagramData(current, imported).brief).toEqual(currentBrief);
+      expect(appendDiagramData(current, imported).brief).toEqual(currentBrief);
+    });
+
+    it("merge and append add no brief when the current diagram has none", () => {
+      const bare: DiagramData = { nodes: [], edges: [] };
+      expect(mergeDiagramData(bare, imported)).not.toHaveProperty("brief");
+      expect(appendDiagramData(bare, imported)).not.toHaveProperty("brief");
+    });
+
+    it("replace uses the file's brief, with or without the viewport", () => {
+      for (const includeViewport of [true, false]) {
+        const result = buildImportData(current, imported, { mode: "replace", includeViewport });
+        expect(result.brief).toEqual(fileBrief);
+        expect(result.viewport !== undefined).toBe(includeViewport);
+      }
+    });
+
+    it("replace with a briefless file drops the current brief", () => {
+      const result = buildImportData(
+        current,
+        { nodes: [], edges: [] },
+        { mode: "replace", includeViewport: false },
+      );
+      expect(result).not.toHaveProperty("brief");
+    });
+
+    it("merge and append keep the current brief, with or without the viewport", () => {
+      for (const mode of ["merge", "append"] as const) {
+        for (const includeViewport of [true, false]) {
+          const result = buildImportData(current, imported, { mode, includeViewport });
+          expect(result.brief).toEqual(currentBrief);
+        }
+      }
     });
   });
 

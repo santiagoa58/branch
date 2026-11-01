@@ -74,6 +74,38 @@ describe("TemplateGalleryDialog", () => {
     expect(screen.getByRole("button", { name: /Payments API, like Stripe/ })).toBeVisible();
   });
 
+  it("keeps the current design brief when adding a template", () => {
+    const brief = {
+      inputs: {
+        prompt: "Mine",
+        scope: "fullstack" as const,
+        requirements: [],
+        outOfScope: [],
+        answers: [],
+      },
+      questions: [],
+      requirements: [],
+      assumptions: [],
+      outOfScope: [],
+      ranFrom: {},
+    };
+    useDiagramStore.getState().addNode({
+      id: "existing",
+      type: "architecture",
+      position: { x: 0, y: 0 },
+      data: { label: "Existing", type: "service" },
+    });
+    useDiagramStore.setState({ brief });
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: /Team chat and messaging, like Slack/ }));
+    const details = screen.getByRole("complementary", { name: "Selected template" });
+
+    fireEvent.click(within(details).getByRole("button", { name: "Add to canvas" }));
+
+    expect(useDiagramStore.getState().nodes.length).toBeGreaterThan(1);
+    expect(useDiagramStore.getState().brief).toEqual(brief);
+  });
+
   it("adds next to an existing diagram or replaces it only after confirmation", () => {
     useDiagramStore.getState().addNode({
       id: "existing",

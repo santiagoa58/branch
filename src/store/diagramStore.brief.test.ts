@@ -58,6 +58,7 @@ describe("diagramStore brief", () => {
     hydrate();
     useDiagramStore.getState().saveDiagram();
     expect(useDiagramStore.getState().brief).toBeNull();
+    expect(schedule).toHaveBeenCalledTimes(1);
     expect(schedule.mock.calls[0]?.[0]).not.toHaveProperty("brief");
   });
 
@@ -156,11 +157,66 @@ describe("diagramStore brief", () => {
     hydrate({ brief: briefA });
     useDiagramStore.getState().clearDiagram();
     expect(useDiagramStore.getState().brief).toBeNull();
+    expect(schedule).toHaveBeenCalledTimes(1);
     expect(schedule.mock.calls[0]?.[0]).not.toHaveProperty("brief");
     useDiagramStore.getState().undo();
     expect(useDiagramStore.getState().brief).toEqual(briefA);
     useDiagramStore.getState().redo();
     expect(useDiagramStore.getState().brief).toBeNull();
+  });
+
+  it("ignores an AI result that arrives when no run is in progress", () => {
+    hydrate({ brief: briefA });
+    useAiDesignStore.getState().start("d1");
+    useDiagramStore.getState().applyAiResult({ nodes: [node("x")], edges: [], brief: briefB });
+    useAiDesignStore.getState().finish();
+    schedule.mockClear();
+
+    useDiagramStore
+      .getState()
+      .applyAiResult({ nodes: [node("x"), node("y")], edges: [], brief: briefC });
+
+    expect(useDiagramStore.getState().nodes).toHaveLength(1);
+    expect(useDiagramStore.getState().brief).toEqual(briefB);
+    expect(schedule).not.toHaveBeenCalled();
+    // The run's single undo step still returns to the pre-run state.
+    useDiagramStore.getState().undo();
+    expect(useDiagramStore.getState().nodes).toEqual([]);
+    expect(useDiagramStore.getState().brief).toEqual(briefA);
+  });
+
+  it("lets React Flow dimension changes through during a run, and blocks other changes", () => {
+    hydrate();
+    useDiagramStore.setState({ nodes: [node("x")] });
+    useAiDesignStore.getState().start("d1");
+
+    useDiagramStore.getState().onNodesChange([
+      { id: "x", type: "dimensions", dimensions: { width: 120, height: 60 } },
+      { id: "x", type: "position", position: { x: 50, y: 50 }, dragging: false },
+      { id: "x", type: "remove" },
+    ]);
+
+    const [after] = useDiagramStore.getState().nodes;
+    expect(after?.measured).toEqual({ width: 120, height: 60 });
+    expect(after?.position).toEqual({ x: 0, y: 0 });
+    expect(useDiagramStore.getState().nodes).toHaveLength(1);
+  });
+
+  it("still blocks dimension changes while the cloud workspace is locked", () => {
+    useDiagramStore.setState({ nodes: [node("x")] });
+    useAiDesignStore.getState().start("d1");
+    const lock = vi.spyOn(cloudWorkspace, "getState").mockReturnValue({
+      ...cloudWorkspace.getState(),
+      locked: true,
+    });
+    try {
+      useDiagramStore
+        .getState()
+        .onNodesChange([{ id: "x", type: "dimensions", dimensions: { width: 1, height: 1 } }]);
+    } finally {
+      lock.mockRestore();
+    }
+    expect(useDiagramStore.getState().nodes[0]?.measured).toBeUndefined();
   });
 
   it("imports JSON with an invalid brief as an error", () => {

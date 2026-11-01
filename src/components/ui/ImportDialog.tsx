@@ -3,7 +3,7 @@ import { X, Upload, FileJson, FileText, AlertCircle, CheckCircle2 } from "lucide
 import { cn } from "@/lib/utils";
 import { importDiagram, detectFileFormat } from "@/utils/import";
 import { useDiagramStore } from "@/store/diagramStore";
-import { mergeDiagramData, appendDiagramData } from "@/utils/import";
+import { buildImportData } from "@/utils/import";
 import { notify } from "@/services/notify";
 import type { DiagramData } from "@/types";
 
@@ -111,19 +111,10 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
     try {
       const currentData = exportDiagram();
 
-      const combinedData =
-        importMode === "merge"
-          ? mergeDiagramData(currentData, previewData)
-          : importMode === "append"
-            ? appendDiagramData(currentData, previewData)
-            : previewData;
-      const finalData: DiagramData = includeViewport
-        ? combinedData
-        : {
-            nodes: combinedData.nodes,
-            edges: combinedData.edges,
-            ...(combinedData.flows !== undefined ? { flows: combinedData.flows } : {}),
-          };
+      const finalData = buildImportData(currentData, previewData, {
+        mode: importMode,
+        includeViewport,
+      });
 
       storImportDiagram(finalData);
 
