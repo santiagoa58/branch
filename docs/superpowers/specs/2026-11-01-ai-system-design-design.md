@@ -51,10 +51,10 @@ through the Vercel AI SDK and the Vercel AI Gateway, made by our backend.
 
 **Every stage regenerates its whole output from its inputs.**
 
-| | Responsible for |
-| --- | --- |
-| The AI | Judgment only: which questions matter, what to assume, which components and connections meet the requirements, why each was chosen and at what cost, and what the API looks like. |
-| Our code | Everything else: what is out of date, what runs next, ids, reference cleanup, mapping to the diagram, layout, persistence, versions and undo. |
+|          | Responsible for                                                                                                                                                                   |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The AI   | Judgment only: which questions matter, what to assume, which components and connections meet the requirements, why each was chosen and at what cost, and what the API looks like. |
+| Our code | Everything else: what is out of date, what runs next, ids, reference cleanup, mapping to the diagram, layout, persistence, versions and undo.                                     |
 
 ## 3. Concepts
 
@@ -75,16 +75,16 @@ The user owns a small set of inputs:
 Everything else in the brief is AI output derived from these inputs. Every user action in the
 panel is an edit to the inputs:
 
-| User action | Edit to inputs |
-| --- | --- |
-| Type or edit a requirement or out-of-scope line | Edit that line |
-| Answer a question | Add an answer |
-| Assume for me | Add the question's recommended answer, marked `assumed`, for each unanswered question |
-| Confirm an assumption | Add its text as a requirement line |
-| Change an assumption | Add the edited text as a requirement line |
-| Remove a derived requirement | Add its text as an out-of-scope line |
-| Bring a derived out-of-scope item into scope | Add its text as a requirement line |
-| Require a "revisit when" condition | Add the condition as a requirement line |
+| User action                                     | Edit to inputs                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Type or edit a requirement or out-of-scope line | Edit that line                                                                        |
+| Answer a question                               | Add an answer                                                                         |
+| Assume for me                                   | Add the question's recommended answer, marked `assumed`, for each unanswered question |
+| Confirm an assumption                           | Add its text as a requirement line                                                    |
+| Change an assumption                            | Add the edited text as a requirement line                                             |
+| Remove a derived requirement                    | Add its text as an out-of-scope line                                                  |
+| Bring a derived out-of-scope item into scope    | Add its text as a requirement line                                                    |
+| Require a "revisit when" condition              | Add the condition as a requirement line                                               |
 
 User lines are always displayed verbatim. Stage 1 never restates them; it adds derived items around
 them.
@@ -96,20 +96,20 @@ text trimmed and lowercased, lists sorted, ids and display wording excluded. Nei
 output, so differences in AI wording never mark anything out of date. Reverting an edit restores
 the earlier fingerprint.
 
-| Fingerprint | Covers |
-| --- | --- |
-| Inputs | prompt, scope, requirement lines, out-of-scope lines, answers |
-| Graph | architecture and group nodes as (key, type, parent), and edges as (from, to, protocol, async). Labels, descriptions, decisions, positions and comment nodes are excluded. |
+| Fingerprint | Covers                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inputs      | prompt, scope, requirement lines, out-of-scope lines, answers                                                                                                             |
+| Graph       | architecture and group nodes as (key, type, parent), and edges as (from, to, protocol, async). Labels, descriptions, decisions, positions and comment nodes are excluded. |
 
 Each stage records the fingerprint it ran from:
 
-| Stage | Records | Out of date when |
-| --- | --- | --- |
-| 1 Requirements | inputs | the inputs fingerprint differs |
-| 2 Components | inputs | the inputs fingerprint differs |
-| 3 Decisions | inputs + graph | either fingerprint differs |
-| 4 API | inputs + graph | either fingerprint differs |
-| 5 Data model | inputs + graph | either fingerprint differs; shown as out of date, never run automatically |
+| Stage          | Records        | Out of date when                                                          |
+| -------------- | -------------- | ------------------------------------------------------------------------- |
+| 1 Requirements | inputs         | the inputs fingerprint differs                                            |
+| 2 Components   | inputs         | the inputs fingerprint differs                                            |
+| 3 Decisions    | inputs + graph | either fingerprint differs                                                |
+| 4 API          | inputs + graph | either fingerprint differs                                                |
+| 5 Data model   | inputs + graph | either fingerprint differs; shown as out of date, never run automatically |
 
 **Update** runs the first out-of-date stage and every stage after it, in order:
 
@@ -129,12 +129,12 @@ Request and response schemas live in `src/schemas/aiDesign.ts`, are shared by se
 are the only trust boundary for AI data. Types are inferred from them. Enums are derived from the
 catalog sources of truth:
 
-| Enum | Source |
-| --- | --- |
-| Node types | `NODE_TYPES_CONFIG` |
-| Group types | `GROUP_TYPES_CONFIG` |
-| Protocols | `PROTOCOL_CONFIG` |
-| HTTP methods | `HttpMethod` |
+| Enum         | Source               |
+| ------------ | -------------------- |
+| Node types   | `NODE_TYPES_CONFIG`  |
+| Group types  | `GROUP_TYPES_CONFIG` |
+| Protocols    | `PROTOCOL_CONFIG`    |
+| HTTP methods | `HttpMethod`         |
 
 **Validation policy:**
 
@@ -147,7 +147,15 @@ catalog sources of truth:
 ```ts
 type Scope = "frontend" | "backend" | "fullstack";
 type RequirementKind = "functional" | "nonFunctional" | "constraint";
-type NfrCategory = "scale" | "latency" | "availability" | "consistency" | "durability" | "security" | "cost" | "other";
+type NfrCategory =
+  | "scale"
+  | "latency"
+  | "availability"
+  | "consistency"
+  | "durability"
+  | "security"
+  | "cost"
+  | "other";
 
 // Sent to stages 2–5: everything a designer needs to know about the problem.
 interface DesignContext {
@@ -292,7 +300,13 @@ interface DesignBrief {
   api?: { endpoints: Endpoint[]; events: ApiEvent[] };
   dataModel?: { entities: Entity[] };
   // Fingerprints each stage last ran from (section 3.2)
-  ranFrom: { requirements?: string; components?: string; decisions?: string; api?: string; dataModel?: string };
+  ranFrom: {
+    requirements?: string;
+    components?: string;
+    decisions?: string;
+    api?: string;
+    dataModel?: string;
+  };
 }
 ```
 
@@ -325,11 +339,11 @@ Pure functions in `src/utils/aiDesign/`, each unit tested.
 
 ### Stages 3 to 5
 
-| Stage | Applied as |
-| --- | --- |
-| 3 | Write the decision to the node's `data.decision` as each call completes. |
-| 4 | Store `endpoints` and `events` in the brief. Endpoints are independent of edge request/response contracts, which remain a manual feature. Endpoints whose `service` or `calledBy` keys are unknown are kept and flagged in the API view. |
-| 5 | Store the entities in the brief. |
+| Stage | Applied as                                                                                                                                                                                                                               |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3     | Write the decision to the node's `data.decision` as each call completes.                                                                                                                                                                 |
+| 4     | Store `endpoints` and `events` in the brief. Endpoints are independent of edge request/response contracts, which remain a manual feature. Endpoints whose `service` or `calledBy` keys are unknown are kept and flagged in the API view. |
+| 5     | Store the entities in the brief.                                                                                                                                                                                                         |
 
 ### Every apply
 
@@ -354,24 +368,24 @@ It is mounted in `server/handler.ts` behind the existing `requireOwner`.
 
 **Errors:**
 
-| Condition | Response |
-| --- | --- |
-| Invalid input | 400 |
-| Body too large | 413 |
-| Unsupported media type | 415 |
-| Gateway budget exceeded (gateway 402) | 402, "AI budget reached" |
-| Gateway rate limit (gateway 429) | 429, forwarding `Retry-After` when present |
+| Condition                                 | Response                                    |
+| ----------------------------------------- | ------------------------------------------- |
+| Invalid input                             | 400                                         |
+| Body too large                            | 413                                         |
+| Unsupported media type                    | 415                                         |
+| Gateway budget exceeded (gateway 402)     | 402, "AI budget reached"                    |
+| Gateway rate limit (gateway 429)          | 429, forwarding `Retry-After` when present  |
 | Output truncated (finish reason `length`) | 502, "The design was too large to generate" |
-| Any other gateway or model failure | 502, with a safe message |
+| Any other gateway or model failure        | 502, with a safe message                    |
 
 ### Modules
 
-| Module | Responsibility |
-| --- | --- |
-| `server/routes/ai.ts` | Route, validation, error mapping |
-| `server/ai/models.ts` | Model id per stage: `AI_MODEL`, optionally overridden per stage by `AI_MODEL_<STAGE>` |
-| `server/ai/stages/*.ts` | One module per stage, as described below |
-| `server/ai/examples/` | Worked examples used as few-shot input in the stage 2, 3 and 4 prompts |
+| Module                  | Responsibility                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `server/routes/ai.ts`   | Route, validation, error mapping                                                      |
+| `server/ai/models.ts`   | Model id per stage: `AI_MODEL`, optionally overridden per stage by `AI_MODEL_<STAGE>` |
+| `server/ai/stages/*.ts` | One module per stage, as described below                                              |
+| `server/ai/examples/`   | Worked examples used as few-shot input in the stage 2, 3 and 4 prompts                |
 
 Each stage module:
 
@@ -387,11 +401,11 @@ its source template.
 
 ### Configuration
 
-| Setting | Notes |
-| --- | --- |
+| Setting              | Notes                                                               |
+| -------------------- | ------------------------------------------------------------------- |
 | `AI_GATEWAY_API_KEY` | Server only. Optional when Vercel OIDC authentication is available. |
-| `AI_MODEL` | Default model for all stages. |
-| `AI_MODEL_<STAGE>` | Optional per-stage override. |
+| `AI_MODEL`           | Default model for all stages.                                       |
+| `AI_MODEL_<STAGE>`   | Optional per-stage override.                                        |
 
 - All are added to `serverEnvSchema` and `.env.example`.
 - `vercel.json` sets the function `maxDuration` to cover the slowest stage.
@@ -401,14 +415,14 @@ its source template.
 
 ## 8. Client
 
-| Module | Responsibility |
-| --- | --- |
-| `src/services/api/ai.ts` | One function per stage, built from the existing transport helpers; validates responses with the stage output schemas. |
-| `src/utils/aiDesign/fingerprints.ts` | Normalization, the inputs and graph fingerprints, out-of-date stages, next stage to run. |
-| `src/utils/aiDesign/inputs.ts` | Each user action from section 3.1 as a pure inputs edit; builds `DesignContext`. |
-| `src/utils/aiDesign/apply*.ts` | The apply functions from section 6. |
-| `src/store/aiDesignStore.ts` | Ephemeral run state, described below. |
-| `src/hooks/useDesignPipeline.ts` | Runs the pipeline, described below. |
+| Module                               | Responsibility                                                                                                        |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `src/services/api/ai.ts`             | One function per stage, built from the existing transport helpers; validates responses with the stage output schemas. |
+| `src/utils/aiDesign/fingerprints.ts` | Normalization, the inputs and graph fingerprints, out-of-date stages, next stage to run.                              |
+| `src/utils/aiDesign/inputs.ts`       | Each user action from section 3.1 as a pure inputs edit; builds `DesignContext`.                                      |
+| `src/utils/aiDesign/apply*.ts`       | The apply functions from section 6.                                                                                   |
+| `src/store/aiDesignStore.ts`         | Ephemeral run state, described below.                                                                                 |
+| `src/hooks/useDesignPipeline.ts`     | Runs the pipeline, described below.                                                                                   |
 
 **Ephemeral run state** (`aiDesignStore`): the current stage, decision progress (done/total),
 warnings, the last error per stage, and the abort controller. It is never persisted and never in
@@ -509,16 +523,16 @@ Used in the inspector and the Design tab.
 
 ## 10. Error handling
 
-| Situation | Behaviour |
-| --- | --- |
-| Signed out | AI entry points prompt sign-in; the server returns 401. |
-| Budget reached (402) | The panel says the AI budget is used up for now. |
-| Rate limited (429) | The panel shows when to retry. |
-| Gateway or model failure (502) | The stage shows its error and **Retry**; nothing from that stage is applied. |
-| Dangling references in stage 2 output | Cleaned up (section 6); warnings shown in the panel. |
-| Endpoint references unknown components | Kept and flagged in the API view. |
-| Cancel | In-flight requests are aborted; completed stages stay applied. |
-| Save conflict during apply | Existing `cloudWorkspace` conflict flow. The result is applied to the in-memory document first, so it is not lost. |
+| Situation                              | Behaviour                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Signed out                             | AI entry points prompt sign-in; the server returns 401.                                                            |
+| Budget reached (402)                   | The panel says the AI budget is used up for now.                                                                   |
+| Rate limited (429)                     | The panel shows when to retry.                                                                                     |
+| Gateway or model failure (502)         | The stage shows its error and **Retry**; nothing from that stage is applied.                                       |
+| Dangling references in stage 2 output  | Cleaned up (section 6); warnings shown in the panel.                                                               |
+| Endpoint references unknown components | Kept and flagged in the API view.                                                                                  |
+| Cancel                                 | In-flight requests are aborted; completed stages stay applied.                                                     |
+| Save conflict during apply             | Existing `cloudWorkspace` conflict flow. The result is applied to the in-memory document first, so it is not lost. |
 
 ## 11. Removal of the existing AI integration
 

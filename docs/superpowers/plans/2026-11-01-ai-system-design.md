@@ -87,31 +87,31 @@ Each of these is tested in the task named.
 
 ## File Structure
 
-| Path | Responsibility |
-| --- | --- |
-| `src/schemas/aiDesign.ts` | Stage enum, shared types, stage input/output schemas, brief schema |
-| `src/schemas/diagram.ts` (modify) | `brief` on `diagramStructureSchema` |
-| `src/types/index.ts` (modify) | `DiagramData.brief`, `HistoryState.brief` |
-| `src/store/diagramStore.ts` (modify) | Holds `brief`; AI-run edit guard; `applyAiResult` action |
-| `src/store/aiDesignStore.ts` | Ephemeral run state |
-| `src/schemas/server.ts` (modify) | `aiEnvSchema` |
-| `server/http/body.ts` (modify) | `jsonBody(maxBytes)` factory |
-| `server/ai/models.ts` | Model id per stage |
-| `server/ai/errors.ts` | Gateway error → HTTP status/message |
-| `server/ai/runner.ts` | `AiStageRunner` interface and gateway implementation (`generateText` + one repair retry) |
-| `server/ai/prompts/*.ts` | System and user prompt builders per stage |
-| `server/ai/examples/` | Few-shot example taken from a starter template |
-| `server/routes/ai.ts` | Route, validation, error mapping |
-| `src/utils/aiDesign/fingerprint.ts` | Normalization, fingerprints, out-of-date stages, next stage |
-| `src/utils/aiDesign/inputs.ts` | User actions as pure input edits; `buildDesignContext` |
-| `src/utils/aiDesign/applyRequirements.ts` | Apply stage 1 output |
-| `src/utils/aiDesign/applyComponents.ts` | Apply stage 2 output |
-| `src/utils/aiDesign/applyResults.ts` | Apply stages 3–5 output |
-| `src/services/api/ai.ts` | Client call per stage |
-| `src/hooks/useDesignPipeline.ts` | Orchestration |
-| `src/components/ui/TradeoffList.tsx` | Gains/Costs presentation |
-| `src/components/panels/design/*` | Design panel (tabs, update bar, progress) |
-| `scripts/ai-eval.ts`, `server/ai/eval/*` | Prompt evaluation harness |
+| Path                                      | Responsibility                                                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/schemas/aiDesign.ts`                 | Stage enum, shared types, stage input/output schemas, brief schema                       |
+| `src/schemas/diagram.ts` (modify)         | `brief` on `diagramStructureSchema`                                                      |
+| `src/types/index.ts` (modify)             | `DiagramData.brief`, `HistoryState.brief`                                                |
+| `src/store/diagramStore.ts` (modify)      | Holds `brief`; AI-run edit guard; `applyAiResult` action                                 |
+| `src/store/aiDesignStore.ts`              | Ephemeral run state                                                                      |
+| `src/schemas/server.ts` (modify)          | `aiEnvSchema`                                                                            |
+| `server/http/body.ts` (modify)            | `jsonBody(maxBytes)` factory                                                             |
+| `server/ai/models.ts`                     | Model id per stage                                                                       |
+| `server/ai/errors.ts`                     | Gateway error → HTTP status/message                                                      |
+| `server/ai/runner.ts`                     | `AiStageRunner` interface and gateway implementation (`generateText` + one repair retry) |
+| `server/ai/prompts/*.ts`                  | System and user prompt builders per stage                                                |
+| `server/ai/examples/`                     | Few-shot example taken from a starter template                                           |
+| `server/routes/ai.ts`                     | Route, validation, error mapping                                                         |
+| `src/utils/aiDesign/fingerprint.ts`       | Normalization, fingerprints, out-of-date stages, next stage                              |
+| `src/utils/aiDesign/inputs.ts`            | User actions as pure input edits; `buildDesignContext`                                   |
+| `src/utils/aiDesign/applyRequirements.ts` | Apply stage 1 output                                                                     |
+| `src/utils/aiDesign/applyComponents.ts`   | Apply stage 2 output                                                                     |
+| `src/utils/aiDesign/applyResults.ts`      | Apply stages 3–5 output                                                                  |
+| `src/services/api/ai.ts`                  | Client call per stage                                                                    |
+| `src/hooks/useDesignPipeline.ts`          | Orchestration                                                                            |
+| `src/components/ui/TradeoffList.tsx`      | Gains/Costs presentation                                                                 |
+| `src/components/panels/design/*`          | Design panel (tabs, update bar, progress)                                                |
+| `scripts/ai-eval.ts`, `server/ai/eval/*`  | Prompt evaluation harness                                                                |
 
 ---
 
@@ -166,10 +166,10 @@ describe("removeLegacyAiSettings", () => {
 ```
 
 - [ ] **Step 2: Run** `pnpm test:run src/test/legacyAiCleanup.test.ts`. Expected: FAIL (module
-  not found).
+      not found).
 - [ ] **Step 3: Implement `removeLegacyAiSettings`** (try/catch around `removeItem("ai-settings")`).
-  Call it once in `src/main.tsx` with `window.localStorage`. Then do the deletions and
-  modifications listed above, and run `pnpm install` to update the lockfile.
+      Call it once in `src/main.tsx` with `window.localStorage`. Then do the deletions and
+      modifications listed above, and run `pnpm install` to update the lockfile.
 - [ ] **Step 4: Verify the removal.**
   - Run `pnpm test:run`, then `pnpm check`. Expected: both pass.
   - Run `grep -rn "aiStore\|services/ai\|types/ai\|schemas/ai\|openai" src server`. Expected:
@@ -198,13 +198,13 @@ describe("removeLegacyAiSettings", () => {
   `nodeCatalog.test.ts` already keeps them in sync with `NODE_TYPES_CONFIG` and `PROTOCOL_CONFIG`.
 - Produces (all exported, with inferred types of the same name in PascalCase):
 
-  | Group | Exports |
-  | --- | --- |
-  | Stage list | `aiStageSchema = z.enum(["requirements","components","decisions","api","data-model"])`, type `AiStage` |
-  | Shared types | `scopeSchema`, `requirementKindSchema`, `nfrCategorySchema`, `designContextSchema` |
+  | Group             | Exports                                                                                                                                                                                                                                    |
+  | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | Stage list        | `aiStageSchema = z.enum(["requirements","components","decisions","api","data-model"])`, type `AiStage`                                                                                                                                     |
+  | Shared types      | `scopeSchema`, `requirementKindSchema`, `nfrCategorySchema`, `designContextSchema`                                                                                                                                                         |
   | Per-stage schemas | `requirementsInputSchema`/`requirementsOutputSchema`, `componentsInputSchema`/`componentsOutputSchema`, `decisionsInputSchema`/`decisionsOutputSchema`, `apiInputSchema`/`apiOutputSchema`, `dataModelInputSchema`/`dataModelOutputSchema` |
-  | Lookup | `stageSchemas: { [S in AiStage]: { input: ZodType; output: ZodType } }`; `StageInput<S>` and `StageOutput<S>` are the inferred types |
-  | Brief | `designBriefSchema`, type `DesignBrief`, and `endpointSchema`, `apiEventSchema`, `entitySchema` |
+  | Lookup            | `stageSchemas: { [S in AiStage]: { input: ZodType; output: ZodType } }`; `StageInput<S>` and `StageOutput<S>` are the inferred types                                                                                                       |
+  | Brief             | `designBriefSchema`, type `DesignBrief`, and `endpointSchema`, `apiEventSchema`, `entitySchema`                                                                                                                                            |
 
   Field shapes are exactly §4.1–4.6 and §5. `ranFrom` keys are
   `requirements | components | decisions | api | dataModel`.
@@ -218,11 +218,14 @@ describe("stage 1 output", () => {
   });
   it("rejects a question with exactly one option", () => {
     expect(
-      requirementsOutputSchema.safeParse(stage1({ options: [{ label: "A", impact: "x" }] })).success,
+      requirementsOutputSchema.safeParse(stage1({ options: [{ label: "A", impact: "x" }] }))
+        .success,
     ).toBe(false);
   });
   it("requires a recommended answer", () => {
-    expect(requirementsOutputSchema.safeParse(stage1({ recommended: undefined })).success).toBe(false);
+    expect(requirementsOutputSchema.safeParse(stage1({ recommended: undefined })).success).toBe(
+      false,
+    );
   });
 });
 describe("stage 3 output", () => {
@@ -259,7 +262,7 @@ Fixture builders (`stage1`, `decision`, `graphWithKey`, `graphWithType`, `withBr
 named field overridden.
 
 - [ ] **Step 2: Run** `pnpm test:run src/schemas/aiDesign.test.ts`. Expected: FAIL (module not
-  found).
+      found).
 - [ ] **Step 3: Implement the schemas.**
   - Use `z.strictObject` throughout.
   - Slug: `/^[a-z][a-z0-9-]*$/`.
@@ -291,7 +294,7 @@ interface AiDesignState {
   warnings: string[];
   errors: Partial<Record<AiStage, string>>;
   controller: AbortController | null;
-  diagramId: string | null;      // diagram the current run belongs to
+  diagramId: string | null; // diagram the current run belongs to
   lastChange: { added: number; changed: number; removed: number } | null;
   start(diagramId: string): AbortSignal;
   setStage(stage: AiStage | null): void;
@@ -299,8 +302,8 @@ interface AiDesignState {
   addWarnings(warnings: string[]): void;
   setError(stage: AiStage, message: string | null): void;
   setLastChange(change: AiDesignState["lastChange"]): void;
-  finish(): void;                // running=false, controller=null, stage=null
-  cancel(): void;                // aborts the controller, then finish()
+  finish(): void; // running=false, controller=null, stage=null
+  cancel(): void; // aborts the controller, then finish()
 }
 ```
 
@@ -339,7 +342,9 @@ it("ignores user edits while an AI run is in progress", () => {
 it("applies AI results during a run, as one undo step, and saves each apply", () => {
   useAiDesignStore.getState().start("d1");
   useDiagramStore.getState().applyAiResult({ nodes: [node("x")], edges: [], brief: briefB });
-  useDiagramStore.getState().applyAiResult({ nodes: [node("x"), node("y")], edges: [], brief: briefC });
+  useDiagramStore
+    .getState()
+    .applyAiResult({ nodes: [node("x"), node("y")], edges: [], brief: briefC });
   expect(useDiagramStore.getState().nodes).toHaveLength(2);
   useAiDesignStore.getState().finish();
   useDiagramStore.getState().undo();
@@ -348,7 +353,9 @@ it("applies AI results during a run, as one undo step, and saves each apply", ()
   expect(schedule).toHaveBeenCalledTimes(3);
 });
 it("imports JSON with an invalid brief as an error", () => {
-  expect(() => useDiagramStore.getState().importDiagram({ nodes: [], edges: [], brief: { inputs: 1 } })).toThrow();
+  expect(() =>
+    useDiagramStore.getState().importDiagram({ nodes: [], edges: [], brief: { inputs: 1 } }),
+  ).toThrow();
 });
 ```
 
@@ -362,7 +369,7 @@ the existing setup in `diagramStore.test.ts`.
   - In `DiagramEditor`, wrap the canvas container in `inert={running}`. The design panel (Task 13)
     is rendered outside that wrapper so Cancel stays usable.
 - [ ] **Step 4: Run** `pnpm test:run`, then `pnpm check`. Expected: PASS, including the existing
-  `diagramStore.test.ts`.
+      `diagramStore.test.ts`.
 - [ ] **Step 5: Commit**: `git commit -m "feat: persist the design brief and lock edits during AI runs"`
 
 ---
@@ -424,20 +431,32 @@ pattern. The repository is unused, so `{} as never` is not allowed; pass
 `new WorkspaceRepository({ query: vi.fn(), transaction: vi.fn() })`.
 
 ```ts
-it("requires sign-in", async () => expect((await post("/ai/requirements", valid, "")).status).toBe(401));
-it("rejects an unknown stage", async () => expect((await post("/ai/chat", valid)).status).toBe(404));
-it("rejects input that fails the stage schema", async () => expect((await post("/ai/requirements", { prompt: 1 })).status).toBe(400));
-it("rejects non-JSON bodies", async () => expect((await post("/ai/requirements", valid, "alice", "text/plain")).status).toBe(415));
-it("returns 413 for an oversized body", async () => expect((await post("/ai/requirements", huge)).status).toBe(413));
+it("requires sign-in", async () =>
+  expect((await post("/ai/requirements", valid, "")).status).toBe(401));
+it("rejects an unknown stage", async () =>
+  expect((await post("/ai/chat", valid)).status).toBe(404));
+it("rejects input that fails the stage schema", async () =>
+  expect((await post("/ai/requirements", { prompt: 1 })).status).toBe(400));
+it("rejects non-JSON bodies", async () =>
+  expect((await post("/ai/requirements", valid, "alice", "text/plain")).status).toBe(415));
+it("returns 413 for an oversized body", async () =>
+  expect((await post("/ai/requirements", huge)).status).toBe(413));
 it("passes the owner to the runner and returns its output", async () => {
   run.mockResolvedValue(stage1Output);
   const response = await post("/ai/requirements", valid, "alice");
   expect(run).toHaveBeenCalledWith("requirements", valid, "alice", expect.any(AbortSignal));
   expect(await response.json()).toEqual(stage1Output);
 });
-it.each([[402, "AI budget reached"], [429, expect.any(String)], [502, "The design was too large to generate"]])(
-  "maps runner failures to %i", async (status, message) => { /* run rejects with the matching error */ });
-it("rejects GET and HEAD", async () => { /* 405 for both */ });
+it.each([
+  [402, "AI budget reached"],
+  [429, expect.any(String)],
+  [502, "The design was too large to generate"],
+])("maps runner failures to %i", async (status, message) => {
+  /* run rejects with the matching error */
+});
+it("rejects GET and HEAD", async () => {
+  /* 405 for both */
+});
 ```
 
 - [ ] **Step 2: Write the failing error-mapping tests** (`server/ai/errors.test.ts`)
@@ -445,10 +464,18 @@ it("rejects GET and HEAD", async () => { /* 405 for both */ });
 ```ts
 it("maps a gateway 402 to 402", () => expect(toAiHttpError(gatewayError(402)).status).toBe(402));
 it("maps a gateway 429 and forwards Retry-After", () =>
-  expect(toAiHttpError(apiCallError(429, { "retry-after": "12" }))).toEqual({ status: 429, message: expect.any(String), retryAfter: "12" }));
-it("unwraps RetryError.lastError", () => expect(toAiHttpError(retryError(gatewayError(402))).status).toBe(402));
+  expect(toAiHttpError(apiCallError(429, { "retry-after": "12" }))).toEqual({
+    status: 429,
+    message: expect.any(String),
+    retryAfter: "12",
+  }));
+it("unwraps RetryError.lastError", () =>
+  expect(toAiHttpError(retryError(gatewayError(402))).status).toBe(402));
 it("maps truncation to 502 with the too-large message", () =>
-  expect(toAiHttpError(new StageOutputTooLargeError())).toEqual({ status: 502, message: "The design was too large to generate" }));
+  expect(toAiHttpError(new StageOutputTooLargeError())).toEqual({
+    status: 502,
+    message: "The design was too large to generate",
+  }));
 it("maps anything else to 502", () => expect(toAiHttpError(new Error("boom")).status).toBe(502));
 ```
 
@@ -532,15 +559,18 @@ evaluation.
 ```ts
 it("requirements prompt includes user lines, out-of-scope lines and answers", () => {
   const { prompt } = buildRequirementsPrompt(stage1Input);
-  for (const text of ["Members share lists", "Ordering groceries", "About 1M households"]) expect(prompt).toContain(text);
+  for (const text of ["Members share lists", "Ordering groceries", "About 1M households"])
+    expect(prompt).toContain(text);
 });
-it("requirements prompt marks assumed answers", () => expect(buildRequirementsPrompt(withAssumedAnswer).prompt).toMatch(/assumed/i));
+it("requirements prompt marks assumed answers", () =>
+  expect(buildRequirementsPrompt(withAssumedAnswer).prompt).toMatch(/assumed/i));
 it("components prompt lists previous keys and the example", () => {
   const { system, prompt } = buildComponentsPrompt(stage2Input);
   expect(prompt).toContain("lists-service");
   expect(system).toContain(urlShortenerExample.components.summary);
 });
-it("every stage has a prompt builder", () => expect(Object.keys(stagePrompts).sort()).toEqual([...aiStageSchema.options].sort()));
+it("every stage has a prompt builder", () =>
+  expect(Object.keys(stagePrompts).sort()).toEqual([...aiStageSchema.options].sort()));
 ```
 
 - [ ] **Step 2: Write the failing runner tests** (stub `generate`)
@@ -548,18 +578,27 @@ it("every stage has a prompt builder", () => expect(Object.keys(stagePrompts).so
 ```ts
 it("calls the gateway with the stage model, schema and owner", async () => {
   await runner.run("decisions", input, "alice", signal);
-  expect(generate).toHaveBeenCalledWith(expect.objectContaining({
-    model: "test/decisions-model", abortSignal: signal,
-    providerOptions: { gateway: { user: "alice" } },
-  }));
+  expect(generate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      model: "test/decisions-model",
+      abortSignal: signal,
+      providerOptions: { gateway: { user: "alice" } },
+    }),
+  );
 });
 it("retries once with the validation error, then succeeds", async () => {
-  generate.mockRejectedValueOnce(noObjectError("bad")).mockResolvedValueOnce({ output: valid, finishReason: "stop" });
+  generate
+    .mockRejectedValueOnce(noObjectError("bad"))
+    .mockResolvedValueOnce({ output: valid, finishReason: "stop" });
   await expect(runner.run("decisions", input, "alice", signal)).resolves.toEqual(valid);
   expect(generate.mock.calls[1][0].prompt).toContain("bad");
 });
-it("fails after the second schema failure", async () => { /* two rejections → rejects */ });
-it("throws StageOutputTooLargeError on finishReason length", async () => { /* noObjectError with finishReason "length" */ });
+it("fails after the second schema failure", async () => {
+  /* two rejections → rejects */
+});
+it("throws StageOutputTooLargeError on finishReason length", async () => {
+  /* noObjectError with finishReason "length" */
+});
 ```
 
 - [ ] **Step 3: Write the failing example-drift test**
@@ -603,10 +642,16 @@ Import the template from `@/templates` (test-only; server code imports only the 
 export function inputsFingerprint(inputs: DesignBrief["inputs"]): string;
 export function graphFingerprint(nodes: Node[], edges: Edge[]): string;
 export type PipelineStage = "requirements" | "components" | "decisions" | "api";
-export function outdatedStages(brief: DesignBrief, nodes: Node[], edges: Edge[]): {
-  stages: PipelineStage[]; dataModel: boolean };
+export function outdatedStages(
+  brief: DesignBrief,
+  nodes: Node[],
+  edges: Edge[],
+): {
+  stages: PipelineStage[];
+  dataModel: boolean;
+};
 export function nextStages(brief: DesignBrief, nodes: Node[], edges: Edge[]): PipelineStage[];
-export function resultFingerprint(brief: DesignBrief, nodes: Node[], edges: Edge[]): string;   // `${inputs}:${graph}`, recorded by stages 3–5
+export function resultFingerprint(brief: DesignBrief, nodes: Node[], edges: Edge[]): string; // `${inputs}:${graph}`, recorded by stages 3–5
 // nextStages: the first outdated stage and everything after it; [] if stage 1 has open questions and
 // requirements is fresh. Stage 3/4 records are `${inputs}:${graph}`.
 ```
@@ -621,17 +666,41 @@ export function resultFingerprint(brief: DesignBrief, nodes: Node[], edges: Edge
 
 ```ts
 it("ignores casing, whitespace, ids and order of requirement lines", () =>
-  expect(inputsFingerprint(inputs({ requirements: [r("a","Offline"), r("b","Sync")] })))
-    .toBe(inputsFingerprint(inputs({ requirements: [r("z"," sync "), r("y","offline")] }))));
-it("changes when an answer changes", () => expect(inputsFingerprint(withAnswer("1M"))).not.toBe(inputsFingerprint(withAnswer("10M"))));
-it("reverting an edit restores the fingerprint", () => { /* edit then undo text → equal */ });
-it("graph fingerprint ignores labels, descriptions, decisions, positions and comments", () => { /* … */ });
-it("graph fingerprint changes when a protocol changes", () => { /* … */ });
-it("new brief: every stage is next", () => expect(nextStages(emptyBrief, [], [])).toEqual(["requirements","components","decisions","api"]));
-it("open questions stop the pipeline after requirements", () => expect(nextStages(freshStage1WithQuestions, [], [])).toEqual([]));
-it("a hand edit to the graph re-runs decisions and api only", () => expect(nextStages(allFresh, nodesWithNewEdge, edges)).toEqual(["decisions","api"]));
-it("an input edit re-runs everything", () => expect(nextStages(allFreshThenEditedInputs, nodes, edges)).toEqual(["requirements","components","decisions","api"]));
-it("data model is outdated but never in nextStages", () => { /* … */ });
+  expect(inputsFingerprint(inputs({ requirements: [r("a", "Offline"), r("b", "Sync")] }))).toBe(
+    inputsFingerprint(inputs({ requirements: [r("z", " sync "), r("y", "offline")] })),
+  ));
+it("changes when an answer changes", () =>
+  expect(inputsFingerprint(withAnswer("1M"))).not.toBe(inputsFingerprint(withAnswer("10M"))));
+it("reverting an edit restores the fingerprint", () => {
+  /* edit then undo text → equal */
+});
+it("graph fingerprint ignores labels, descriptions, decisions, positions and comments", () => {
+  /* … */
+});
+it("graph fingerprint changes when a protocol changes", () => {
+  /* … */
+});
+it("new brief: every stage is next", () =>
+  expect(nextStages(emptyBrief, [], [])).toEqual([
+    "requirements",
+    "components",
+    "decisions",
+    "api",
+  ]));
+it("open questions stop the pipeline after requirements", () =>
+  expect(nextStages(freshStage1WithQuestions, [], [])).toEqual([]));
+it("a hand edit to the graph re-runs decisions and api only", () =>
+  expect(nextStages(allFresh, nodesWithNewEdge, edges)).toEqual(["decisions", "api"]));
+it("an input edit re-runs everything", () =>
+  expect(nextStages(allFreshThenEditedInputs, nodes, edges)).toEqual([
+    "requirements",
+    "components",
+    "decisions",
+    "api",
+  ]));
+it("data model is outdated but never in nextStages", () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** `pnpm test:run src/utils/aiDesign/fingerprint.test.ts`. Expected: FAIL.
@@ -653,31 +722,40 @@ it("data model is outdated but never in nextStages", () => { /* … */ });
 - Produces (all pure; each returns a new `DesignBrief`):
 
 ```ts
-export function createBrief(prompt: string, scope: Scope, requirements: {kind;text}[], outOfScope: string[], newId: () => string): DesignBrief;
+export function createBrief(
+  prompt: string,
+  scope: Scope,
+  requirements: { kind; text }[],
+  outOfScope: string[],
+  newId: () => string,
+): DesignBrief;
 export function addRequirementLine(brief, kind: RequirementKind, text: string, newId): DesignBrief;
 export function editRequirementLine(brief, id: string, text: string): DesignBrief;
 export function removeRequirementLine(brief, id: string): DesignBrief;
 export function addOutOfScopeLine(brief, text, newId): DesignBrief;
 export function editOutOfScopeLine(brief, id, text): DesignBrief;
 export function removeOutOfScopeLine(brief, id): DesignBrief;
-export function answerQuestion(brief, question: string, answer: string, newId): DesignBrief;   // replaces an existing answer to the same question
-export function assumeRemaining(brief, newId): DesignBrief;   // recommended answer, assumed: true, for each unanswered open question
-export function confirmAssumption(brief, index: number, newId): DesignBrief;   // adds assumption text as a requirement line of its kind
+export function answerQuestion(brief, question: string, answer: string, newId): DesignBrief; // replaces an existing answer to the same question
+export function assumeRemaining(brief, newId): DesignBrief; // recommended answer, assumed: true, for each unanswered open question
+export function confirmAssumption(brief, index: number, newId): DesignBrief; // adds assumption text as a requirement line of its kind
 export function changeAssumption(brief, index: number, text: string, newId): DesignBrief;
-export function removeDerivedRequirement(brief, index: number, newId): DesignBrief;   // adds its text as an out-of-scope line
-export function bringIntoScope(brief, index: number, newId): DesignBrief;   // derived out-of-scope → functional requirement line
-export function requireCondition(brief, text: string, newId): DesignBrief;   // functional requirement line
-export function buildDesignContext(brief): DesignContext;   // §4.1 composition
+export function removeDerivedRequirement(brief, index: number, newId): DesignBrief; // adds its text as an out-of-scope line
+export function bringIntoScope(brief, index: number, newId): DesignBrief; // derived out-of-scope → functional requirement line
+export function requireCondition(brief, text: string, newId): DesignBrief; // functional requirement line
+export function buildDesignContext(brief): DesignContext; // §4.1 composition
 export function requirementsInput(brief): RequirementsInput;
 ```
 
 - [ ] **Step 1: Write the failing tests.** There is one test per action, asserting the exact change
-  to `brief.inputs` and that stage outputs are untouched. Plus:
+      to `brief.inputs` and that stage outputs are untouched. Plus:
 
 ```ts
 it("assumeRemaining answers only unanswered questions with their recommended answer", () => {
   const next = assumeRemaining(briefWith2QuestionsOneAnswered, ids());
-  expect(next.inputs.answers).toEqual([answered, { id: "id-1", question: "How fresh?", answer: "Instantly", assumed: true }]);
+  expect(next.inputs.answers).toEqual([
+    answered,
+    { id: "id-1", question: "How fresh?", answer: "Instantly", assumed: true },
+  ]);
 });
 it("buildDesignContext merges user lines, derived requirements and assumptions", () => {
   expect(buildDesignContext(brief).requirements).toEqual([
@@ -686,7 +764,9 @@ it("buildDesignContext merges user lines, derived requirements and assumptions",
     { kind: "nonFunctional", text: "Online only", assumed: true },
   ]);
 });
-it("assumed answers appear as assumptions in the context", () => { /* … */ });
+it("assumed answers appear as assumptions in the context", () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** `pnpm test:run src/utils/aiDesign/inputs.test.ts`. Expected: FAIL.
@@ -720,13 +800,26 @@ export function applyRequirements(brief: DesignBrief, output: RequirementsOutput
 export const AI_FLOW_ID = "flow-ai-main";
 export function applyComponents(
   current: { nodes: Node[]; edges: Edge[]; flows: NamedFlow[]; brief: DesignBrief },
-  output: ComponentsOutput, now: string,
-): { ok: true; nodes: Node[]; edges: Edge[]; flows: NamedFlow[]; brief: DesignBrief; warnings: string[] }
- | { ok: false; warnings: string[] };   // ok:false when no components remain; caller leaves the diagram unchanged
+  output: ComponentsOutput,
+  now: string,
+):
+  | {
+      ok: true;
+      nodes: Node[];
+      edges: Edge[];
+      flows: NamedFlow[];
+      brief: DesignBrief;
+      warnings: string[];
+    }
+  | { ok: false; warnings: string[] }; // ok:false when no components remain; caller leaves the diagram unchanged
 export function applyDecision(nodes: Node[], key: string, output: DecisionsOutput): Node[];
 export function applyApi(brief: DesignBrief, output: ApiOutput, ranFrom: string): DesignBrief;
-export function applyDataModel(brief: DesignBrief, output: DataModelOutput, ranFrom: string): DesignBrief;
-export function unknownEndpointRefs(brief: DesignBrief, nodes: Node[]): Set<string>;   // endpoint keys with unknown service/calledBy
+export function applyDataModel(
+  brief: DesignBrief,
+  output: DataModelOutput,
+  ranFrom: string,
+): DesignBrief;
+export function unknownEndpointRefs(brief: DesignBrief, nodes: Node[]): Set<string>; // endpoint keys with unknown service/calledBy
 ```
 
 - **Stage 2 cleanup rules,** each producing a human-readable warning:
@@ -746,29 +839,51 @@ export function unknownEndpointRefs(brief: DesignBrief, nodes: Node[]): Set<stri
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
-it("drops derived items that duplicate a user line", () => { /* "members share lists" vs "Members share lists " */ });
+it("drops derived items that duplicate a user line", () => {
+  /* "members share lists" vs "Members share lists " */
+});
 it("builds groups before children with parentId and extent parent", () => {
   const r = ok(applyComponents(current, outputWithNestedGroups, NOW));
   const ids = r.nodes.map((n) => n.id);
   expect(ids.indexOf("backend")).toBeLessThan(ids.indexOf("lists"));
-  expect(r.nodes.find((n) => n.id === "lists")).toMatchObject({ parentId: "backend", extent: "parent" });
+  expect(r.nodes.find((n) => n.id === "lists")).toMatchObject({
+    parentId: "backend",
+    extent: "parent",
+  });
 });
-it("keeps comment nodes and valid saved flows, replaces the AI flow", () => { /* … */ });
+it("keeps comment nodes and valid saved flows, replaces the AI flow", () => {
+  /* … */
+});
 it.each([
-  ["duplicate keys", dupKeys], ["comment id collision", commentCollision], ["group endpoint", edgeToGroup],
-  ["self-loop", selfLoop], ["group cycle", groupCycle], ["unknown flow entry", badFlow],
+  ["duplicate keys", dupKeys],
+  ["comment id collision", commentCollision],
+  ["group endpoint", edgeToGroup],
+  ["self-loop", selfLoop],
+  ["group cycle", groupCycle],
+  ["unknown flow entry", badFlow],
 ])("cleans %s with a warning", (_name, output) => {
   const r = ok(applyComponents(current, output, NOW));
   expect(r.warnings.length).toBeGreaterThan(0);
-  expect(() => diagramDataSchema.parse({ nodes: r.nodes, edges: r.edges, flows: r.flows })).not.toThrow();
+  expect(() =>
+    diagramDataSchema.parse({ nodes: r.nodes, edges: r.edges, flows: r.flows }),
+  ).not.toThrow();
 });
-it("returns ok:false when no components remain", () => expect(applyComponents(current, noComponents, NOW).ok).toBe(false));
+it("returns ok:false when no components remain", () =>
+  expect(applyComponents(current, noComponents, NOW).ok).toBe(false));
 it("maps a decision onto DesignDecision fields", () => {
-  expect(applyDecision(nodes, "sync", decision).find((n) => n.id === "sync")?.data.decision).toEqual({
-    choice: decision.choice, reason: decision.reason, benefits: decision.gains, drawbacks: decision.costs,
-    considered: decision.considered, revisitWhen: decision.revisitWhen });
+  expect(
+    applyDecision(nodes, "sync", decision).find((n) => n.id === "sync")?.data.decision,
+  ).toEqual({
+    choice: decision.choice,
+    reason: decision.reason,
+    benefits: decision.gains,
+    drawbacks: decision.costs,
+    considered: decision.considered,
+    revisitWhen: decision.revisitWhen,
+  });
 });
-it("flags endpoints whose service is unknown", () => expect(unknownEndpointRefs(briefWithEndpointTo("ghost"), nodes)).toEqual(new Set(["e1"])));
+it("flags endpoints whose service is unknown", () =>
+  expect(unknownEndpointRefs(briefWithEndpointTo("ghost"), nodes)).toEqual(new Set(["e1"])));
 ```
 
 - [ ] **Step 2: Run** `pnpm test:run src/utils/aiDesign/apply.test.ts`. Expected: FAIL.
@@ -796,14 +911,20 @@ it("flags endpoints whose service is unknown", () => expect(unknownEndpointRefs(
   client; the panel shows the server message.
 
 - [ ] **Step 1: Write the failing tests** (mock `fetch` and `getApiToken`, as in
-  `src/services/api.test.ts`)
+      `src/services/api.test.ts`)
 
 ```ts
-it("posts to /api/ai/<stage> and returns the validated output", async () => { /* … */ });
-it("rejects an output that fails the stage schema", async () => {
-  await expect(aiApi.run("decisions", input, signal)).rejects.toBeInstanceOf(ApiResponseValidationError);
+it("posts to /api/ai/<stage> and returns the validated output", async () => {
+  /* … */
 });
-it("surfaces a 402 as ApiError with status 402", async () => { /* … */ });
+it("rejects an output that fails the stage schema", async () => {
+  await expect(aiApi.run("decisions", input, signal)).rejects.toBeInstanceOf(
+    ApiResponseValidationError,
+  );
+});
+it("surfaces a 402 as ApiError with status 402", async () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** the test file. Expected: FAIL.
@@ -829,19 +950,28 @@ it("surfaces a 402 as ApiError with status 402", async () => { /* … */ });
 
 ```ts
 export function useDesignPipeline(): {
-  update(): Promise<void>;               // runs nextStages()
+  update(): Promise<void>; // runs nextStages()
   regenerateDecision(nodeId: string): Promise<void>;
   generateDataModel(): Promise<void>;
-  retry(stage: AiStage): Promise<void>;  // re-runs from that stage
+  retry(stage: AiStage): Promise<void>; // re-runs from that stage
   cancel(): void;
 };
-export async function runPipeline(deps: PipelineDeps, options?: { decisionConcurrency?: number }): Promise<void>; // pure-ish core, tested directly
+export async function runPipeline(
+  deps: PipelineDeps,
+  options?: { decisionConcurrency?: number },
+): Promise<void>; // pure-ish core, tested directly
 interface PipelineDeps {
   api: Pick<typeof aiApi, "run">;
-  diagram: () => { id: string | null; nodes: Node[]; edges: Edge[]; flows: NamedFlow[]; brief: DesignBrief };
+  diagram: () => {
+    id: string | null;
+    nodes: Node[];
+    edges: Edge[];
+    flows: NamedFlow[];
+    brief: DesignBrief;
+  };
   apply: (next: Parameters<DiagramStore["applyAiResult"]>[0]) => void;
-  createVersion: (label: string) => Promise<unknown>;   // cloudWorkspace.createVersion
-  run: AiDesignState;                                    // aiDesignStore actions
+  createVersion: (label: string) => Promise<unknown>; // cloudWorkspace.createVersion
+  run: AiDesignState; // aiDesignStore actions
   now: () => string;
 }
 ```
@@ -876,14 +1006,21 @@ it("stops after requirements when questions are open", async () => {
   await runPipeline(deps);
   expect(api.run).toHaveBeenCalledTimes(1);
 });
-it("runs components then decisions and api concurrently", async () => { /* assert call order and that api started before all decisions resolved */ });
+it("runs components then decisions and api concurrently", async () => {
+  /* assert call order and that api started before all decisions resolved */
+});
 it("saves a version before replacing an existing graph", async () => {
   expect(createVersion).toHaveBeenCalledWith("Before AI update");
   expect(createVersion.mock.invocationCallOrder[0]).toBeLessThan(applyComponentsCallOrder());
 });
-it("does not save a version for a first design", async () => { /* … */ });
+it("does not save a version for a first design", async () => {
+  /* … */
+});
 it("discards results when the diagram changes mid-run", async () => {
-  api.run.mockImplementationOnce(async () => { current.id = "other"; return stage1Ready; });
+  api.run.mockImplementationOnce(async () => {
+    current.id = "other";
+    return stage1Ready;
+  });
   await runPipeline(deps);
   expect(apply).not.toHaveBeenCalled();
 });
@@ -893,13 +1030,17 @@ it("keeps successful decisions but leaves the stage outdated when one fails", as
   expect(lastBrief().ranFrom.decisions).toBeUndefined();
   expect(run.errors.decisions).toBe("Reasoning failed for 1 components");
 });
-it("leaves the diagram unchanged when stage 2 has no usable components", async () => { /* … */ });
-it("cancel aborts in-flight requests and applies nothing further", async () => { /* … */ });
+it("leaves the diagram unchanged when stage 2 has no usable components", async () => {
+  /* … */
+});
+it("cancel aborts in-flight requests and applies nothing further", async () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** `pnpm test:run src/hooks/useDesignPipeline.test.tsx`. Expected: FAIL.
 - [ ] **Step 3: Implement** `runPipeline`, and the hook that binds it to the stores and
-  `cloudWorkspace`.
+      `cloudWorkspace`.
 - [ ] **Step 4: Run** the tests, then `pnpm check`. Expected: PASS.
 - [ ] **Step 5: Commit**: `git commit -m "feat: orchestrate the AI design pipeline"`
 
@@ -923,7 +1064,7 @@ it("cancel aborts in-flight requests and applies nothing further", async () => {
 
 - [ ] **Step 1:** Publish the mockup, and ask the user to review layout and copy.
 - [ ] **Step 2:** Record agreed changes as edits to §9 of the spec, and commit
-  `docs: refine the AI design panel after mockup review`.
+      `docs: refine the AI design panel after mockup review`.
 - [ ] **Step 3:** Do not start Task 12 until the user approves.
 
 ---
@@ -1003,35 +1144,51 @@ it("omits an empty side", () => { /* only Gains region rendered */ });
 
 **Copy fixed by the spec:**
 
-| Element | Text |
-| --- | --- |
-| Composer button | "Start design" |
-| Question actions | "Continue", "Assume the rest for me" |
-| Assumption actions | "Confirm", "Change" |
-| Derived requirement action | "Remove" |
-| Derived out-of-scope action | "Bring into scope" |
-| Update bar action | "Update design" |
-| Update bar message | "Requirements, components, reasoning and API will update" (built from the stage names) |
-| Update bar, when components will run | "The current design is replaced; a version is saved first." |
-| Progress | "Requirements → Components → Reasoning d/t → API", with "Cancel" |
-| Stage errors | Error text, with "Retry" |
+| Element                              | Text                                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------------- |
+| Composer button                      | "Start design"                                                                         |
+| Question actions                     | "Continue", "Assume the rest for me"                                                   |
+| Assumption actions                   | "Confirm", "Change"                                                                    |
+| Derived requirement action           | "Remove"                                                                               |
+| Derived out-of-scope action          | "Bring into scope"                                                                     |
+| Update bar action                    | "Update design"                                                                        |
+| Update bar message                   | "Requirements, components, reasoning and API will update" (built from the stage names) |
+| Update bar, when components will run | "The current design is replaced; a version is saved first."                            |
+| Progress                             | "Requirements → Components → Reasoning d/t → API", with "Cancel"                       |
+| Stage errors                         | Error text, with "Retry"                                                               |
 
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
-it("Start design creates the brief from the composer and runs the update", async () => { /* updateBrief called with createBrief(...); update() called */ });
-it("Continue is disabled until every question has an answer", () => { /* … */ });
-it("Assume the rest for me records assumed answers and runs the update", () => { /* … */ });
-it.each(["Confirm","Change","Remove","Bring into scope"])("%s edits the inputs", (label) => { /* asserts the matching Task 7 function result */ });
-it("user lines are shown verbatim and are editable", () => { /* … */ });
-it("update bar names the stages that will run and warns about replacement", () => { /* … */ });
-it("progress shows reasoning d/t and Cancel calls cancel()", () => { /* … */ });
-it("a failed stage shows its error and Retry", () => { /* … */ });
+it("Start design creates the brief from the composer and runs the update", async () => {
+  /* updateBrief called with createBrief(...); update() called */
+});
+it("Continue is disabled until every question has an answer", () => {
+  /* … */
+});
+it("Assume the rest for me records assumed answers and runs the update", () => {
+  /* … */
+});
+it.each(["Confirm", "Change", "Remove", "Bring into scope"])("%s edits the inputs", (label) => {
+  /* asserts the matching Task 7 function result */
+});
+it("user lines are shown verbatim and are editable", () => {
+  /* … */
+});
+it("update bar names the stages that will run and warns about replacement", () => {
+  /* … */
+});
+it("progress shows reasoning d/t and Cancel calls cancel()", () => {
+  /* … */
+});
+it("a failed stage shows its error and Retry", () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** the test files. Expected: FAIL.
 - [ ] **Step 3: Implement.** Follow the existing panel styling (`FlowsPanel` is the closest
-  docked-panel precedent).
+      docked-panel precedent).
 - [ ] **Step 4: Run** `pnpm test:run`, then `pnpm check`. Expected: PASS.
 - [ ] **Step 5: Commit**: `git commit -m "feat: add the design panel with the brief and update bar"`
 
@@ -1061,11 +1218,21 @@ it("a failed stage shows its error and Retry", () => { /* … */ });
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
-it("Design tab lists every node with choice and tradeoffs, and selects on click", () => { /* … */ });
-it("API tab groups endpoints by service with method, path, auth, style, fields and errors", () => { /* … */ });
-it("API tab flags endpoints with unknown components", () => { /* uses unknownEndpointRefs */ });
-it("selecting an endpoint highlights its service and callers", () => { /* … */ });
-it("Data model tab shows Generate data model, then entities, and an outdated dot when stale", () => { /* … */ });
+it("Design tab lists every node with choice and tradeoffs, and selects on click", () => {
+  /* … */
+});
+it("API tab groups endpoints by service with method, path, auth, style, fields and errors", () => {
+  /* … */
+});
+it("API tab flags endpoints with unknown components", () => {
+  /* uses unknownEndpointRefs */
+});
+it("selecting an endpoint highlights its service and callers", () => {
+  /* … */
+});
+it("Data model tab shows Generate data model, then entities, and an outdated dot when stale", () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** the test file. Expected: FAIL.
@@ -1093,9 +1260,15 @@ it("Data model tab shows Generate data model, then entities, and an outdated dot
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
-it("shows Require this on revisit-when items only when a brief exists", () => { /* … */ });
-it("Require this adds the condition as a requirement line", () => { /* brief.inputs.requirements gains it */ });
-it("Regenerate reasoning calls the pipeline for this node", () => { /* … */ });
+it("shows Require this on revisit-when items only when a brief exists", () => {
+  /* … */
+});
+it("Require this adds the condition as a requirement line", () => {
+  /* brief.inputs.requirements gains it */
+});
+it("Regenerate reasoning calls the pipeline for this node", () => {
+  /* … */
+});
 ```
 
 - [ ] **Step 2: Run** the test file. Expected: FAIL.
@@ -1138,7 +1311,7 @@ export function checkDecisions(nodeKeys: string[], outs: Record<string, Decision
   and exits non-zero on any failure.
 
 - [ ] **Step 1: Write the failing tests** for each check function, using hand-written outputs (one
-  passing and one failing per rule).
+      passing and one failing per rule).
 - [ ] **Step 2: Run** `pnpm test:run server/ai/eval`. Expected: FAIL.
 - [ ] **Step 3: Implement** the checks, the fixtures and the script.
 - [ ] **Step 4: Stand-in run.**
@@ -1173,5 +1346,5 @@ It uses `pnpm eval:ai` once a gateway key is available, and the stand-in runs un
 - [ ] **Step 1:** Make the edits.
 - [ ] **Step 2: Run** `pnpm check` (the formatter covers Markdown). Expected: PASS.
 - [ ] **Step 3:** Run `grep -rn "client-side only\|OpenAI SDK\|AIProvider" README.md AGENTS.md`.
-  Expected: no matches.
+      Expected: no matches.
 - [ ] **Step 4: Commit**: `git commit -m "docs: document the AI design pipeline and its Vercel setup"`
