@@ -9,7 +9,7 @@ import { toAiHttpError } from "../ai/errors";
 import type { AiStageRunner } from "../ai/runner";
 import { jsonBody } from "../http/body";
 import { methodNotAllowed, rejectHead } from "../http/middleware";
-import { HttpError } from "../repository";
+import { HttpError } from "../http/errors";
 import type { WorkspaceEnv } from "../types";
 
 // Largest measured stage input is 9,747 bytes (data-model input for a synthetic 40-component design

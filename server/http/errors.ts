@@ -2,8 +2,17 @@ import type { ErrorHandler, NotFoundHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { apiErrorBodySchema } from "../../src/schemas/api";
-import { HttpError } from "../repository";
 import type { WorkspaceEnv } from "../types";
+
+export class HttpError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public headers: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
 
 function errorResponse(
   status: number,

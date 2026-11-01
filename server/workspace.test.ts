@@ -177,6 +177,49 @@ describe("authenticated cloud API", () => {
     ).toEqual([{ ...project, diagrams: [] }]);
     expect(query).toHaveBeenCalledTimes(2);
   });
+  it("omits diagram data from workspace and diagram-list items and pins the summary columns", async () => {
+    const owner = "summary-columns";
+    const project = await json(
+      await api("/projects", "POST", { name: "Summaries" }, owner),
+      apiProjectSchema,
+    );
+    await json(
+      await api(
+        `/projects/${project.id}/diagrams`,
+        "POST",
+        { name: "Summary", data: empty },
+        owner,
+      ),
+      apiDiagramSchema,
+    );
+    const summaryColumns = `id, project_id AS "projectId", name, description, thumbnail, version, revision, created_at::text AS "createdAt", updated_at::text AS "updatedAt"`;
+    const rawItems = z.array(z.record(z.string(), z.unknown()));
+
+    query.mockClear();
+    const workspace = z
+      .array(z.object({ diagrams: rawItems }))
+      .parse(await (await api("/workspace", "GET", undefined, owner)).json());
+    const workspaceItems = workspace.flatMap((entry) => entry.diagrams);
+    expect(workspaceItems).toHaveLength(1);
+    for (const item of workspaceItems) {
+      expect(item).not.toHaveProperty("data");
+    }
+    expect(query.mock.calls.map(([sql]) => sql)).toContain(
+      `SELECT ${summaryColumns} FROM diagrams WHERE project_id IN (SELECT id FROM projects WHERE owner_id = $1) ORDER BY updated_at DESC`,
+    );
+
+    query.mockClear();
+    const listItems = rawItems.parse(
+      await (await api(`/projects/${project.id}/diagrams`, "GET", undefined, owner)).json(),
+    );
+    expect(listItems).toHaveLength(1);
+    for (const item of listItems) {
+      expect(item).not.toHaveProperty("data");
+    }
+    expect(query.mock.calls.map(([sql]) => sql)).toContain(
+      `SELECT ${summaryColumns} FROM diagrams WHERE project_id = $1 AND project_id IN (SELECT id FROM projects WHERE owner_id = $2) ORDER BY updated_at DESC`,
+    );
+  });
   it.each(["POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])(
     "rejects %s /workspace without accessing or changing documents",
     async (method) => {

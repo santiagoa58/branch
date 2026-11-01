@@ -4,7 +4,7 @@ import {
   diagramRouteParamsSchema,
   versionRouteParamsSchema,
 } from "../../src/schemas/server";
-import { HttpError } from "../repository";
+import { HttpError } from "./errors";
 
 export function rejectInvalidRequest(result: { success: boolean }): void {
   if (!result.success) {

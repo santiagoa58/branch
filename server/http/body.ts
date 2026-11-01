@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import { HttpError } from "../repository";
+import { HttpError } from "./errors";
 import type { WorkspaceEnv } from "../types";
 
 export const MAX_BODY_BYTES = 4_000_000;
