@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useDesignPipeline } from "@/hooks/useDesignPipeline";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,11 @@ export function DataModelTab() {
     () => (brief ? outdatedStages(brief, nodes, edges).dataModel : false),
     [brief, nodes, edges],
   );
+  const waitingId = useId();
   const dataModel = brief?.dataModel;
+  // The data model is built from the components, so it needs a components run to start from.
+  const designed =
+    brief?.ranFrom.components !== undefined && nodes.some((node) => node.type === "architecture");
 
   if (!dataModel) {
     return (
@@ -27,7 +31,17 @@ export function DataModelTab() {
         <p className="text-xs leading-relaxed text-muted-foreground">
           Generate entities, keys and relations for this design when you need them.
         </p>
-        <Button size="sm" onClick={() => void pipeline.generateDataModel()}>
+        {!designed && (
+          <p id={waitingId} className="text-xs leading-relaxed text-muted-foreground">
+            Available once an update has designed the components.
+          </p>
+        )}
+        <Button
+          size="sm"
+          disabled={!designed}
+          aria-describedby={designed ? undefined : waitingId}
+          onClick={() => void pipeline.generateDataModel()}
+        >
           Generate data model
         </Button>
       </div>

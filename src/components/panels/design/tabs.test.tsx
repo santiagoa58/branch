@@ -330,6 +330,35 @@ describe("DataModelTab", () => {
     expect(screen.queryByRole("button", { name: "Regenerate data model" })).not.toBeInTheDocument();
   });
 
+  it("disables Generate data model until an update has designed the components", async () => {
+    const user = userEvent.setup();
+    const { components: _components, ...notDesigned } = freshBrief(false).ranFrom;
+    load({ ...freshBrief(false), ranFrom: notDesigned });
+    render(<DataModelTab />);
+
+    const generate = screen.getByRole("button", { name: "Generate data model" });
+    expect(generate).toBeDisabled();
+    expect(generate).toHaveAccessibleDescription(
+      "Available once an update has designed the components.",
+    );
+    await user.click(generate);
+    expect(pipeline.generateDataModel).not.toHaveBeenCalled();
+
+    // A components run that left no architecture nodes has nothing to model either.
+    cleanup();
+    useDiagramStore.setState({ brief: freshBrief(false), nodes: [], edges: [] });
+    render(<DataModelTab />);
+    expect(screen.getByRole("button", { name: "Generate data model" })).toBeDisabled();
+
+    cleanup();
+    load(freshBrief(false));
+    render(<DataModelTab />);
+    expect(screen.getByRole("button", { name: "Generate data model" })).toBeEnabled();
+    expect(
+      screen.queryByText("Available once an update has designed the components."),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows an out-of-date notice with Regenerate when the graph changed", async () => {
     const user = userEvent.setup();
     load(freshBrief(true));
