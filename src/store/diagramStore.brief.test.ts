@@ -152,6 +152,17 @@ describe("diagramStore brief", () => {
     expect(useDiagramStore.getState().brief).toEqual(briefA);
   });
 
+  it("clearDiagram clears the brief, saves, and stays undoable", () => {
+    hydrate({ brief: briefA });
+    useDiagramStore.getState().clearDiagram();
+    expect(useDiagramStore.getState().brief).toBeNull();
+    expect(schedule.mock.calls[0]?.[0]).not.toHaveProperty("brief");
+    useDiagramStore.getState().undo();
+    expect(useDiagramStore.getState().brief).toEqual(briefA);
+    useDiagramStore.getState().redo();
+    expect(useDiagramStore.getState().brief).toBeNull();
+  });
+
   it("imports JSON with an invalid brief as an error", () => {
     expect(() =>
       useDiagramStore.getState().importDiagram({ nodes: [], edges: [], brief: { inputs: 1 } }),

@@ -951,6 +951,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       nodes: [],
       edges: [],
       flows: [],
+      brief: null,
       selectedNodeId: null,
       selectedEdgeId: null,
     });
