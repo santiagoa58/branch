@@ -12,8 +12,6 @@ import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 type Question = DesignBrief["questions"][number];
 
-type Draft = QuestionDraft;
-
 /**
  * Selected answers are kept in the UI store until Continue or Assume, by question text, so they
  * survive the inspector taking the panel's slot. A new round of questions starts empty.
@@ -22,17 +20,18 @@ function useDrafts(questions: Question[]) {
   const stored = useUIStore((state) => state.questionDrafts);
   const setQuestionDraft = useUIStore((state) => state.setQuestionDraft);
   const drafts = stored.questions === questions ? stored.drafts : {};
-  const setDraft = (question: string, draft: Draft) => setQuestionDraft(questions, question, draft);
+  const setDraft = (question: string, draft: QuestionDraft) =>
+    setQuestionDraft(questions, question, draft);
   return { drafts, setDraft };
 }
 
-const answerIn = (drafts: Record<string, Draft>, question: Question) =>
+const answerIn = (drafts: Record<string, QuestionDraft>, question: Question) =>
   drafts[question.question]?.text.trim() ?? "";
 
 /** Records the chosen answers to the open questions in the brief's inputs. */
 function recordAnswers(
   current: DesignBrief,
-  drafts: Record<string, Draft>,
+  drafts: Record<string, QuestionDraft>,
   id: () => string,
 ): DesignBrief {
   return current.questions.reduce((next, question) => {
@@ -47,8 +46,8 @@ function QuestionCard({
   onChange,
 }: {
   question: Question;
-  draft: Draft | undefined;
-  onChange: (draft: Draft) => void;
+  draft: QuestionDraft | undefined;
+  onChange: (draft: QuestionDraft) => void;
 }) {
   const freeText = question.options.length === 0;
   const writing = freeText || draft?.custom === true;

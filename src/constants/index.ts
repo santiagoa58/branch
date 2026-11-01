@@ -840,23 +840,6 @@ export const NODE_TYPES_CONFIG: Record<ArchitectureNodeType, NodeTypeConfig> = {
   ),
 };
 
-// Edge styles by protocol (legacy - kept for reference)
-export const EDGE_STYLES: Record<
-  string,
-  {
-    strokeDasharray?: string;
-    animated?: boolean;
-    strokeWidth: number;
-  }
-> = {
-  http: { strokeWidth: 2 },
-  grpc: { strokeDasharray: "5 5", strokeWidth: 2 },
-  websocket: { animated: true, strokeWidth: 2 },
-  tcp: { strokeWidth: 3 },
-  amqp: { strokeDasharray: "2 2", animated: true, strokeWidth: 2 },
-  kafka: { strokeDasharray: "2 2", animated: true, strokeWidth: 2 },
-};
-
 // Protocol configuration with colors, labels, and styles
 export const PROTOCOL_CONFIG: Record<
   EdgeProtocol,

@@ -14,8 +14,6 @@ import { DataModelTab } from "./DataModelTab";
 import { DesignTab } from "./DesignTab";
 import { RunNotes, RunProgress, UpdateBar } from "./UpdateBar";
 
-export type { DesignTabId };
-
 const TABS: readonly { id: DesignTabId; label: string }[] = [
   { id: "brief", label: "Brief" },
   { id: "design", label: "Design" },
