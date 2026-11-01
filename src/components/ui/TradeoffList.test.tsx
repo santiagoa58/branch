@@ -1,10 +1,21 @@
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { TradeoffList } from "./TradeoffList";
 
 afterEach(cleanup);
 
 describe("TradeoffList", () => {
+  it("renders repeated items without duplicate keys", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<TradeoffList gains={["Fast", "Fast"]} costs={["Cost", "Cost"]} />);
+    const gains = screen.getByRole("region", { name: "Gains" });
+    const costs = screen.getByRole("region", { name: "Costs" });
+    expect(within(gains).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(costs).getAllByRole("listitem")).toHaveLength(2);
+    expect(error.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    error.mockRestore();
+  });
+
   it("labels the two sides Gains and Costs", () => {
     render(<TradeoffList gains={["Fast"]} costs={["Stale reads"]} />);
     expect(screen.getByRole("region", { name: "Gains" })).toHaveTextContent("Fast");

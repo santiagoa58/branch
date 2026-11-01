@@ -17,13 +17,4 @@ export const tagClass =
 export const inputClass =
   "w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-/** Keys for rows without ids: the text and its occurrence, so a repeated text stays distinct. */
-export function keyedByText<T>(items: readonly T[], text: (item: T) => string) {
-  const seen = new Map<string, number>();
-  return items.map((item, index) => {
-    const value = text(item);
-    const count = (seen.get(value) ?? 0) + 1;
-    seen.set(value, count);
-    return { key: `${count}:${value}`, item, index };
-  });
-}
+export { keyedByText } from "@/lib/keyedByText";

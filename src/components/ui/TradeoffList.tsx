@@ -1,3 +1,4 @@
+import { keyedByText } from "@/lib/keyedByText";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -32,9 +33,10 @@ function Side({ side, items }: { side: keyof typeof sides; items: string[] }) {
     <section aria-label={label} className="min-w-0">
       <h4 className={cn("mb-1.5 text-xs font-semibold", heading)}>{label}</h4>
       <ul className="flex flex-col gap-2">
-        {items.map((item) => (
+        {/* Model text can repeat; keyedByText keeps the keys unique. */}
+        {keyedByText(items, (text) => text).map(({ key, item }) => (
           <li
-            key={item}
+            key={key}
             className={cn("flex min-w-0 items-start gap-2 border-l-2 pl-2 text-foreground", rule)}
           >
             <span

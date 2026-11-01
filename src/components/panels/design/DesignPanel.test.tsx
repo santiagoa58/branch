@@ -289,6 +289,36 @@ describe("replacement notice before a run", () => {
   });
 });
 
+describe("Questions keys", () => {
+  it("renders questions and options whose ids and labels repeat, without duplicate keys", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const question = {
+      id: "q1",
+      topic: "scale",
+      question: "How many links a day?",
+      why: "Sizes storage.",
+      options: [
+        { label: "About 1k", impact: "One small database" },
+        { label: "About 1k", impact: "A cache in front of the database" },
+      ],
+      recommended: "About 1k",
+      allowsCustom: false,
+    };
+    const brief: DesignBrief = {
+      ...base,
+      questions: [question, { ...question, question: "How many users?" }],
+    };
+    useDiagramStore.setState({ brief, nodes: [], edges: [] });
+    render(<DesignPanel />);
+
+    expect(screen.getAllByRole("group")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /About 1k/ })).toHaveLength(4);
+    expect(screen.getAllByText("A cache in front of the database")).toHaveLength(2);
+    expect(error.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    error.mockRestore();
+  });
+});
+
 describe("EditorRightPanel", () => {
   it("gives the slot to the inspector while something is selected", () => {
     useUIStore.getState().openDesignPanel();

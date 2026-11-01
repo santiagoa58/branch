@@ -7,7 +7,7 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type QuestionDraft } from "@/store/uiStore";
 import { nextStages } from "@/utils/aiDesign/fingerprint";
 import { answerQuestion, assumeRemaining } from "@/utils/aiDesign/inputs";
-import { editBrief, inputClass, newId, tagClass } from "./briefEdits";
+import { editBrief, inputClass, keyedByText, newId, tagClass } from "./briefEdits";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 type Question = DesignBrief["questions"][number];
@@ -61,11 +61,11 @@ function QuestionCard({
       </p>
       <p className="text-xs leading-relaxed text-muted-foreground">{question.why}</p>
       <div className="flex flex-col gap-1.5">
-        {question.options.map((option) => {
+        {keyedByText(question.options, (entry) => entry.label).map(({ key, item: option }) => {
           const selected = draft?.custom === false && draft.text === option.label;
           return (
             <button
-              key={option.label}
+              key={key}
               type="button"
               aria-pressed={selected}
               onClick={() => onChange({ custom: false, text: option.label })}
@@ -170,9 +170,10 @@ export function Questions({ brief }: { brief: DesignBrief }) {
           you to check.
         </p>
       </div>
-      {questions.map((question) => (
+      {/* Ids and labels come from the model and can repeat; keyedByText keeps keys unique. */}
+      {keyedByText(questions, (entry) => entry.id).map(({ key, item: question }) => (
         <QuestionCard
-          key={question.id}
+          key={key}
           question={question}
           draft={drafts[question.question]}
           onChange={(draft) => setDraft(question.question, draft)}
