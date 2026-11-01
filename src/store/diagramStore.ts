@@ -1,15 +1,21 @@
+// oxlint-disable max-lines -- debt: 861 lines (limit 450); split the module
 import { create } from "zustand";
 import {
-  Connection,
-  EdgeChange,
-  NodeChange,
+  type Connection,
+  type EdgeChange,
+  type NodeChange,
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
-  Node,
-  Edge,
+  type Node,
+  type Edge,
 } from "@xyflow/react";
-import { ArchitectureNodeData, ArchitectureEdgeData, GroupNodeData, DiagramData } from "@/types";
+import type {
+  ArchitectureNodeData,
+  ArchitectureEdgeData,
+  GroupNodeData,
+  DiagramData,
+} from "@/types";
 import type { NamedFlow } from "@/types/simulation";
 import { useAnimationStore } from "@/store/animationStore";
 import { useSimulationStore } from "@/store/simulationStore";
@@ -160,6 +166,7 @@ function setIfEditable(
   }
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 741 lines; split into smaller units
 export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Initial state
   nodes: [],
@@ -230,8 +237,8 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       },
     };
 
-    setIfEditable((state) => ({
-      edges: addEdge(newEdge, state.edges),
+    setIfEditable((current) => ({
+      edges: addEdge(newEdge, current.edges),
     }));
 
     get().saveToHistory();
@@ -433,8 +440,11 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
       // Insert nodes keeping existing parent right after their parent
       nodesKeepingExistingParent.forEach((newNode) => {
+        // oxlint-disable-next-line max-nested-callbacks -- debt: 4 nested callbacks; extract the inner callback
         const parentIndex = resultNodes.findIndex((n) => n.id === newNode.parentId);
-        if (parentIndex !== -1) {
+        if (parentIndex === -1) {
+          resultNodes.push({ ...newNode, selected: true });
+        } else {
           // Find the last child of this parent to insert after
           let insertIndex = parentIndex + 1;
           while (
@@ -444,8 +454,6 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
             insertIndex++;
           }
           resultNodes.splice(insertIndex, 0, { ...newNode, selected: true });
-        } else {
-          resultNodes.push({ ...newNode, selected: true });
         }
       });
 
@@ -693,6 +701,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Add node to group
   addNodeToGroup: (nodeId, groupId, relativePosition?) => {
+    // oxlint-disable-next-line complexity -- debt: complexity 32; extract branches
     setIfEditable((state) => {
       const groupNode = state.nodes.find((n) => n.id === groupId);
       const targetNode = state.nodes.find((n) => n.id === nodeId);

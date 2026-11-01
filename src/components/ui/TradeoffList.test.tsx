@@ -65,7 +65,7 @@ describe("TradeoffList", () => {
     const cost = `Potential stale reads\n${"More invalidation work. ".repeat(30)}`.trim();
     const { container } = render(<TradeoffList gains={[]} costs={[cost]} />);
     const text = within(screen.getByRole("region", { name: "Costs" })).getByText(cost, {
-      normalizer: (text) => text,
+      normalizer: (value) => value,
     });
     expect(text).toHaveClass("whitespace-pre-wrap", "wrap-anywhere");
     expect(

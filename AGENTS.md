@@ -10,7 +10,7 @@ and `.cursor/` for deep references (`rules.md`, `features.md`, `components.mdc`,
 ```bash
 pnpm dev            # Complete app (Vite+ frontend + Vercel API) on :3000
 pnpm audit          # Dependency vulnerability audit
-pnpm check          # Strict format, lint, and type checks
+pnpm check          # Strict format, lint, type checks, and knip (unused code/deps)
 pnpm test:run       # Vitest run (one-shot)
 pnpm test:coverage  # Vitest run with V8 coverage
 pnpm build          # TypeScript and Vite+ production build
@@ -54,6 +54,9 @@ lockstep — use the `add-node-type` skill, or follow that skill's steps manuall
   AI/provider responses, and browser preferences) must cross
   a Zod schema in `src/schemas/`. Do not use handwritten structural validators or
   type assertions at trust boundaries.
+- **Quality gates:** lint and knip are enforced by `pnpm check`. Fix violations rather than
+  disabling rules; any disable comment needs a `-- reason`, and size/complexity debt is marked
+  `-- debt: <reason>` until it is refactored.
 - **Styling:** Tailwind v4. Use `zinc-*`, never `gray-*`. Use the `cn()` helper from
   `@/lib/utils`. Theme via CSS variables in `src/index.css` — don't hardcode colors.
 

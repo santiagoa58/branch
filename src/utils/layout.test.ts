@@ -39,28 +39,32 @@ function numeric(value: number | string | undefined): number | undefined {
   return typeof value === "string" ? Number.parseFloat(value) : value;
 }
 
-function size(node: Node): { width: number; height: number } {
-  if (node.type === "group") {
-    return node.data["collapsed"] === true
+function size(target: Node): { width: number; height: number } {
+  if (target.type === "group") {
+    return target.data["collapsed"] === true
       ? { width: COLLAPSED_GROUP_WIDTH, height: COLLAPSED_GROUP_HEIGHT }
-      : { width: Number(node.style?.width), height: Number(node.style?.height) };
+      : { width: Number(target.style?.width), height: Number(target.style?.height) };
   }
   return {
     width:
-      node.measured?.width ?? node.width ?? numeric(node.style?.width) ?? node.initialWidth ?? 180,
+      target.measured?.width ??
+      target.width ??
+      numeric(target.style?.width) ??
+      target.initialWidth ??
+      180,
     height:
-      node.measured?.height ??
-      node.height ??
-      numeric(node.style?.height) ??
-      node.initialHeight ??
+      target.measured?.height ??
+      target.height ??
+      numeric(target.style?.height) ??
+      target.initialHeight ??
       140,
   };
 }
 
-function bounds(node: Node) {
-  const { width, height } = size(node);
-  const left = node.position.x - width * (node.origin?.[0] ?? 0);
-  const top = node.position.y - height * (node.origin?.[1] ?? 0);
+function bounds(target: Node) {
+  const { width, height } = size(target);
+  const left = target.position.x - width * (target.origin?.[0] ?? 0);
+  const top = target.position.y - height * (target.origin?.[1] ?? 0);
   return { left, top, right: left + width, bottom: top + height };
 }
 

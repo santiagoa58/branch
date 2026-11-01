@@ -49,6 +49,7 @@ function clearSelection() {
   );
 }
 
+// oxlint-disable-next-line complexity -- debt: complexity 24; extract branches
 function executeShortcut(command: EditorShortcut, actions: EditorShortcutActions): boolean {
   const state = useDiagramStore.getState();
   const ui = useUIStore.getState();

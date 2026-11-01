@@ -1,9 +1,8 @@
 import { useState, useCallback, useRef } from "react";
 import { X, Upload, FileJson, FileText, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { importDiagram, detectFileFormat } from "@/utils/import";
+import { importDiagram, detectFileFormat, buildImportData } from "@/utils/import";
 import { useDiagramStore } from "@/store/diagramStore";
-import { buildImportData } from "@/utils/import";
 import { notify } from "@/services/notify";
 import type { DiagramData } from "@/types";
 
@@ -12,6 +11,7 @@ interface ImportDialogProps {
   onClose: () => void;
 }
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 17, 322 lines; extract branches and split into smaller units
 export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
   const [dragActive, setDragActive] = useState(false);
   const [fileContent, setFileContent] = useState<string>("");
@@ -38,7 +38,7 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
   const processFile = useCallback(
     (file: File) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.addEventListener("load", (e) => {
         const resultContent = e.target?.result;
         if (typeof resultContent !== "string") {
           return;
@@ -56,13 +56,13 @@ export function ImportDialog({ isOpen, onClose }: ImportDialogProps) {
         if (result.success && result.data) {
           setPreviewData(result.data);
           setValidationErrors([]);
-          setValidationWarnings(result.warnings || []);
+          setValidationWarnings(result.warnings ?? []);
         } else {
           setPreviewData(null);
-          setValidationErrors(result.errors || []);
-          setValidationWarnings(result.warnings || []);
+          setValidationErrors(result.errors ?? []);
+          setValidationWarnings(result.warnings ?? []);
         }
-      };
+      });
       reader.readAsText(file);
     },
     [importMode, includeViewport],

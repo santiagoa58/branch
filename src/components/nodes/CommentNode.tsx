@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { NodeProps } from "@xyflow/react";
+import type { NodeProps } from "@xyflow/react";
 import type { CommentNode as CommentFlowNode } from "@/types";
 import { COMMENT_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const CommentNode = memo(
+  // oxlint-disable-next-line complexity -- debt: complexity 17; extract branches
   ({ data: commentData, selected, id }: NodeProps<CommentFlowNode>) => {
     const { updateNodeData } = useDiagramStore();
     const isMinimized = commentData.minimized || false;

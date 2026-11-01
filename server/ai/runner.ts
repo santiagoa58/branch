@@ -91,6 +91,7 @@ export function createGatewayRunner(
   const generate = deps.generate ?? generateText;
   let env = deps.env;
 
+  // oxlint-disable-next-line max-params -- debt: 5 params; take an options object
   async function attempt<S extends AiStage>(
     stage: S,
     system: string,

@@ -15,6 +15,7 @@ function withInputs(brief: DesignBrief, inputs: Partial<DesignBrief["inputs"]>):
   return { ...brief, inputs: { ...brief.inputs, ...inputs } };
 }
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 export function createBrief(
   prompt: string,
   scope: Scope,

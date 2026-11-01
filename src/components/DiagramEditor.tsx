@@ -1,5 +1,6 @@
-import { useCallback, useRef, useEffect, useMemo, DragEvent, useState } from "react";
-import { ReactFlow, MiniMap, useReactFlow, useStoreApi, Node } from "@xyflow/react";
+// oxlint-disable max-lines -- debt: 780 lines (limit 450); split the module
+import { useCallback, useRef, useEffect, useMemo, type DragEvent, useState } from "react";
+import { ReactFlow, MiniMap, useReactFlow, useStoreApi, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import { useDiagramStore } from "@/store/diagramStore";
@@ -12,7 +13,7 @@ import { edgeTypes } from "@/components/edges";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
 import { architectureNodeTypeSchema, groupNodeTypeSchema } from "@/schemas/diagram";
 import { paletteNodeTypeSchema, type PaletteNodeType } from "@/schemas/ui";
-import { ArchitectureNode, GroupNodeData } from "@/types";
+import type { ArchitectureNode, GroupNodeData } from "@/types";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { applyGroupCollapse } from "@/utils/groupRollup";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,7 @@ function createPaletteNode(type: PaletteNodeType, position: { x: number; y: numb
   return node;
 }
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 18, 684 lines; extract branches and split into smaller units
 export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
   const { screenToFlowPosition, zoomIn, zoomOut, getZoom, getIntersectingNodes } = useReactFlow();

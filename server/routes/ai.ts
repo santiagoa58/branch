@@ -16,6 +16,7 @@ import type { WorkspaceEnv } from "../types";
 // with 32 endpoints, server/ai/eval/limits.test.ts); 4 x 9,747 = 38,988, rounded up to 64 KB.
 export const AI_MAX_BODY_BYTES = 64 * 1024;
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 async function runStage<S extends AiStage>(
   ai: AiStageRunner,
   stage: S,

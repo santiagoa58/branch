@@ -21,9 +21,9 @@ const show = (type: NotifyType, options: NotifyOptions): string => {
   const fn = METHOD_MAP[type];
   return fn({
     title: options.title,
-    ...(options.message !== undefined ? { description: options.message } : {}),
-    ...(options.duration !== undefined ? { duration: options.duration } : {}),
-    ...(options.button !== undefined ? { button: options.button } : {}),
+    ...(options.message === undefined ? {} : { description: options.message }),
+    ...(options.duration === undefined ? {} : { duration: options.duration }),
+    ...(options.button === undefined ? {} : { button: options.button }),
   });
 };
 

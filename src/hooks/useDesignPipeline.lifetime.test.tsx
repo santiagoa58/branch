@@ -58,7 +58,7 @@ beforeEach(() => {
   // The fake ignores the abort signal, like a response already on its way back.
   vi.spyOn(aiApi, "run").mockImplementation(async () => {
     await gate;
-    return requirements as never;
+    return requirements;
   });
 });
 

@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- debt: 503 lines (limit 450); split the module
 import type { ArchitectureEdge, ArchitectureNodeType, DiagramData, DiagramNode } from "@/types";
 import { NODE_TYPES_CONFIG } from "@/constants";
 import { parseDecisionRows } from "@/utils/designDecision";
@@ -190,7 +191,7 @@ export function buildImportData(
   return {
     nodes: combined.nodes,
     edges: combined.edges,
-    ...(combined.flows !== undefined ? { flows: combined.flows } : {}),
+    ...(combined.flows === undefined ? {} : { flows: combined.flows }),
     ...(combined.brief ? { brief: combined.brief } : {}),
   };
 }
@@ -274,12 +275,13 @@ function markdownTable(section: string, column: string, companion: string): Map<
 }
 
 // Parse Markdown export back to diagram data
-export function parseMarkdown(markdown: string): ImportResult {
+// oxlint-disable-next-line max-lines-per-function -- debt: 227 lines; split into smaller units
+export function parseMarkdown(rawMarkdown: string): ImportResult {
   try {
     const nodes: DiagramNode[] = [];
     const edges: ArchitectureEdge[] = [];
 
-    markdown = markdown.replace(/\r\n?/g, "\n");
+    const markdown = rawMarkdown.replace(/\r\n?/g, "\n");
     const configuredTypes = new Map(
       Object.entries(NODE_TYPES_CONFIG).map(([type, config]) => [config.label.toLowerCase(), type]),
     );

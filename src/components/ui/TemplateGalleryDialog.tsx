@@ -47,6 +47,7 @@ export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialog
   return <TemplateGallery onClose={onClose} />;
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 281 lines; split into smaller units
 function TemplateGallery({ onClose }: { onClose: () => void }) {
   const canvasEmpty = useDiagramStore((s) => s.nodes.length === 0);
   const { fitView } = useReactFlow();

@@ -41,21 +41,7 @@ function App() {
         <CloudNavigationGuard />
         <Navbar />
         <CloudSaveError />
-        {!loaded ? (
-          cloud.status === "load-error" ? (
-            <DiagramLoadError
-              failure={cloud.loadFailure}
-              message={cloud.message}
-              onRetry={() => {
-                if (diagramId) {
-                  void cloudWorkspace.load(diagramId, projectId);
-                }
-              }}
-            />
-          ) : (
-            <LoadingState label="Loading diagram…" className="flex-1" />
-          )
-        ) : (
+        {loaded ? (
           <main className="flex-1 flex overflow-hidden relative" inert={locked}>
             {/* Below lg the panels slide over the canvas instead of squeezing it to nothing. */}
             {(leftPanelVisible || rightPanelVisible) && (
@@ -75,6 +61,18 @@ function App() {
             {/* Outside the editor, so the design panel stays usable while an AI run locks the canvas. */}
             <EditorRightPanel />
           </main>
+        ) : cloud.status === "load-error" ? (
+          <DiagramLoadError
+            failure={cloud.loadFailure}
+            message={cloud.message}
+            onRetry={() => {
+              if (diagramId) {
+                void cloudWorkspace.load(diagramId, projectId);
+              }
+            }}
+          />
+        ) : (
+          <LoadingState label="Loading diagram…" className="flex-1" />
         )}
         {loaded && locked && (
           <div className="fixed inset-0 z-90 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">

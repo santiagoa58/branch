@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import type { ArchitectureAttribute, DesignDecision, DiagramData } from "@/types";
 import { architectureNodeDataSchema, groupNodeDataSchema } from "@/schemas/diagram";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
-import { Node } from "@xyflow/react";
+import type { Node } from "@xyflow/react";
 import { SCHEMA_VERSION } from "./import";
 import { getNodeAttributes } from "./architectureAttributes";
 import { getDecisionRows } from "./designDecision";
@@ -49,10 +49,7 @@ export function getExportStats(data: DiagramData): ExportStats {
 }
 
 // Generate PNG preview (returns data URL instead of downloading)
-export async function generatePreviewPng(
-  backgroundColor: string,
-  scale: number = 2,
-): Promise<string> {
+export async function generatePreviewPng(backgroundColor: string, scale = 2): Promise<string> {
   const reactFlowContainer = document.querySelector(".react-flow");
   if (!reactFlowContainer) {
     throw new Error("React Flow container not found");
@@ -200,10 +197,7 @@ export async function exportSelectedAsPng(selectedNodes: Node[]): Promise<void> 
 }
 
 // Export as PNG
-export async function exportAsPng(
-  backgroundColor: string = "#09090b",
-  scale: number = 2,
-): Promise<void> {
+export async function exportAsPng(backgroundColor = "#09090b", scale = 2): Promise<void> {
   const element = getReactFlowElement();
   if (!element) {
     throw new Error("Diagram element not found");
@@ -239,7 +233,7 @@ export async function exportAsPng(
 }
 
 // Export as SVG
-export async function exportAsSvg(backgroundColor: string = "#09090b"): Promise<void> {
+export async function exportAsSvg(backgroundColor = "#09090b"): Promise<void> {
   const reactFlowContainer = document.querySelector(".react-flow");
   if (!reactFlowContainer) {
     throw new Error("React Flow container not found");
@@ -269,7 +263,7 @@ export async function exportAsSvg(backgroundColor: string = "#09090b"): Promise<
 
 // Export as PDF
 export async function exportAsPdf(
-  backgroundColor: string = "#09090b",
+  backgroundColor = "#09090b",
   orientation: "portrait" | "landscape" = "landscape",
 ): Promise<void> {
   const reactFlowContainer = document.querySelector(".react-flow");
@@ -497,7 +491,7 @@ export function exportAsJson(data: DiagramData, options: ExportOptions = {}): vo
   } = options;
 
   // Create versioned data
-  let exportData: VersionedDiagramData = { ...data };
+  const exportData: VersionedDiagramData = { ...data };
 
   // Add version and metadata
   if (includeMetadata) {

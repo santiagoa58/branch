@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- debt: 851 lines (limit 450); split the module
 import { useState } from "react";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAnimationStore } from "@/store/animationStore";
@@ -30,6 +31,7 @@ import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 47, 789 lines; extract branches and split into smaller units
 export function PropertiesPanel() {
   const {
     nodes,
@@ -460,7 +462,7 @@ export function PropertiesPanel() {
             {
               id: "contract",
               label: "API",
-              populated: !!(edgeData.dataContract || edgeData.responseContract),
+              populated: Boolean(edgeData.dataContract ?? edgeData.responseContract),
             },
             {
               id: "design",
@@ -667,6 +669,7 @@ export function PropertiesPanel() {
             <hr className="border-zinc-200 dark:border-zinc-800" />
 
             {/* Data Contract Section — segmented Request | Response for request/response protocols. */}
+            {/* oxlint-disable-next-line complexity -- debt: complexity 28; extract branches */}
             {(() => {
               const supportsResponse =
                 edgeData.protocol !== null &&

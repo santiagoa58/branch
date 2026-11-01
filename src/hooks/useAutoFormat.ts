@@ -59,6 +59,7 @@ export function useAutoFormat() {
           padding: 0.2,
           maxZoom: 1,
           duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 300,
+          // oxlint-disable-next-line max-nested-callbacks -- debt: 4 nested callbacks; extract the inner callback
         }).catch(() => {
           notify.error({
             title: "Could not fit the diagram in view",

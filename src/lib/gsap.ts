@@ -3,7 +3,7 @@
  * All animation code should import from here instead of directly from 'gsap'.
  * This ensures MotionPathPlugin is registered once and provides a single source of truth.
  */
-import gsap from "gsap";
+import { gsap } from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import { useGSAP } from "@gsap/react";
 

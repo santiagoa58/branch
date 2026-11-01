@@ -272,6 +272,7 @@ export class CloudPersistence {
       const { id, revision } = this.state.diagram;
       this.set({ status: "saving", message: null });
       try {
+        // oxlint-disable-next-line no-await-in-loop -- the save queue is serialized: each save needs the previous revision
         const saved = await this.api.update(id, { data: snapshot, expectedRevision: revision });
         if (epoch !== this.epoch) {
           return;
@@ -341,7 +342,7 @@ export class CloudPersistence {
       return Promise.reject(new Error("The other copy hasn't loaded yet."));
     }
     if (!this.pending) {
-      this.useRemote();
+      this.takeRemote();
       return Promise.resolve();
     }
     // Save on top of the newest revision, which is what the person chose to overwrite.
@@ -349,7 +350,7 @@ export class CloudPersistence {
     return this.flush();
   };
   /** Drop this tab's unsaved edits and continue from the other copy. */
-  useRemote = () => {
+  takeRemote = () => {
     const remote = this.state.conflict?.remote;
     if (this.state.status !== "conflict" || !remote) {
       return;

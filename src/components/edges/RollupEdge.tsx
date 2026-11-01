@@ -1,7 +1,7 @@
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from "@xyflow/react";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { RollupEdgeData, EdgeProtocol } from "@/types";
+import type { RollupEdgeData, EdgeProtocol } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
 
 import { useDiagramStore } from "@/store/diagramStore";

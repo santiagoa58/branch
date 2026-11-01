@@ -150,6 +150,7 @@ function EditorRow(props: Parameters<typeof InlineEdit>[0]) {
 const listClass = "mt-1.5 rounded-lg border border-border bg-card";
 
 /** Requirements by kind, the assumptions to check, and what is out of scope. */
+// oxlint-disable-next-line max-lines-per-function -- debt: 250 lines; split into smaller units
 export function BriefSections({ brief }: { brief: DesignBrief }) {
   // One inline editor at a time, named by what it edits.
   const [editing, setEditing] = useState<string | null>(null);

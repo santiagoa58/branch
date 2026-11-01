@@ -108,7 +108,7 @@ export function useDestroyAnimation() {
         return;
       }
 
-      const nodeEl = document.querySelector(`[data-node-id="${nodeId}"]`) as HTMLElement | null;
+      const nodeEl = document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
       if (!nodeEl) {
         deleteNode(nodeId);
         confirmDelete(nodeId);

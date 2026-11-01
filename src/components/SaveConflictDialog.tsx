@@ -57,8 +57,8 @@ export function SaveConflictDialog({ open, onOpenChange }: SaveConflictDialogPro
       })
       .finally(() => setSaving(false));
   };
-  const useOther = () => {
-    cloudWorkspace.useRemote();
+  const takeOther = () => {
+    cloudWorkspace.takeRemote();
     onOpenChange(false);
   };
 
@@ -128,7 +128,7 @@ export function SaveConflictDialog({ open, onOpenChange }: SaveConflictDialogPro
               {error}
             </p>
           )}
-          <Button variant="outline" disabled={!other || saving} onClick={useOther}>
+          <Button variant="outline" disabled={!other || saving} onClick={takeOther}>
             {cloud.dirty ? "Discard mine, use other copy" : "Load the other copy"}
           </Button>
           {cloud.dirty && (

@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- debt: 519 lines (limit 450); split the module
 import type { Edge, Node } from "@xyflow/react";
 import type {
   AiStage,
@@ -225,6 +226,7 @@ async function forEachLimited<T>(
   let next = 0;
   const lane = async () => {
     for (let item = items[next++]; item !== undefined; item = items[next++]) {
+      // oxlint-disable-next-line no-await-in-loop -- each lane runs its items one at a time; lanes run in parallel
       await worker(item);
     }
   };
@@ -234,6 +236,7 @@ async function forEachLimited<T>(
   await Promise.all(Array.from({ length: lanes }, lane));
 }
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 async function runDecisions(
   deps: PipelineDeps,
   session: Session,

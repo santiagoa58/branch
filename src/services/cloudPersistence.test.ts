@@ -259,7 +259,7 @@ describe("cloud document lifecycle", () => {
     await vi.waitFor(() => expect(cloud.getState().conflict?.remote).toBe(remote));
     hydrate.mockClear();
 
-    cloud.useRemote();
+    cloud.takeRemote();
 
     expect(hydrate).toHaveBeenCalledExactlyOnceWith(remote.data);
     expect(cloud.onDocument).toHaveBeenLastCalledWith(remote);

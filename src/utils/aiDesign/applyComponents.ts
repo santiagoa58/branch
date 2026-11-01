@@ -23,6 +23,7 @@ export type ApplyComponentsResult =
   | { ok: false; warnings: string[] };
 
 /** Keeps the first use of each key; drops repeats and keys that collide with comment ids. */
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 function uniqueKeyed<T extends { key: string }>(
   items: T[],
   taken: Set<string>,

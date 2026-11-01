@@ -39,6 +39,7 @@ function polygonCollapsed(point: string, vertexCount: number): string {
 // renders absolute px clip-path coordinates on ::view-transition-new(root)
 // unscaled on fractional display scales (e.g. Windows 150%) for the first
 // transition after load, so px values land at the wrong position (#989).
+// oxlint-disable-next-line max-params -- debt: 6 params; take an options object
 function getThemeTransitionClipPaths(
   variant: TransitionVariant,
   cx: number,

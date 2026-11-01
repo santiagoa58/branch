@@ -1,5 +1,5 @@
-import { Node, Edge } from "@xyflow/react";
-import {
+import type { Node, Edge } from "@xyflow/react";
+import type {
   ArchitectureEdgeData,
   ArchitectureNodeData,
   ArchitectureNodeType,
@@ -15,6 +15,7 @@ import { nodeAttributes } from "./reasoning";
  * hand-drawn diagram.
  */
 
+// oxlint-disable-next-line max-params -- debt: 6 params; take an options object
 export function archNode(
   id: string,
   type: ArchitectureNodeType,
@@ -41,6 +42,7 @@ export function archNode(
   };
 }
 
+// oxlint-disable-next-line max-params -- debt: 8 params; take an options object
 export function groupNode(
   id: string,
   groupType: GroupNodeType,

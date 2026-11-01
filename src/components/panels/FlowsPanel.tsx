@@ -11,7 +11,7 @@ import {
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { SaveFlowDialog } from "@/components/ui/SaveFlowDialog";
-import { ArchitectureNodeData } from "@/types";
+import type { ArchitectureNodeData } from "@/types";
 import type { NamedFlow } from "@/types/simulation";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ interface FlowsPanelProps {
   onClose: () => void;
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 216 lines; split into smaller units
 export function FlowsPanel({ onClose }: FlowsPanelProps) {
   const flows = useDiagramStore((s) => s.flows);
   const nodes = useDiagramStore((s) => s.nodes);
@@ -197,6 +198,7 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
                   <button
                     type="button"
                     onClick={() => {
+                      // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
                       if (confirm(`Delete flow "${flow.name}"?`)) {
                         deleteFlow(flow.id);
                       }

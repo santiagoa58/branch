@@ -90,7 +90,7 @@ export const ALLOWED_ICON_COLLECTIONS: readonly string[] = [
 export async function searchIcons(
   query: string,
   collection?: string,
-  limit: number = 48,
+  limit = 48,
   signal?: AbortSignal,
 ): Promise<IconifySearchResult> {
   try {
@@ -121,7 +121,7 @@ export async function searchIcons(
     const allowedPrefixes = collection ? [collection] : ALLOWED_ICON_COLLECTIONS;
     const icons = data.icons.filter((icon) => {
       const [prefix, name, extra] = icon.split(":");
-      return allowedPrefixes.includes(prefix ?? "") && !!name && extra === undefined;
+      return allowedPrefixes.includes(prefix ?? "") && Boolean(name) && extra === undefined;
     });
     // The API total covers all pages; do not present it as an allowed total if
     // the response ignored our prefix restriction.

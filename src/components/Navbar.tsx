@@ -53,6 +53,7 @@ const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
   restoring: "Restoring…",
 };
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 22, 394 lines; extract branches and split into smaller units
 export function Navbar() {
   const cloud = useCloudWorkspace();
   const diagram = cloud.diagram;
@@ -61,7 +62,7 @@ export function Navbar() {
 
   const { data: project } = useQuery({
     ...workspaceQuery.project(projectId ?? ""),
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
   });
 
   const { undo, redo, canUndo, canRedo } = useDiagramStore();

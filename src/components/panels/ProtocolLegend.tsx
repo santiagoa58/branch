@@ -3,7 +3,7 @@ import { XMarkIcon, SignalIcon, EyeSlashIcon } from "@heroicons/react/24/outline
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore } from "@/store/uiStore";
 import { PROTOCOL_CONFIG } from "@/constants";
-import { ArchitectureEdgeData, EdgeProtocol } from "@/types";
+import type { ArchitectureEdgeData, EdgeProtocol } from "@/types";
 import { cn } from "@/lib/utils";
 
 export function ProtocolLegend() {
@@ -17,6 +17,7 @@ export function ProtocolLegend() {
   const items = useMemo(() => {
     const used = new Set<EdgeProtocol>();
     for (const e of edges) {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- false positive: Edge data is Record<string, unknown>; the cast is what types `protocol`
       const p = (e.data as ArchitectureEdgeData | undefined)?.protocol;
       if (p) {
         used.add(p);

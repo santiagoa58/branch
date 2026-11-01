@@ -27,12 +27,14 @@ export function jsonBody(
     const chunks: Uint8Array[] = [];
     try {
       while (true) {
+        // oxlint-disable-next-line no-await-in-loop -- stream chunks can only be read in order
         const { value, done } = await reader.read();
         if (done) {
           break;
         }
         size += value.byteLength;
         if (size > maxBytes) {
+          // oxlint-disable-next-line no-await-in-loop -- cancels the stream once, then throws out of the loop
           await reader.cancel();
           throw tooLarge();
         }

@@ -4,7 +4,7 @@ import { useAnimationStore } from "@/store/animationStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { applyGroupCollapse } from "@/utils/groupRollup";
-import { Node, Edge } from "@xyflow/react";
+import type { Node, Edge } from "@xyflow/react";
 
 function itemAt<T>(items: readonly T[], index: number): T {
   const item = items[index];
@@ -155,7 +155,7 @@ describe("diagramStore", () => {
   });
 
   describe("Node Operations", () => {
-    const createTestNode = (id: string, type: string = "architecture"): Node => ({
+    const createTestNode = (id: string, type = "architecture"): Node => ({
       id,
       type,
       position: { x: 100, y: 100 },

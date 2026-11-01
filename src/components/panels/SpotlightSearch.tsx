@@ -5,7 +5,7 @@ import { MagnifyingGlassIcon, CommandLineIcon } from "@heroicons/react/24/outlin
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore } from "@/store/uiStore";
 import { NODE_TYPES_CONFIG } from "@/constants";
-import { ArchitectureNodeData } from "@/types";
+import type { ArchitectureNodeData } from "@/types";
 import { cn } from "@/lib/utils";
 
 const MAX_RESULTS = 8;
@@ -62,6 +62,7 @@ function fuzzyScore(query: string, target: string): number | null {
   return qi === q.length ? score : null;
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 222 lines; split into smaller units
 export function SpotlightSearch() {
   const open = useUIStore((s) => s.spotlightOpen);
   const setOpen = useUIStore((s) => s.setSpotlightOpen);
@@ -97,8 +98,8 @@ export function SpotlightSearch() {
             id: n.id,
             label: data.label || n.id,
             type: data.type,
-            ...(data.description !== undefined ? { description: data.description } : {}),
-            ...(data.iconifyIcon !== undefined ? { iconifyIcon: data.iconifyIcon } : {}),
+            ...(data.description === undefined ? {} : { description: data.description }),
+            ...(data.iconifyIcon === undefined ? {} : { iconifyIcon: data.iconifyIcon }),
             score: 0,
           };
         });
@@ -137,8 +138,8 @@ export function SpotlightSearch() {
         id: n.id,
         label: data.label || n.id,
         type: data.type,
-        ...(data.description !== undefined ? { description: data.description } : {}),
-        ...(data.iconifyIcon !== undefined ? { iconifyIcon: data.iconifyIcon } : {}),
+        ...(data.description === undefined ? {} : { description: data.description }),
+        ...(data.iconifyIcon === undefined ? {} : { iconifyIcon: data.iconifyIcon }),
         score: Math.min(...candidates),
       });
     }

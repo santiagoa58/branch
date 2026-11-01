@@ -310,16 +310,7 @@ function WorkspaceRecovery({
             Sign in with original account
           </button>
         )}
-        {!confirmDiscard ? (
-          <button
-            type="button"
-            disabled={busy}
-            className="underline"
-            onClick={() => setConfirmDiscard(true)}
-          >
-            Discard edits and continue
-          </button>
-        ) : (
+        {confirmDiscard ? (
           <>
             <span>Discard these edits permanently?</span>
             <button type="button" disabled={busy} className="underline" onClick={onDiscard}>
@@ -334,6 +325,15 @@ function WorkspaceRecovery({
               Keep edits
             </button>
           </>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            className="underline"
+            onClick={() => setConfirmDiscard(true)}
+          >
+            Discard edits and continue
+          </button>
         )}
       </div>
     </section>

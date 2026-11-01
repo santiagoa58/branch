@@ -81,6 +81,7 @@ interface Planner {
   handOff: (edge: Edge, startMs: number) => void;
 }
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 function createPlanner(
   edges: Edge[],
   down: ReadonlySet<string>,
@@ -187,6 +188,7 @@ function toPlan(
 }
 
 /** Plans one request from an entry component, or null when the entry itself is down. */
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 export function planRequest(
   edges: Edge[],
   sourceId: string,

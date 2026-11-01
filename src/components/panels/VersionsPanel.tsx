@@ -47,7 +47,7 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
   // Fetch full version data (with `data` field) only when a preview is requested
   const { data: previewVersion, isLoading: isLoadingPreview } = useQuery({
     ...workspaceQuery.version(diagramId, previewVersionId ?? ""),
-    enabled: isOpen && !!previewVersionId,
+    enabled: isOpen && Boolean(previewVersionId),
   });
 
   const {
@@ -57,7 +57,7 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
     refetch,
   } = useQuery({
     ...workspaceQuery.versions(diagramId),
-    enabled: isOpen && !!diagramId,
+    enabled: isOpen && Boolean(diagramId),
   });
 
   const deleteMutation = useMutation({

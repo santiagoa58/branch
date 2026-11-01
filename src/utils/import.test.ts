@@ -989,7 +989,7 @@ Some random content without tables or mermaid.
 
       const result = parseMarkdown(markdown);
       expect(result.success).toBe(true);
-      const nodes = result.data?.nodes || [];
+      const nodes = result.data?.nodes ?? [];
       expect(nodes.find((n) => n.data?.label === "API")?.data?.type).toBe("gateway");
       expect(nodes.find((n) => n.data?.label === "Cache")?.data?.type).toBe("cache");
     });

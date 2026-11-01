@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Handle, Position, NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Icon as IconifyIcon } from "@iconify/react";
 import { cn } from "@/lib/utils";
 import { NODE_TYPES_CONFIG } from "@/constants";
@@ -14,6 +14,7 @@ import { getDocumentedDecision, hasDesignDecision } from "@/utils/designDecision
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 
 export const ArchitectureNode = memo(
+  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 29, 239 lines; extract branches and split into smaller units
   ({ data: nodeData, selected, id }: NodeProps<ArchitectureFlowNode>) => {
     const config = NODE_TYPES_CONFIG[nodeData.type];
     const Icon = config.icon;
@@ -31,7 +32,7 @@ export const ArchitectureNode = memo(
     // Tooltip hover state
     const [showTooltip, setShowTooltip] = useState(false);
     const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const hasDescription = !!nodeData.description?.trim();
+    const hasDescription = Boolean(nodeData.description?.trim());
 
     // Auto-focus and select text when entering edit mode
     useEffect(() => {

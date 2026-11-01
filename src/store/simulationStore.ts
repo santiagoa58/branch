@@ -162,7 +162,7 @@ const initialState = {
   severedEdgeIds: [] as string[],
   showChaosLog: false,
   trafficLog: [] as TrafficLogEntry[],
-  trafficCounts: { sent: 0, ok: 0, failed: 0, delivered: 0 } as TrafficCounts,
+  trafficCounts: { sent: 0, ok: 0, failed: 0, delivered: 0 },
   waitingMessages: [] as WaitingMessage[],
   showStats: false,
   stats: null as SimulationStats | null,
@@ -290,7 +290,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     }),
 
   setFailureResults: (affectedNodeIds, affectedEdgeIds, cascadeLevels) =>
-    set({ affectedNodeIds, affectedEdgeIds, cascadeLevels: cascadeLevels || [] }),
+    set({ affectedNodeIds, affectedEdgeIds, cascadeLevels: cascadeLevels ?? [] }),
 
   setCurrentStepIndex: (index) => set({ currentStepIndex: index }),
 

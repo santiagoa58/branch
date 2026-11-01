@@ -1,4 +1,5 @@
-import { ArchitectureNodeType, GroupNodeType, CommentColor, EdgeProtocol } from "@/types";
+// oxlint-disable max-lines -- debt: 1154 lines (limit 450); split the module
+import type { ArchitectureNodeType, GroupNodeType, CommentColor, EdgeProtocol } from "@/types";
 import {
   CpuChipIcon,
   CircleStackIcon,
@@ -371,6 +372,7 @@ const NODE_STYLE_PRESETS = {
   },
 } satisfies Record<string, NodeTypeConfig>;
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 function catalogNode(
   preset: keyof typeof NODE_STYLE_PRESETS,
   label: string,

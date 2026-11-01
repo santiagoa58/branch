@@ -7,6 +7,6 @@ export interface HandlerDependencies {
   ai: AiStageRunner;
 }
 
-export type WorkspaceEnv = {
+export interface WorkspaceEnv {
   Variables: { owner: string };
-};
+}

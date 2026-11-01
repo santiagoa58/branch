@@ -6,7 +6,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, TrashIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon } from "@heroicons/react/24/solid";
-import { diagramsApi, ApiDiagramSummary } from "@/services/api";
+import { diagramsApi, type ApiDiagramSummary } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -20,7 +20,7 @@ export function ProjectPage() {
 
   const { data: project, isError: projectError } = useQuery({
     ...workspaceQuery.project(projectId ?? ""),
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
   });
 
   const {
@@ -29,7 +29,7 @@ export function ProjectPage() {
     isError,
   } = useQuery({
     ...workspaceQuery.diagrams(projectId ?? ""),
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
   });
 
   const deleteMutation = useMutation({
@@ -162,6 +162,7 @@ export function ProjectPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
                       if (confirm(`Delete diagram "${diagram.name}"?`)) {
                         deleteMutation.mutate(diagram.id);
                       }

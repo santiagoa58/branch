@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { NodeProps, NodeResizer, Handle, Position } from "@xyflow/react";
+import { type NodeProps, NodeResizer, Handle, Position } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import type { GroupNode as GroupFlowNode } from "@/types";
 import { GROUP_TYPES_CONFIG } from "@/constants";
@@ -21,23 +21,17 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   const previousChildCountRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (previousChildCountRef.current === null) {
-      previousChildCountRef.current = childCount;
-      return undefined;
-    }
-
-    if (childCount > previousChildCountRef.current) {
-      setIsDropHighlightActive(true);
-      const timeout = window.setTimeout(() => {
-        setIsDropHighlightActive(false);
-      }, 700);
-
-      previousChildCountRef.current = childCount;
-      return () => window.clearTimeout(timeout);
-    }
-
+    const previousChildCount = previousChildCountRef.current;
     previousChildCountRef.current = childCount;
-    return undefined;
+    if (previousChildCount === null || childCount <= previousChildCount) {
+      return;
+    }
+
+    setIsDropHighlightActive(true);
+    const timeout = window.setTimeout(() => {
+      setIsDropHighlightActive(false);
+    }, 700);
+    return () => window.clearTimeout(timeout);
   }, [childCount]);
 
   // Collapsed view - compact card

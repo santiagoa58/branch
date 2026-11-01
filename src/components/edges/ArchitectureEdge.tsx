@@ -1,4 +1,10 @@
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, type Edge, getBezierPath } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  type EdgeProps,
+  type Edge,
+  getBezierPath,
+} from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { hasDesignDecision } from "@/utils/designDecision";
 import type { ArchitectureEdgeData } from "@/types";
@@ -11,6 +17,7 @@ import { useState, useCallback } from "react";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { EdgeDetailsDialog } from "@/components/ui/EdgeDetailsDialog";
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 56, 278 lines; extract branches and split into smaller units
 export function ArchitectureEdge({
   id,
   sourceX,
