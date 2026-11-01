@@ -10,6 +10,7 @@ import type {
   StageInput,
   StageOutput,
 } from "@/schemas/aiDesign";
+import { MAX_HISTORY_LENGTH } from "@/constants";
 import { ApiError } from "@/services/api/errors";
 import type { ApiDiagram } from "@/schemas/api";
 import { diagramDataSchema } from "@/schemas/diagram";
@@ -159,10 +160,10 @@ const apply = vi.fn<PipelineDeps["apply"]>((next) => {
   current.flows = next.flows ?? current.flows;
   current.brief = next.brief;
 });
-/** A fake history: each run is one entry, as in the diagram store. */
-let historyIndex = 0;
+/** A fake history top: every apply, edit and undo leaves a new entry object current. */
+let historyTop: object = {};
 const undo = vi.fn<() => void>(() => {
-  historyIndex -= 1;
+  historyTop = {};
 });
 const createVersion = vi.fn<PipelineDeps["createVersion"]>(async () => ({}));
 
@@ -187,7 +188,7 @@ beforeEach(() => {
   useAiDesignStore.setState(useAiDesignStore.getInitialState());
   run.mockClear();
   undo.mockClear();
-  historyIndex = 0;
+  historyTop = {};
   apply.mockClear();
   createVersion.mockReset();
   createVersion.mockResolvedValue({});
@@ -207,7 +208,7 @@ beforeEach(() => {
     createVersion,
     run: useAiDesignStore.getState(),
     now: () => NOW,
-    historyIndex: () => historyIndex,
+    historyEntry: () => historyTop,
     undo,
   };
 });
@@ -290,6 +291,21 @@ describe("runPipeline", () => {
     expect(brief.api?.endpoints).toEqual(apiOutput.endpoints);
     expect(runState().errors).toEqual({});
   });
+
+  it.each([0, -1, Number.NaN])(
+    "runs every decision when the concurrency is %s",
+    async (decisionConcurrency) => {
+      current.nodes = existingNodes();
+      current.edges = existingEdges();
+      current.brief = graphOnlyBrief();
+      await runPipeline(deps, { decisionConcurrency });
+      expect(stagesCalled().filter((stage) => stage === "decisions")).toHaveLength(3);
+      expect(nodeDecisions()).toHaveLength(3);
+      expect(current.brief?.ranFrom.decisions).toBe(
+        resultFingerprint(graphOnlyBrief(), existingNodes(), existingEdges()),
+      );
+    },
+  );
 
   it("limits concurrent decision requests", async () => {
     current.nodes = existingNodes();
@@ -392,6 +408,31 @@ describe("runPipeline", () => {
     );
   });
 
+  it("requests decisions again after a partial failure and records them once all succeed", async () => {
+    current.nodes = existingNodes();
+    current.edges = existingEdges();
+    current.brief = graphOnlyBrief();
+    let failDb = true;
+    handlers.decisions = async (input) => {
+      if (failDb && input.node.key === "db") {
+        throw failure("decisions", 502, "Bad Gateway", "The model failed");
+      }
+      return decision(input.node.key);
+    };
+    await runPipeline(deps);
+    expect(current.brief?.ranFrom.decisions).toBeUndefined();
+
+    failDb = false;
+    run.mockClear();
+    await runPipeline(deps);
+    // Update runs the first out-of-date stage (decisions) and every stage after it.
+    expect(stagesCalled()).toEqual(["decisions", "decisions", "decisions", "api"]);
+    expect(current.brief?.ranFrom.decisions).toBe(
+      resultFingerprint(graphOnlyBrief(), existingNodes(), existingEdges()),
+    );
+    expect(runState().errors).toEqual({});
+  });
+
   it("leaves the diagram unchanged when stage 2 has no usable components", async () => {
     current.nodes = existingNodes();
     current.edges = existingEdges();
@@ -467,7 +508,7 @@ describe("runPipeline", () => {
     const before = { nodes: existingNodes(), edges: existingEdges() };
     apply.mockImplementation((next) => {
       Object.assign(current, next);
-      historyIndex = 1;
+      historyTop = {};
     });
 
     await runPipeline(deps);
@@ -493,10 +534,10 @@ describe("runPipeline", () => {
   it("Undo does nothing once another history entry follows the run", async () => {
     apply.mockImplementation((next) => {
       Object.assign(current, next);
-      historyIndex = 1;
+      historyTop = {};
     });
     await runPipeline(deps);
-    historyIndex = 2; // a user edit after the run
+    historyTop = {}; // a user edit after the run
     vi.mocked(notify.success).mock.lastCall?.[0].button?.onClick();
     expect(undo).not.toHaveBeenCalled();
   });
@@ -519,7 +560,7 @@ describe("runPipeline", () => {
         return { id: "d1", nodes, edges, flows, brief };
       };
       deps.apply = (next) => store().applyAiResult(next);
-      deps.historyIndex = () => store().historyIndex;
+      deps.historyEntry = () => store().history[store().historyIndex];
       deps.undo = () => store().undo();
     });
 
@@ -531,9 +572,38 @@ describe("runPipeline", () => {
       expect(store().brief).toEqual(makeBrief());
     });
 
+    const editSummary = (summary: string) =>
+      store().updateBrief((brief) => brief && { ...brief, summary });
+
     it("Undo leaves a later user edit in place", async () => {
       await runPipeline(deps);
-      store().updateBrief((brief) => brief && { ...brief, summary: "Edited by hand" });
+      editSummary("Edited by hand");
+      clickUndo();
+      expect(store().brief?.summary).toBe("Edited by hand");
+      expect(ids()).toContain("cache");
+    });
+
+    it("Undo leaves an edit made after undoing the run, at the same history index", async () => {
+      await runPipeline(deps);
+      const runIndex = store().historyIndex;
+      store().undo(); // Ctrl+Z reverts the run
+      editSummary("Edited by hand");
+      expect(store().historyIndex).toBe(runIndex);
+      clickUndo();
+      expect(store().brief?.summary).toBe("Edited by hand");
+      expect(ids()).toEqual(["web", "api", "db"]);
+    });
+
+    it("Undo leaves a later edit in place when the history is full", async () => {
+      for (let edit = 0; edit < MAX_HISTORY_LENGTH; edit++) {
+        editSummary(`Edit ${edit}`);
+      }
+      editSummary("Before the run");
+      await runPipeline(deps);
+      const runIndex = store().historyIndex;
+      expect(runIndex).toBe(MAX_HISTORY_LENGTH - 1);
+      editSummary("Edited by hand");
+      expect(store().historyIndex).toBe(runIndex);
       clickUndo();
       expect(store().brief?.summary).toBe("Edited by hand");
       expect(ids()).toContain("cache");

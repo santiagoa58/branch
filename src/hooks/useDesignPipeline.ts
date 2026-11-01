@@ -50,8 +50,12 @@ export interface PipelineDeps {
   /** aiDesignStore state read when the call starts; only its actions are used afterwards. */
   run: AiDesignState;
   now: () => string;
-  /** The diagram store's history position; Undo in the summary toast reverts only this run. */
-  historyIndex: () => number;
+  /**
+   * The diagram store's current history entry (`history[historyIndex]`). Undo in the summary toast
+   * reverts only the run, so it compares entries by identity: an index can come back holding a
+   * different entry (undo then edit, or the history cap trimming the oldest entry).
+   */
+  historyEntry: () => unknown;
   undo: () => void;
 }
 
@@ -222,7 +226,9 @@ async function forEachLimited<T>(
       await worker(item);
     }
   };
-  const lanes = Math.max(1, Math.min(limit, items.length));
+  // Anything but a positive count (0, negative, NaN) means no limit, so every item still runs.
+  const bounded = Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : Infinity;
+  const lanes = Math.max(1, Math.min(bounded, items.length));
   await Promise.all(Array.from({ length: lanes }, lane));
 }
 
@@ -297,16 +303,16 @@ async function runApi(
 function summarizeChange(deps: PipelineDeps, before: DiagramSide, after: DiagramSide) {
   const { added, modified, removed } = diffDiagrams(before, after).counts;
   deps.run.setLastChange({ added, changed: modified, removed });
-  // A run is one history entry. Once anything else is added or undone, Undo would revert
-  // something other than this run, so it does nothing.
-  const runEntry = deps.historyIndex();
+  // A run is one history entry. Once the current entry is anything else (an edit, an undo or a
+  // redo), Undo would revert something other than this run, so it does nothing.
+  const runEntry = deps.historyEntry();
   notify.success({
     title: "Design updated",
     message: `+${added} added · ${modified} changed · ${removed} removed`,
     button: {
       title: "Undo",
       onClick: () => {
-        if (deps.historyIndex() === runEntry) {
+        if (deps.historyEntry() === runEntry) {
           deps.undo();
         }
       },
@@ -520,7 +526,10 @@ function storeDeps(): PipelineDeps {
     createVersion: (label) => cloudWorkspace.createVersion(label),
     run: useAiDesignStore.getState(),
     now: () => new Date().toISOString(),
-    historyIndex: () => useDiagramStore.getState().historyIndex,
+    historyEntry: () => {
+      const { history, historyIndex } = useDiagramStore.getState();
+      return history[historyIndex];
+    },
     undo: () => useDiagramStore.getState().undo(),
   };
 }
