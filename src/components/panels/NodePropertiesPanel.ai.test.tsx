@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Node } from "@xyflow/react";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
@@ -125,6 +125,8 @@ describe.each([
     ]);
     expect(screen.queryByRole("button", { name: `Require this: ${CONDITION}` })).toBeNull();
     expect(screen.getAllByText("Required")).toHaveLength(1);
+    // The button was replaced by the tag; focus moves there rather than falling to the page.
+    expect(screen.getByText("Required")).toHaveFocus();
     expect(
       screen.getByRole("button", { name: "Require this: Reads need global replicas" }),
     ).toBeVisible();
@@ -149,33 +151,37 @@ describe.each([
   });
 });
 
-describe("Regenerate reasoning", () => {
+describe.each([
+  ["node", serviceNode, renderNodePanel],
+  ["group", groupNode, renderGroupPanel],
+] as const)("%s inspector Regenerate reasoning", (_name, node, renderPanel) => {
   it("calls the pipeline for this node", () => {
     hydrate(
-      serviceNode,
+      node,
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
-    renderNodePanel();
+    renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: "Regenerate reasoning" }));
 
-    expect(pipeline.regenerateDecision).toHaveBeenCalledExactlyOnceWith("db");
+    expect(pipeline.regenerateDecision).toHaveBeenCalledExactlyOnceWith(node.id);
   });
 
   it("is hidden for diagrams without a brief", () => {
-    hydrate(serviceNode, null);
-    renderNodePanel();
+    hydrate(node, null);
+    renderPanel();
 
     expect(screen.queryByRole("button", { name: "Regenerate reasoning" })).toBeNull();
   });
 
   it("is disabled while an AI run is in progress", () => {
     hydrate(
-      serviceNode,
+      node,
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
-    useAiDesignStore.setState({ running: true });
-    renderNodePanel();
+    renderPanel();
+    // Selection is locked during a run, so the run starts after the inspector is open.
+    act(() => useAiDesignStore.setState({ running: true }));
 
     expect(screen.getByRole("button", { name: "Regenerate reasoning" })).toBeDisabled();
   });

@@ -25,6 +25,7 @@ import {
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
+import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
 import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
@@ -374,6 +375,7 @@ export function PropertiesPanel() {
                 onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
                 {...requireProps}
               />
+              <RegenerateReasoningButton nodeId={selectedNode.id} />
             </div>
             <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
               {/* Metadata Section */}

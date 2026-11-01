@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { Check, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -270,9 +270,22 @@ function RequireCondition({
   required: boolean;
   onRequire: (text: string) => void;
 }) {
+  const tag = useRef<HTMLSpanElement>(null);
+  const requestedHere = useRef(false);
+  // The button is replaced by the tag, so hand focus over instead of dropping it to the page.
+  useEffect(() => {
+    if (required && requestedHere.current) {
+      requestedHere.current = false;
+      tag.current?.focus();
+    }
+  }, [required]);
   if (required) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+      <span
+        ref={tag}
+        tabIndex={-1}
+        className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground focus-visible:outline-2 focus-visible:outline-ring"
+      >
         <Check aria-hidden="true" className="size-3" />
         Required
       </span>
@@ -284,7 +297,10 @@ function RequireCondition({
       variant="outline"
       size="xs"
       aria-label={`Require this: ${text}`}
-      onClick={() => onRequire(text)}
+      onClick={() => {
+        requestedHere.current = true;
+        onRequire(text);
+      }}
       {...keyboardSafety}
     >
       Require this
