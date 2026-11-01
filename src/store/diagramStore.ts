@@ -41,7 +41,7 @@ interface ClipboardState {
   edges: Edge[];
 }
 
-interface DiagramStore {
+export interface DiagramStore {
   // State
   nodes: Node[];
   edges: Edge[];

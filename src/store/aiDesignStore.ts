@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import type { AiStage } from "@/schemas/aiDesign";
 
-interface AiDesignState {
+export interface AiDesignState {
   running: boolean;
   stage: AiStage | null;
   decisions: { done: number; total: number };
