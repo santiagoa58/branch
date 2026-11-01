@@ -7,7 +7,7 @@ import { aiStageSchema, type AiStage } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { nextStages, type PipelineStage } from "@/utils/aiDesign/fingerprint";
-import { keyedByText } from "./briefEdits";
+import { keyedByText } from "@/lib/keyedByText";
 
 /** How each stage is named in the panel. */
 const STAGE_LABELS: Record<AiStage, string> = {

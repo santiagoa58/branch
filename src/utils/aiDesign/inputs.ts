@@ -11,6 +11,9 @@ import type {
 
 type NewId = () => string;
 
+/** Comparison form of user and model text: trimmed and lower-cased. */
+export const normalizeText = (text: string) => text.trim().toLowerCase();
+
 function withInputs(brief: DesignBrief, inputs: Partial<DesignBrief["inputs"]>): DesignBrief {
   return { ...brief, inputs: { ...brief.inputs, ...inputs } };
 }

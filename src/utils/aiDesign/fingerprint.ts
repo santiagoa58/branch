@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { DesignBrief } from "@/schemas/aiDesign";
+import { normalizeText } from "./inputs";
 
 export type PipelineStage = "requirements" | "components" | "decisions" | "api";
 
@@ -19,8 +20,6 @@ function cyrb53(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 }
 
-const text = (value: string) => value.trim().toLowerCase();
-
 /** Sorts rows by their serialized form so list order never changes the hash. */
 function sortRows<T>(rows: T[]): T[] {
   return rows
@@ -32,11 +31,13 @@ function sortRows<T>(rows: T[]): T[] {
 export function inputsFingerprint(inputs: DesignBrief["inputs"]): string {
   return cyrb53(
     JSON.stringify({
-      prompt: text(inputs.prompt),
+      prompt: normalizeText(inputs.prompt),
       scope: inputs.scope,
-      requirements: sortRows(inputs.requirements.map((r) => [r.kind, text(r.text)])),
-      outOfScope: inputs.outOfScope.map((o) => text(o.text)).sort(),
-      answers: sortRows(inputs.answers.map((a) => [text(a.question), text(a.answer), a.assumed])),
+      requirements: sortRows(inputs.requirements.map((r) => [r.kind, normalizeText(r.text)])),
+      outOfScope: inputs.outOfScope.map((o) => normalizeText(o.text)).sort(),
+      answers: sortRows(
+        inputs.answers.map((a) => [normalizeText(a.question), normalizeText(a.answer), a.assumed]),
+      ),
     }),
   );
 }

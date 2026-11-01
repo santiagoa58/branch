@@ -1,8 +1,6 @@
 import { useDiagramStore } from "@/store/diagramStore";
-import { requireCondition } from "@/utils/aiDesign/inputs";
-
-const normalise = (text: string) => text.trim().toLowerCase();
-const newId = () => crypto.randomUUID();
+import { normalizeText, requireCondition } from "@/utils/aiDesign/inputs";
+import { editBrief, newId } from "./design/briefEdits";
 
 /**
  * Props that let a decision editor turn "Revisit when" items into brief requirements. Empty
@@ -10,14 +8,13 @@ const newId = () => crypto.randomUUID();
  */
 export function useRequireCondition() {
   const brief = useDiagramStore((state) => state.brief);
-  const updateBrief = useDiagramStore((state) => state.updateBrief);
   if (!brief) {
     return {};
   }
-  const required = new Set(brief.inputs.requirements.map((line) => normalise(line.text)));
+  const required = new Set(brief.inputs.requirements.map((line) => normalizeText(line.text)));
   return {
     onRequireCondition: (text: string) =>
-      updateBrief((current) => (current ? requireCondition(current, text, newId) : current)),
-    isConditionRequired: (text: string) => required.has(normalise(text)),
+      editBrief((current) => requireCondition(current, text, newId)),
+    isConditionRequired: (text: string) => required.has(normalizeText(text)),
   };
 }

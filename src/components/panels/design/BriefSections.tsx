@@ -12,11 +12,13 @@ import {
   confirmAssumption,
   editOutOfScopeLine,
   editRequirementLine,
+  normalizeText,
   removeDerivedRequirement,
   removeOutOfScopeLine,
   removeRequirementLine,
 } from "@/utils/aiDesign/inputs";
-import { editBrief, keyedByText, newId, sectionLabelClass, tagClass } from "./briefEdits";
+import { keyedByText } from "@/lib/keyedByText";
+import { editBrief, newId, sectionLabelClass, tagClass } from "./briefEdits";
 import { InlineEdit } from "./InlineEdit";
 
 const GROUPS: readonly { kind: RequirementKind; title: string; addLabel: string }[] = [
@@ -29,8 +31,7 @@ const GROUPS: readonly { kind: RequirementKind; title: string; addLabel: string 
   { kind: "constraint", title: "Constraints", addLabel: "a constraint" },
 ];
 
-const normalize = (text: string) => text.trim().toLowerCase();
-const lineKey = (kind: RequirementKind, text: string) => `${kind}:${normalize(text)}`;
+const lineKey = (kind: RequirementKind, text: string) => `${kind}:${normalizeText(text)}`;
 
 /**
  * Actions on stage 1 output rows add an input line; the row stays until stage 1 runs again. Each
@@ -41,12 +42,12 @@ function rowStatuses(brief: DesignBrief) {
   const requirements = new Set(
     brief.inputs.requirements.map((line) => lineKey(line.kind, line.text)),
   );
-  const outOfScope = new Set(brief.inputs.outOfScope.map((line) => normalize(line.text)));
+  const outOfScope = new Set(brief.inputs.outOfScope.map((line) => normalizeText(line.text)));
   return {
     assumption: (assumption: DesignBrief["assumptions"][number]) =>
       requirements.has(lineKey(assumption.kind, assumption.text)) ? "Confirmed" : undefined,
     requirement: (requirement: DesignBrief["requirements"][number]) =>
-      outOfScope.has(normalize(requirement.text)) ? "Moved out of scope" : undefined,
+      outOfScope.has(normalizeText(requirement.text)) ? "Moved out of scope" : undefined,
     outOfScope: (text: string) =>
       requirements.has(lineKey("functional", text)) ? "Brought into scope" : undefined,
   };

@@ -12,6 +12,7 @@ import {
   createBrief,
   editOutOfScopeLine,
   editRequirementLine,
+  normalizeText,
   removeDerivedRequirement,
   removeOutOfScopeLine,
   removeRequirementLine,
@@ -330,4 +331,15 @@ describe("requirementsInput", () => {
       answers: [{ question: "How fresh?", answer: "Instantly", assumed: true }],
     });
   });
+});
+
+describe("normalizeText", () => {
+  it("trims surrounding whitespace and lower-cases", () =>
+    expect(normalizeText("  Sync ACROSS Devices\n\t")).toBe("sync across devices"));
+
+  it("keeps inner whitespace as written", () =>
+    expect(normalizeText(" Admin  UI\twith Tabs ")).toBe("admin  ui\twith tabs"));
+
+  it("returns an empty string for whitespace-only text", () =>
+    expect(normalizeText(" \n\t ")).toBe(""));
 });

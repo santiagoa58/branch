@@ -7,7 +7,8 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type QuestionDraft } from "@/store/uiStore";
 import { nextStages } from "@/utils/aiDesign/fingerprint";
 import { answerQuestion, assumeRemaining } from "@/utils/aiDesign/inputs";
-import { editBrief, inputClass, keyedByText, newId, tagClass } from "./briefEdits";
+import { keyedByText } from "@/lib/keyedByText";
+import { editBrief, inputClass, newId, tagClass } from "./briefEdits";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 type Question = DesignBrief["questions"][number];

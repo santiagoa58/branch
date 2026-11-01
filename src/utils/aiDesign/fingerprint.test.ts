@@ -293,3 +293,48 @@ describe("resultFingerprint", () => {
       `${inputsFingerprint(inputs())}:${graphFingerprint(nodes, edges)}`,
     ));
 });
+
+// Saved diagrams store these strings in `brief.ranFrom`. A change here marks every saved stage as
+// outdated, so these values must never change.
+describe("golden fingerprints", () => {
+  const goldenInputs: Inputs = {
+    prompt: "  A Notes App\twith  Sync  ",
+    scope: "fullstack",
+    requirements: [
+      r("b", "  Sync ACROSS Devices "),
+      r("a", "Works OFFLINE\n", "nonFunctional"),
+      r("c", " Postgres only", "constraint"),
+    ],
+    outOfScope: [
+      { id: "o2", text: "  Billing " },
+      { id: "o1", text: "Admin  UI" },
+    ],
+    answers: [
+      { id: "q2", question: " Which REGION? ", answer: "EU  ", assumed: true },
+      { id: "q1", question: "How many users?", answer: " 1M ", assumed: false },
+    ],
+  };
+  const goldenNodes: Node[] = [
+    { id: "vpc", type: "group", position: { x: 0, y: 0 }, data: { groupType: "vpc" } },
+    {
+      id: "api",
+      type: "architecture",
+      position: { x: 10, y: 10 },
+      parentId: "vpc",
+      data: { type: "api-gateway", label: "API" },
+    },
+    { id: "db", type: "architecture", position: { x: 50, y: 50 }, data: { type: "database" } },
+    { id: "note", type: "text", position: { x: 0, y: 0 }, data: {} },
+  ];
+  const goldenEdges: Edge[] = [
+    { id: "e2", source: "api", target: "db", data: { protocol: "tcp", async: false } },
+    { id: "e1", source: "db", target: "api", data: { protocol: "kafka", async: true } },
+    { id: "e3", source: "api", target: "db" },
+  ];
+
+  it("pins the inputs fingerprint", () =>
+    expect(inputsFingerprint(goldenInputs)).toBe("e20bf09b96329"));
+
+  it("pins the graph fingerprint", () =>
+    expect(graphFingerprint(goldenNodes, goldenEdges)).toBe("1df01456eb3c3b"));
+});
