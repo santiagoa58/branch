@@ -9,6 +9,7 @@ import { useUIStore } from "@/store/uiStore";
 import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import { EditorRightPanel } from "../EditorRightPanel";
 import { DesignPanel } from "./DesignPanel";
+import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 const pipeline = vi.hoisted(() => ({
   update: vi.fn<() => Promise<void>>(),
@@ -234,6 +235,57 @@ describe("tab after a run", () => {
       "aria-pressed",
       "false",
     );
+  });
+});
+
+describe("replacement notice before a run", () => {
+  const question = {
+    id: "q1",
+    topic: "scale",
+    question: "How many links a day?",
+    why: "Sizes storage.",
+    options: [{ label: "About 1k", impact: "One small database" }],
+    recommended: "About 1k",
+    allowsCustom: false,
+  };
+  /** Stage 1 ran from these inputs and asked a question. */
+  const asking: DesignBrief = {
+    ...base,
+    questions: [question],
+    ranFrom: { requirements: inputsFingerprint(base.inputs) },
+  };
+
+  it("warns in the composer when the diagram already has components", () => {
+    useDiagramStore.setState({ nodes: [service], edges: [] });
+    render(<DesignPanel />);
+    expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start design" })).toHaveAccessibleDescription(
+      REPLACEMENT_NOTICE,
+    );
+  });
+
+  it("does not warn in the composer on an empty diagram", () => {
+    render(<DesignPanel />);
+    expect(screen.queryByText(REPLACEMENT_NOTICE)).not.toBeInTheDocument();
+  });
+
+  it("warns next to the question actions when answering would replace the design", () => {
+    useDiagramStore.setState({ brief: asking, nodes: [service], edges: [] });
+    render(<DesignPanel />);
+    const questions = screen.getByRole("region", { name: "Questions" });
+    expect(within(questions).getByText(REPLACEMENT_NOTICE)).toBeVisible();
+    for (const name of ["Continue", "Assume the rest for me"]) {
+      expect(within(questions).getByRole("button", { name })).toHaveAccessibleDescription(
+        REPLACEMENT_NOTICE,
+      );
+    }
+  });
+
+  it("does not warn next to the questions without components to replace", () => {
+    useDiagramStore.setState({ brief: asking, nodes: [], edges: [] });
+    render(<DesignPanel />);
+    expect(screen.getByRole("region", { name: "Questions" })).toBeVisible();
+    expect(screen.queryByText(REPLACEMENT_NOTICE)).not.toBeInTheDocument();
   });
 });
 

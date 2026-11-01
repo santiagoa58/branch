@@ -7,6 +7,7 @@ import type { RequirementKind, Scope } from "@/schemas/aiDesign";
 import { useDiagramStore } from "@/store/diagramStore";
 import { createBrief } from "@/utils/aiDesign/inputs";
 import { inputClass, newId, sectionLabelClass } from "./briefEdits";
+import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 export const SCOPES: readonly { value: Scope; label: string; help: string }[] = [
   { value: "frontend", label: "Frontend", help: "Client side in detail; the backend is one box." },
@@ -59,6 +60,11 @@ export function Composer() {
   const [lines, setLines] = useState<Lines>(noLines);
   const [nextKey, setNextKey] = useState(0);
   const moreId = useId();
+  const noticeId = useId();
+  // A design started on a hand-made diagram replaces its components.
+  const replaces = useDiagramStore((state) =>
+    state.nodes.some((node) => node.type === "architecture"),
+  );
 
   const addLine = (kind: LineKind) => {
     setLines((current) => ({ ...current, [kind]: [...current[kind], { key: nextKey, text: "" }] }));
@@ -179,7 +185,17 @@ export function Composer() {
         )}
       </div>
 
-      <Button size="lg" disabled={!prompt.trim()} onClick={start}>
+      {replaces && (
+        <p id={noticeId} className="text-xs leading-relaxed text-muted-foreground">
+          {REPLACEMENT_NOTICE}
+        </p>
+      )}
+      <Button
+        size="lg"
+        disabled={!prompt.trim()}
+        aria-describedby={replaces ? noticeId : undefined}
+        onClick={start}
+      >
         Start design
       </Button>
     </div>

@@ -1,11 +1,14 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useDesignPipeline } from "@/hooks/useDesignPipeline";
 import { cn } from "@/lib/utils";
 import type { DesignBrief } from "@/schemas/aiDesign";
+import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type QuestionDraft } from "@/store/uiStore";
+import { nextStages } from "@/utils/aiDesign/fingerprint";
 import { answerQuestion, assumeRemaining } from "@/utils/aiDesign/inputs";
 import { editBrief, inputClass, newId, tagClass } from "./briefEdits";
+import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 type Question = DesignBrief["questions"][number];
 
@@ -21,6 +24,21 @@ function useDrafts(questions: Question[]) {
   const drafts = stored.questions === questions ? stored.drafts : {};
   const setDraft = (question: string, draft: Draft) => setQuestionDraft(questions, question, draft);
   return { drafts, setDraft };
+}
+
+const answerIn = (drafts: Record<string, Draft>, question: Question) =>
+  drafts[question.question]?.text.trim() ?? "";
+
+/** Records the chosen answers to the open questions in the brief's inputs. */
+function recordAnswers(
+  current: DesignBrief,
+  drafts: Record<string, Draft>,
+  id: () => string,
+): DesignBrief {
+  return current.questions.reduce((next, question) => {
+    const answer = answerIn(drafts, question);
+    return answer ? answerQuestion(next, question.question, answer, id) : next;
+  }, current);
 }
 
 function QuestionCard({
@@ -105,15 +123,27 @@ export function Questions({ brief }: { brief: DesignBrief }) {
   const pipeline = useDesignPipeline();
   const { questions } = brief;
   const { drafts, setDraft } = useDrafts(questions);
-  const answerOf = (question: Question) => drafts[question.question]?.text.trim() ?? "";
+  const answerOf = (question: Question) => answerIn(drafts, question);
   const allAnswered = questions.every((question) => answerOf(question) !== "");
   const updating = brief.ranFrom.components !== undefined;
+  const nodes = useDiagramStore((state) => state.nodes);
+  const edges = useDiagramStore((state) => state.edges);
+  const noticeId = useId();
 
-  const record = (current: DesignBrief) =>
-    questions.reduce((next, question) => {
-      const answer = answerOf(question);
-      return answer ? answerQuestion(next, question.question, answer, newId) : next;
-    }, current);
+  const record = (current: DesignBrief) => recordAnswers(current, drafts, newId);
+
+  // Warn when Continue or Assume would run stage 2 over a design that has components. Previews use
+  // placeholder ids; only the stages they would run matter.
+  const replaces = useMemo(() => {
+    if (!nodes.some((node) => node.type === "architecture")) {
+      return false;
+    }
+    const previewId = () => "preview";
+    const recorded = recordAnswers(brief, drafts, previewId);
+    return [recorded, assumeRemaining(recorded, previewId)].some((next) =>
+      nextStages(next, nodes, edges).includes("components"),
+    );
+  }, [brief, drafts, nodes, edges]);
 
   const submit = (assumeRest: boolean) => {
     editBrief((current) =>
@@ -148,11 +178,24 @@ export function Questions({ brief }: { brief: DesignBrief }) {
           onChange={(draft) => setDraft(question.question, draft)}
         />
       ))}
+      {replaces && (
+        <p id={noticeId} className="text-xs leading-relaxed text-muted-foreground">
+          {REPLACEMENT_NOTICE}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        <Button disabled={!allAnswered} onClick={() => submit(false)}>
+        <Button
+          disabled={!allAnswered}
+          aria-describedby={replaces ? noticeId : undefined}
+          onClick={() => submit(false)}
+        >
           Continue
         </Button>
-        <Button variant="outline" onClick={() => submit(true)}>
+        <Button
+          variant="outline"
+          aria-describedby={replaces ? noticeId : undefined}
+          onClick={() => submit(true)}
+        >
           Assume the rest for me
         </Button>
       </div>
