@@ -1,75 +1,15 @@
 import { z } from "zod";
 import { Position as ReactFlowPosition } from "@xyflow/react";
 import type { DiagramData } from "@/types";
+import {
+  architectureNodeTypeSchema,
+  edgeProtocolSchema,
+  groupNodeTypeSchema,
+  httpMethodSchema,
+} from "./catalogEnums";
+import { designBriefSchema } from "./aiDesign";
 
-export const architectureNodeTypeSchema = z.enum([
-  "user",
-  "webapp",
-  "mobileapp",
-  "client",
-  "iot",
-  "component",
-  "statestore",
-  "clientstorage",
-  "router",
-  "serviceworker",
-  "sdk",
-  "dns",
-  "cdn",
-  "edgefunction",
-  "loadbalancer",
-  "gateway",
-  "bff",
-  "ratelimiter",
-  "proxy",
-  "service",
-  "worker",
-  "lambda",
-  "scheduler",
-  "workflow",
-  "coordinator",
-  "server",
-  "queue",
-  "eventbus",
-  "stream",
-  "webhook",
-  "notification",
-  "database",
-  "nosql",
-  "cache",
-  "storage",
-  "search",
-  "vectordb",
-  "graphdb",
-  "timeseries",
-  "warehouse",
-  "datalake",
-  "etl",
-  "backup",
-  "auth",
-  "secrets",
-  "firewall",
-  "vpn",
-  "logging",
-  "metrics",
-  "tracing",
-  "alerting",
-  "llm",
-  "inference",
-  "embedding",
-  "agent",
-  "retriever",
-  "reranker",
-  "prompt",
-  "guardrail",
-  "tool",
-  "evaluation",
-  "training",
-  "modelregistry",
-  "featurestore",
-  "gpu",
-  "external",
-]);
+export { architectureNodeTypeSchema, edgeProtocolSchema, groupNodeTypeSchema, httpMethodSchema };
 
 /** Node types merged into a role-based type; documents using them are rewritten on load. */
 export const RETIRED_NODE_TYPES = {
@@ -82,49 +22,10 @@ export const RETIRED_NODE_TYPES = {
   mlpipeline: "training",
 } as const satisfies Record<string, z.infer<typeof architectureNodeTypeSchema>>;
 
-export const groupNodeTypeSchema = z.enum([
-  "region",
-  "vpc",
-  "subnet",
-  "cluster",
-  "replicaset",
-  "shard",
-  "boundary",
-  "microfrontend",
-  "view",
-]);
 export const commentColorSchema = z.enum(["yellow", "blue", "green", "pink", "purple"]);
 export const nodeStatusSchema = z.enum(["active", "inactive", "warning"]);
 export const groupColorSchema = z.enum(["zinc", "blue", "emerald", "purple", "amber"]);
 
-export const edgeProtocolSchema = z.enum([
-  "http",
-  "grpc",
-  "graphql",
-  "websocket",
-  "sse",
-  "webrtc",
-  "udp",
-  "inapp",
-  "tcp",
-  "amqp",
-  "rabbitmq",
-  "kafka",
-  "eventbridge",
-  "mqtt",
-  "sns",
-  "sql",
-  "redis",
-  "s3",
-  "replication",
-  "vector",
-  "search",
-  "oauth",
-  "dns",
-  "inference",
-]);
-
-export const httpMethodSchema = z.enum(["GET", "POST", "PUT", "DELETE", "PATCH"]);
 export const dataFormatSchema = z.enum(["json", "protobuf", "avro", "xml", "binary", "text"]);
 export const simulationSpeedSchema = z.union([
   z.literal(0.25),
@@ -486,6 +387,7 @@ export const diagramStructureSchema = z
     edges: z.array(architectureEdgeSchema),
     flows: z.array(namedFlowSchema).exactOptional(),
     viewport: viewportSchema.exactOptional(),
+    brief: designBriefSchema.exactOptional(),
   })
   .strict() satisfies z.ZodType<DiagramData>;
 

@@ -254,10 +254,13 @@ export interface DiagramData {
     y: number;
     zoom: number;
   };
+  /** Optional AI design brief. Backward-compat: diagrams made by hand have none. */
+  brief?: import("@/schemas/aiDesign").DesignBrief;
 }
 
 // History state for undo/redo
 export interface HistoryState {
   nodes: DiagramNode[];
   edges: ArchitectureEdge[];
+  brief?: import("@/schemas/aiDesign").DesignBrief | null;
 }
