@@ -67,6 +67,9 @@ describe("urlShortenerExample", () => {
     });
   });
 
+  it("explains the store node, whose choice names a concrete technology", () =>
+    expect(urlShortenerExample.decision.key).toBe("store"));
+
   it("has the template's decision for the example node", () => {
     const { key, output } = urlShortenerExample.decision;
     const node = nodes.find((candidate) => candidate.id === key);

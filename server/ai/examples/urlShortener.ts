@@ -133,15 +133,16 @@ const components: ComponentsOutput = {
   },
 };
 
+// The store's decision names a concrete technology, which the decisions prompt asks for.
 const decision: { key: string; output: DecisionsOutput } = {
-  key: "api",
+  key: "store",
   output: {
-    choice: "Links API",
-    reason: "Creating links needs auth, validation and abuse checks.",
-    gains: ["Abuse checks before links go live"],
-    costs: ["Separate from the redirect path"],
-    considered: [{ option: "Create links at the edge", whyNot: "Abuse checks need more context" }],
-    revisitWhen: ["Link creation becomes high volume"],
+    choice: "DynamoDB for links",
+    reason: "Every redirect is a lookup by short code, nothing more.",
+    gains: ["Fast key lookups at any scale"],
+    costs: ["Hard to query links by owner without extra indexes"],
+    considered: [{ option: "PostgreSQL", whyNot: "Redirect volume needs replicas and sharding" }],
+    revisitWhen: ["Links need rich querying"],
   },
 };
 
