@@ -34,7 +34,7 @@ function retryAfterOf(error: unknown): string | undefined {
 export function toAiHttpError(error: unknown): AiHttpError {
   const cause = RetryError.isInstance(error) ? error.lastError : error;
   if (cause instanceof StageOutputTooLargeError) {
-    return { status: 502, message: "The design was too large to generate" };
+    return { status: 502, message: cause.message };
   }
   const status = statusOf(cause);
   if (status === 402) {

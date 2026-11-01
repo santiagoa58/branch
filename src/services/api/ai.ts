@@ -1,20 +1,12 @@
-import { stageSchemas, type AiStage, type StageInput, type StageOutput } from "@/schemas/aiDesign";
-import type { ZodType } from "zod";
+import {
+  stageContracts,
+  type AiStage,
+  type StageInput,
+  type StageOutput,
+} from "@/schemas/aiDesign";
 import { serializeJsonRequest } from "./jsonRequest";
 import { readJsonResponse } from "./jsonResponse";
 import { sendApiRequest } from "./transport";
-
-// Pairs each stage with its contract. Indexing this mapped type by a generic stage keeps the
-// correlation between the stage, its input and its output, so no type assertion is needed.
-const stageContracts: {
-  [S in AiStage]: { input: ZodType<StageInput<S>>; output: ZodType<StageOutput<S>> };
-} = {
-  requirements: stageSchemas.requirements,
-  components: stageSchemas.components,
-  decisions: stageSchemas.decisions,
-  api: stageSchemas.api,
-  "data-model": stageSchemas["data-model"],
-};
 
 export const aiApi = {
   run: async <S extends AiStage>(

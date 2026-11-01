@@ -1,7 +1,7 @@
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import { z } from "zod";
 import {
-  stageSchemas,
+  stageContracts,
   type AiStage,
   type StageInput,
   type StageOutput,
@@ -26,15 +26,6 @@ export class StageOutputTooLargeError extends Error {
     this.name = "StageOutputTooLargeError";
   }
 }
-
-// Typed per stage so a generic stage lookup returns that stage's output type.
-const outputSchemas: { [S in AiStage]: z.ZodType<StageOutput<S>> } = {
-  requirements: stageSchemas.requirements.output,
-  components: stageSchemas.components.output,
-  decisions: stageSchemas.decisions.output,
-  api: stageSchemas.api.output,
-  "data-model": stageSchemas["data-model"].output,
-};
 
 // An output that did not match the schema; the stage is retried once with this message.
 class InvalidOutputError extends Error {
@@ -100,7 +91,7 @@ export function createGatewayRunner(
     signal: AbortSignal,
   ): Promise<StageOutput<S>> {
     env ??= aiEnvSchema.parse(process.env);
-    const schema: z.ZodType<StageOutput<S>> = outputSchemas[stage];
+    const schema: z.ZodType<StageOutput<S>> = stageContracts[stage].output;
     let result;
     try {
       result = await generate({

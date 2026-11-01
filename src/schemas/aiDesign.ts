@@ -255,6 +255,18 @@ export const stageSchemas = {
   "data-model": { input: dataModelInputSchema, output: dataModelOutputSchema },
 } as const satisfies Record<AiStage, { input: z.ZodType; output: z.ZodType }>;
 
+// Pairs each stage with its contract. Indexing this mapped type by a generic stage keeps the
+// correlation between the stage, its input and its output, so no type assertion is needed.
+export const stageContracts: {
+  [S in AiStage]: { input: z.ZodType<StageInput<S>>; output: z.ZodType<StageOutput<S>> };
+} = {
+  requirements: stageSchemas.requirements,
+  components: stageSchemas.components,
+  decisions: stageSchemas.decisions,
+  api: stageSchemas.api,
+  "data-model": stageSchemas["data-model"],
+};
+
 // --- 5. Persisted brief ---
 
 export const designBriefSchema = z.strictObject({

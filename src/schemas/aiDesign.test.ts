@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, expectTypeOf, it } from "vite-plus/test";
+import type { z } from "zod";
 import {
   aiStageSchema,
   componentsOutputSchema,
@@ -6,6 +7,9 @@ import {
   designBriefSchema,
   stageSchemas,
   requirementsOutputSchema,
+  type DecisionsInput,
+  type DecisionsOutput,
+  type stageContracts,
 } from "./aiDesign";
 import { diagramDataSchema } from "./diagram";
 
@@ -168,6 +172,12 @@ describe("stage lookup", () => {
       expect(stageSchemas[stage].input).toBeDefined();
       expect(stageSchemas[stage].output).toBeDefined();
     }
+  });
+
+  it("types each shared contract by its stage", () => {
+    type Decisions = (typeof stageContracts)["decisions"];
+    expectTypeOf<z.infer<Decisions["output"]>>().toEqualTypeOf<DecisionsOutput>();
+    expectTypeOf<z.infer<Decisions["input"]>>().toEqualTypeOf<DecisionsInput>();
   });
 });
 
