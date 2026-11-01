@@ -65,6 +65,7 @@ describe("POST /api/ai/:stage", () => {
     const huge = { ...valid, prompt: "x".repeat(MAX_BODY_BYTES + 1) };
     const response = await post("/ai/requirements", huge);
     expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ message: "Request is too large." });
     expect(run).not.toHaveBeenCalled();
   });
   it("passes the owner to the runner and returns its output", async () => {
@@ -75,9 +76,15 @@ describe("POST /api/ai/:stage", () => {
     expect(await response.json()).toEqual(stage1Output);
   });
   it("accepts the hyphenated data-model stage", async () => {
+    const input = {
+      context: { prompt: "A URL shortener", scope: "backend", requirements: [], outOfScope: [] },
+      graph: { nodes: [], edges: [] },
+      endpoints: [],
+    };
     run.mockResolvedValue({ entities: [] });
-    await post("/ai/data-model", { nope: true });
-    expect(run).not.toHaveBeenCalled();
+    const response = await post("/ai/data-model", input);
+    expect(response.status).toBe(200);
+    expect(run).toHaveBeenCalledWith("data-model", input, "alice", expect.any(AbortSignal));
   });
   it.each([
     [

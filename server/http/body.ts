@@ -7,9 +7,11 @@ export const MAX_BODY_BYTES = 4_000_000;
 const jsonContentType =
   /^application\/([a-z0-9!#$&^_.+-]+\+)?json(;\s*[a-zA-Z0-9!#$&^_.+-]+=([^;]+))*$/i;
 
-export function jsonBody(maxBytes: number): MiddlewareHandler<WorkspaceEnv> {
-  const tooLarge = () =>
-    new HttpError(413, `Request is too large (maximum ${Math.round(maxBytes / 100_000) / 10} MB).`);
+export function jsonBody(
+  maxBytes: number,
+  tooLargeMessage = "Request is too large.",
+): MiddlewareHandler<WorkspaceEnv> {
+  const tooLarge = () => new HttpError(413, tooLargeMessage);
   return async (c, next) => {
     if (Number(c.req.header("content-length")) > maxBytes) {
       throw tooLarge();
@@ -57,4 +59,4 @@ export function jsonBody(maxBytes: number): MiddlewareHandler<WorkspaceEnv> {
   };
 }
 
-export const boundedJsonBody = jsonBody(MAX_BODY_BYTES);
+export const boundedJsonBody = jsonBody(MAX_BODY_BYTES, "Document is too large (maximum 4 MB).");

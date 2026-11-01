@@ -217,6 +217,7 @@ describe("authenticated cloud API", () => {
       }),
     );
     expect(oversized.status).toBe(413);
+    expect(await oversized.json()).toEqual({ message: "Document is too large (maximum 4 MB)." });
     query.mockClear();
     expect(
       (
