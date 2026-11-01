@@ -73,7 +73,7 @@ afterEach(() => {
 });
 
 describe("NodeDetailPopup", () => {
-  it("shows the choice, why, benefits, drawbacks and alternatives without disclosure", () => {
+  it("shows the choice, why, gains, costs and alternatives without disclosure", () => {
     render(<NodeDetailPopup />);
     const details = within(popup());
     expect(details.getByRole("heading", { name: "Read cache" })).toBeVisible();
@@ -82,15 +82,16 @@ describe("NodeDetailPopup", () => {
     expect(within(summary).getByText(decision.choice)).toBeVisible();
     expect(within(summary).getByText(decision.reason)).toBeVisible();
     const sections = {
-      Benefits: decision.benefits,
-      Drawbacks: decision.drawbacks,
+      Gains: decision.benefits,
+      Costs: decision.drawbacks,
       "Considered instead": ["Read replicas — More to operate for this load"],
       "Revisit when": decision.revisitWhen,
     };
     for (const [name, items] of Object.entries(sections)) {
       const section = within(summary).getByRole("region", { name });
       const listItems = within(section).getAllByRole("listitem");
-      expect(listItems.map((item) => item.textContent)).toEqual(items);
+      // Gains and Costs prefix each item with an aria-hidden + or − marker.
+      expect(listItems.map((item) => item.textContent?.replace(/^[+−]/, ""))).toEqual(items);
       for (const item of listItems) {
         expect(item).toBeVisible();
         expect(item.closest('details, [hidden], [class*="line-clamp"], .truncate')).toBeNull();

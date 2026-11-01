@@ -22,14 +22,14 @@ describe("DesignDecisionSummary", () => {
       const paragraphs = container.querySelectorAll("p");
       expect(paragraphs[0]).toHaveTextContent("Chose Redis cache-aside");
       expect(paragraphs[1]).toHaveTextContent("Most reads repeat within a minute.");
-      const benefits = screen.getByRole("region", { name: "Benefits" });
+      const gains = screen.getByRole("region", { name: "Gains" });
       expect(
-        within(benefits)
+        within(gains)
           .getAllByRole("listitem")
           .map((item) => item.textContent),
-      ).toEqual(["Fewer database reads", "Faster page loads"]);
+      ).toEqual(["+Fewer database reads", "+Faster page loads"]);
       expect(
-        within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem"),
+        within(screen.getByRole("region", { name: "Costs" })).getByRole("listitem"),
       ).toHaveTextContent("Reads can be up to 60 s stale");
       expect(
         within(screen.getByRole("region", { name: "Considered instead" })).getByRole("listitem")
@@ -43,14 +43,13 @@ describe("DesignDecisionSummary", () => {
     },
   );
 
-  it("avoids diff-like markers and colors for benefits and drawbacks", () => {
+  it("colours gains and costs only through the tradeoff tokens", () => {
     const { container } = render(<DesignDecisionSummary value={decision} />);
-    for (const item of screen.getAllByRole("listitem")) {
-      expect(item.textContent).not.toMatch(/^\s*[+−-]/);
-    }
     const classes = Array.from(container.querySelectorAll("[class]"), (el) => el.className);
+    expect(classes.join(" ")).toMatch(/\btext-tradeoff-gain\b/);
+    expect(classes.join(" ")).toMatch(/\btext-tradeoff-cost\b/);
     expect(classes.join(" ")).not.toMatch(
-      /\b(?:text|bg|border)-(?:green|red|emerald|amber|lime|rose|success|destructive)\b/,
+      /\b(?:text|bg|border)-(?:green|red|emerald|amber|lime|rose|blue|success|destructive)\b/,
     );
   });
 
@@ -72,9 +71,9 @@ describe("DesignDecisionSummary", () => {
     );
     expect(screen.getByText("Redis")).toBeVisible();
     expect(
-      within(screen.getByRole("region", { name: "Benefits" })).getAllByRole("listitem"),
+      within(screen.getByRole("region", { name: "Gains" })).getAllByRole("listitem"),
     ).toHaveLength(1);
-    for (const name of ["Drawbacks", "Considered instead", "Revisit when"]) {
+    for (const name of ["Costs", "Considered instead", "Revisit when"]) {
       expect(screen.queryByRole("region", { name })).not.toBeInTheDocument();
     }
   });
@@ -84,7 +83,9 @@ describe("DesignDecisionSummary", () => {
     const { container } = render(
       <DesignDecisionSummary value={{ drawbacks: [drawback] }} compact />,
     );
-    const item = within(screen.getByRole("region", { name: "Drawbacks" })).getByRole("listitem");
+    const item = within(screen.getByRole("region", { name: "Costs" })).getByText(drawback, {
+      normalizer: (text) => text,
+    });
     expect(item.textContent).toBe(drawback);
     expect(item).toHaveClass("whitespace-pre-wrap", "wrap-anywhere");
     expect(

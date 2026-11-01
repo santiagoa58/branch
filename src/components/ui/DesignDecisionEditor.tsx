@@ -22,14 +22,14 @@ const listFields: Record<
   { label: string; item: string; hint: string; placeholder: string }
 > = {
   benefits: {
-    label: "Benefits",
-    item: "benefit",
+    label: "Gains",
+    item: "gain",
     hint: "What this choice gives you.",
     placeholder: "Schema changes ship without client releases",
   },
   drawbacks: {
-    label: "Drawbacks",
-    item: "drawback",
+    label: "Costs",
+    item: "cost",
     hint: "What this choice costs or risks.",
     placeholder: "Adds a network hop to every request",
   },

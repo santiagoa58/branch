@@ -54,13 +54,13 @@ const decision = {
 const decisionInputs = [
   ["Chosen approach", decision.choice],
   ["Why", decision.reason],
-  ["Benefits 1", "Fewer database reads"],
-  ["Drawbacks 1", "Potential stale reads"],
+  ["Gains 1", "Fewer database reads"],
+  ["Costs 1", "Potential stale reads"],
   ["Option 1", "Read replicas"],
   ["Why not option 1", "More operational work"],
   ["Revisit when 1", "Reads must be strongly consistent"],
 ] as const;
-const addButtons = ["Add benefit", "Add drawback", "Add option", "Add revisit trigger"];
+const addButtons = ["Add gain", "Add cost", "Add option", "Add revisit trigger"];
 
 function fillDecision() {
   for (const name of addButtons) {
