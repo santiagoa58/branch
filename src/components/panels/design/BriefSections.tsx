@@ -150,230 +150,66 @@ function EditorRow(props: Parameters<typeof InlineEdit>[0]) {
 
 const listClass = "mt-1.5 rounded-lg border border-border bg-card";
 
-/** Requirements by kind, the assumptions to check, and what is out of scope. */
-// oxlint-disable-next-line max-lines-per-function -- debt: 250 lines; split into smaller units
-export function BriefSections({ brief }: { brief: DesignBrief }) {
-  // One inline editor at a time, named by what it edits.
-  const [editing, setEditing] = useState<string | null>(null);
+type Statuses = ReturnType<typeof rowStatuses>;
+
+/** The one open inline editor, named by what it edits; the sections share it. */
+interface Editing {
+  editing: string | null;
+  setEditing: (key: string | null) => void;
+}
+
+function RequirementsSection({
+  group,
+  lines,
+  derived,
+  statuses,
+  editing,
+  setEditing,
+}: Editing & {
+  group: (typeof GROUPS)[number];
+  lines: DesignBrief["inputs"]["requirements"];
+  derived: ReturnType<typeof keyedByText<DesignBrief["requirements"][number]>>;
+  statuses: Statuses;
+}) {
   const close = () => setEditing(null);
-  const statuses = rowStatuses(brief);
-  const assumedAnswers = brief.inputs.answers.filter((answer) => answer.assumed);
-
+  const adding = editing === `add:${group.kind}`;
   return (
-    <div className="flex flex-col gap-5">
-      {GROUPS.map((group) => {
-        const lines = brief.inputs.requirements.filter((line) => line.kind === group.kind);
-        const derived = keyedByText(brief.requirements, (entry) => entry.text).filter(
-          (entry) => entry.item.kind === group.kind,
-        );
-        const adding = editing === `add:${group.kind}`;
-        return (
-          <section key={group.kind} aria-label={group.title}>
-            <SectionHeader
-              title={group.title}
-              addLabel={group.addLabel}
-              onAdd={() => setEditing(`add:${group.kind}`)}
-            />
-            {(lines.length > 0 || derived.length > 0 || adding) && (
-              <ul className={listClass}>
-                {lines.map((line) =>
-                  editing === `requirement:${line.id}` ? (
-                    <EditorRow
-                      key={line.id}
-                      label="Edit requirement"
-                      initial={line.text}
-                      onCancel={close}
-                      onSave={(text) => {
-                        editBrief((current) => editRequirementLine(current, line.id, text));
-                        close();
-                      }}
-                    />
-                  ) : (
-                    <UserLine
-                      key={line.id}
-                      text={line.text}
-                      onEdit={() => setEditing(`requirement:${line.id}`)}
-                      onDelete={() =>
-                        editBrief((current) => removeRequirementLine(current, line.id))
-                      }
-                    />
-                  ),
-                )}
-                {derived.map(({ key, item: requirement, index }) => {
-                  const status = statuses.requirement(requirement);
-                  return (
-                    <Row key={key}>
-                      <span className="min-w-0 wrap-anywhere">{requirement.text}</span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {requirement.category && (
-                          <span className={tagClass}>{requirement.category}</span>
-                        )}
-                        {status ? (
-                          <Status>{status}</Status>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              editBrief((current) =>
-                                removeDerivedRequirement(current, index, newId),
-                              );
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </span>
-                    </Row>
-                  );
-                })}
-                {adding && (
-                  <EditorRow
-                    label="New requirement"
-                    onCancel={close}
-                    onSave={(text) => {
-                      editBrief((current) => addRequirementLine(current, group.kind, text, newId));
-                      close();
-                    }}
-                  />
-                )}
-              </ul>
-            )}
-          </section>
-        );
-      })}
-
-      <section aria-label="Assumptions">
-        <SectionHeader title="Assumptions made" />
-        <p className="text-xs text-muted-foreground">Confirm what is right; change what isn't.</p>
-        <ul className="mt-1.5 rounded-lg border border-attention/40 bg-attention/10 [&>li]:border-attention/25">
-          {keyedByText(brief.assumptions, (entry) => entry.text).map(
-            ({ key: rowKey, item: assumption, index }) => {
-              const key = `assumption:${index}`;
-              const status = statuses.assumption(assumption);
-              return editing === key ? (
-                <EditorRow
-                  key={rowKey}
-                  label="Change assumption"
-                  initial={assumption.text}
-                  onCancel={close}
-                  onSave={(text) => {
-                    editBrief((current) => changeAssumption(current, index, text, newId));
-                    close();
-                  }}
-                />
-              ) : (
-                <Row key={rowKey}>
-                  <span className="min-w-0 wrap-anywhere">{assumption.text}</span>
-                  {status ? (
-                    <Status>{status}</Status>
-                  ) : (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          editBrief((current) => confirmAssumption(current, index, newId));
-                        }}
-                      >
-                        Confirm
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(key)}>
-                        Change
-                      </Button>
-                    </span>
-                  )}
-                </Row>
-              );
-            },
-          )}
-          {/* Confirming or changing an assumed answer records it as the user's own answer. */}
-          {assumedAnswers.map((answer) =>
-            editing === `answer:${answer.id}` ? (
+    <section aria-label={group.title}>
+      <SectionHeader
+        title={group.title}
+        addLabel={group.addLabel}
+        onAdd={() => setEditing(`add:${group.kind}`)}
+      />
+      {(lines.length > 0 || derived.length > 0 || adding) && (
+        <ul className={listClass}>
+          {lines.map((line) =>
+            editing === `requirement:${line.id}` ? (
               <EditorRow
-                key={answer.id}
-                label="Change assumed answer"
-                initial={answer.answer}
+                key={line.id}
+                label="Edit requirement"
+                initial={line.text}
                 onCancel={close}
                 onSave={(text) => {
-                  editBrief((current) => answerQuestion(current, answer.question, text, newId));
+                  editBrief((current) => editRequirementLine(current, line.id, text));
                   close();
                 }}
               />
             ) : (
-              <Row key={answer.id}>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="wrap-anywhere">{answer.answer}</span>
-                  <span className="text-xs text-muted-foreground wrap-anywhere">
-                    <span className="sr-only">Assumed answer to: </span>
-                    {answer.question}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      editBrief((current) =>
-                        answerQuestion(current, answer.question, answer.answer, newId),
-                      )
-                    }
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditing(`answer:${answer.id}`)}
-                  >
-                    Change
-                  </Button>
-                </span>
-              </Row>
+              <UserLine
+                key={line.id}
+                text={line.text}
+                onEdit={() => setEditing(`requirement:${line.id}`)}
+                onDelete={() => editBrief((current) => removeRequirementLine(current, line.id))}
+              />
             ),
           )}
-          {brief.assumptions.length === 0 && assumedAnswers.length === 0 && (
-            <Row className="text-muted-foreground">No open assumptions.</Row>
-          )}
-        </ul>
-      </section>
-
-      <section aria-label="Out of scope">
-        <SectionHeader
-          title="Out of scope"
-          addLabel="an out-of-scope line"
-          onAdd={() => setEditing("add:outOfScope")}
-        />
-        {(brief.inputs.outOfScope.length > 0 ||
-          brief.outOfScope.length > 0 ||
-          editing === "add:outOfScope") && (
-          <ul className={listClass}>
-            {brief.inputs.outOfScope.map((line) =>
-              editing === `outOfScope:${line.id}` ? (
-                <EditorRow
-                  key={line.id}
-                  label="Edit out-of-scope line"
-                  initial={line.text}
-                  onCancel={close}
-                  onSave={(text) => {
-                    editBrief((current) => editOutOfScopeLine(current, line.id, text));
-                    close();
-                  }}
-                />
-              ) : (
-                <UserLine
-                  key={line.id}
-                  text={line.text}
-                  onEdit={() => setEditing(`outOfScope:${line.id}`)}
-                  onDelete={() => editBrief((current) => removeOutOfScopeLine(current, line.id))}
-                />
-              ),
-            )}
-            {keyedByText(brief.outOfScope, (text) => text).map(({ key, item: text, index }) => {
-              const status = statuses.outOfScope(text);
-              return (
-                <Row key={key} className="items-center">
-                  <span className="min-w-0 wrap-anywhere">{text}</span>
+          {derived.map(({ key, item: requirement, index }) => {
+            const status = statuses.requirement(requirement);
+            return (
+              <Row key={key}>
+                <span className="min-w-0 wrap-anywhere">{requirement.text}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {requirement.category && <span className={tagClass}>{requirement.category}</span>}
                   {status ? (
                     <Status>{status}</Status>
                   ) : (
@@ -381,28 +217,262 @@ export function BriefSections({ brief }: { brief: DesignBrief }) {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        editBrief((current) => bringIntoScope(current, index, newId));
+                        editBrief((current) => removeDerivedRequirement(current, index, newId));
                       }}
                     >
-                      Bring into scope
+                      Remove
                     </Button>
                   )}
-                </Row>
-              );
-            })}
-            {editing === "add:outOfScope" && (
+                </span>
+              </Row>
+            );
+          })}
+          {adding && (
+            <EditorRow
+              label="New requirement"
+              onCancel={close}
+              onSave={(text) => {
+                editBrief((current) => addRequirementLine(current, group.kind, text, newId));
+                close();
+              }}
+            />
+          )}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The answers stage 1 assumed, as rows in the assumptions list. Confirming or changing an assumed
+ * answer records it as the user's own answer.
+ */
+function AnswersSection({
+  answers,
+  editing,
+  setEditing,
+}: Editing & { answers: DesignBrief["inputs"]["answers"] }) {
+  const close = () => setEditing(null);
+  return answers.map((answer) =>
+    editing === `answer:${answer.id}` ? (
+      <EditorRow
+        key={answer.id}
+        label="Change assumed answer"
+        initial={answer.answer}
+        onCancel={close}
+        onSave={(text) => {
+          editBrief((current) => answerQuestion(current, answer.question, text, newId));
+          close();
+        }}
+      />
+    ) : (
+      <Row key={answer.id}>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="wrap-anywhere">{answer.answer}</span>
+          <span className="text-xs text-muted-foreground wrap-anywhere">
+            <span className="sr-only">Assumed answer to: </span>
+            {answer.question}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              editBrief((current) => answerQuestion(current, answer.question, answer.answer, newId))
+            }
+          >
+            Confirm
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setEditing(`answer:${answer.id}`)}>
+            Change
+          </Button>
+        </span>
+      </Row>
+    ),
+  );
+}
+
+function AssumptionsSection({
+  assumptions,
+  assumedAnswers,
+  statuses,
+  editing,
+  setEditing,
+}: Editing & {
+  assumptions: DesignBrief["assumptions"];
+  assumedAnswers: DesignBrief["inputs"]["answers"];
+  statuses: Statuses;
+}) {
+  const close = () => setEditing(null);
+  return (
+    <section aria-label="Assumptions">
+      <SectionHeader title="Assumptions made" />
+      <p className="text-xs text-muted-foreground">Confirm what is right; change what isn't.</p>
+      <ul className="mt-1.5 rounded-lg border border-attention/40 bg-attention/10 [&>li]:border-attention/25">
+        {keyedByText(assumptions, (entry) => entry.text).map(
+          ({ key: rowKey, item: assumption, index }) => {
+            const key = `assumption:${index}`;
+            const status = statuses.assumption(assumption);
+            return editing === key ? (
               <EditorRow
-                label="New out-of-scope line"
+                key={rowKey}
+                label="Change assumption"
+                initial={assumption.text}
                 onCancel={close}
                 onSave={(text) => {
-                  editBrief((current) => addOutOfScopeLine(current, text, newId));
+                  editBrief((current) => changeAssumption(current, index, text, newId));
                   close();
                 }}
               />
-            )}
-          </ul>
+            ) : (
+              <Row key={rowKey}>
+                <span className="min-w-0 wrap-anywhere">{assumption.text}</span>
+                {status ? (
+                  <Status>{status}</Status>
+                ) : (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        editBrief((current) => confirmAssumption(current, index, newId));
+                      }}
+                    >
+                      Confirm
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditing(key)}>
+                      Change
+                    </Button>
+                  </span>
+                )}
+              </Row>
+            );
+          },
         )}
-      </section>
+        <AnswersSection answers={assumedAnswers} editing={editing} setEditing={setEditing} />
+        {assumptions.length === 0 && assumedAnswers.length === 0 && (
+          <Row className="text-muted-foreground">No open assumptions.</Row>
+        )}
+      </ul>
+    </section>
+  );
+}
+
+function OutOfScopeSection({
+  lines,
+  derived,
+  statuses,
+  editing,
+  setEditing,
+}: Editing & {
+  lines: DesignBrief["inputs"]["outOfScope"];
+  derived: DesignBrief["outOfScope"];
+  statuses: Statuses;
+}) {
+  const close = () => setEditing(null);
+  const adding = editing === "add:outOfScope";
+  return (
+    <section aria-label="Out of scope">
+      <SectionHeader
+        title="Out of scope"
+        addLabel="an out-of-scope line"
+        onAdd={() => setEditing("add:outOfScope")}
+      />
+      {(lines.length > 0 || derived.length > 0 || adding) && (
+        <ul className={listClass}>
+          {lines.map((line) =>
+            editing === `outOfScope:${line.id}` ? (
+              <EditorRow
+                key={line.id}
+                label="Edit out-of-scope line"
+                initial={line.text}
+                onCancel={close}
+                onSave={(text) => {
+                  editBrief((current) => editOutOfScopeLine(current, line.id, text));
+                  close();
+                }}
+              />
+            ) : (
+              <UserLine
+                key={line.id}
+                text={line.text}
+                onEdit={() => setEditing(`outOfScope:${line.id}`)}
+                onDelete={() => editBrief((current) => removeOutOfScopeLine(current, line.id))}
+              />
+            ),
+          )}
+          {keyedByText(derived, (text) => text).map(({ key, item: text, index }) => {
+            const status = statuses.outOfScope(text);
+            return (
+              <Row key={key} className="items-center">
+                <span className="min-w-0 wrap-anywhere">{text}</span>
+                {status ? (
+                  <Status>{status}</Status>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      editBrief((current) => bringIntoScope(current, index, newId));
+                    }}
+                  >
+                    Bring into scope
+                  </Button>
+                )}
+              </Row>
+            );
+          })}
+          {adding && (
+            <EditorRow
+              label="New out-of-scope line"
+              onCancel={close}
+              onSave={(text) => {
+                editBrief((current) => addOutOfScopeLine(current, text, newId));
+                close();
+              }}
+            />
+          )}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Requirements by kind, the assumptions to check, and what is out of scope. */
+export function BriefSections({ brief }: { brief: DesignBrief }) {
+  // One inline editor at a time, named by what it edits.
+  const [editing, setEditing] = useState<string | null>(null);
+  const statuses = rowStatuses(brief);
+  const derivedRequirements = keyedByText(brief.requirements, (entry) => entry.text);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {GROUPS.map((group) => (
+        <RequirementsSection
+          key={group.kind}
+          group={group}
+          lines={brief.inputs.requirements.filter((line) => line.kind === group.kind)}
+          derived={derivedRequirements.filter((entry) => entry.item.kind === group.kind)}
+          statuses={statuses}
+          editing={editing}
+          setEditing={setEditing}
+        />
+      ))}
+      <AssumptionsSection
+        assumptions={brief.assumptions}
+        assumedAnswers={brief.inputs.answers.filter((answer) => answer.assumed)}
+        statuses={statuses}
+        editing={editing}
+        setEditing={setEditing}
+      />
+      <OutOfScopeSection
+        lines={brief.inputs.outOfScope}
+        derived={brief.outOfScope}
+        statuses={statuses}
+        editing={editing}
+        setEditing={setEditing}
+      />
     </div>
   );
 }

@@ -1,13 +1,13 @@
 import { useId, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useDesignPipeline } from "@/hooks/useDesignPipeline";
-import { cn } from "@/lib/utils";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore, type QuestionDraft } from "@/store/uiStore";
 import { answerQuestion, assumeRemaining } from "@/utils/aiDesign/inputs";
 import { keyedByText } from "@/lib/keyedByText";
 import { editBrief, inputClass, newId, tagClass } from "./briefEdits";
+import { ChoiceButton } from "./ChoiceButton";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
 import { useOutdatedStages } from "./useOutdatedStages";
 
@@ -64,17 +64,10 @@ function QuestionCard({
         {keyedByText(question.options, (entry) => entry.label).map(({ key, item: option }) => {
           const selected = draft?.custom === false && draft.text === option.label;
           return (
-            <button
+            <ChoiceButton
               key={key}
-              type="button"
-              aria-pressed={selected}
+              selected={selected}
               onClick={() => onChange({ custom: false, text: option.label })}
-              className={cn(
-                "flex min-h-11 flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                selected
-                  ? "border-primary ring-1 ring-primary"
-                  : "border-border hover:border-zinc-400 dark:hover:border-zinc-600",
-              )}
             >
               <span className="flex flex-wrap items-center gap-1.5">
                 <span className="text-sm font-medium text-foreground">{option.label}</span>
@@ -83,7 +76,7 @@ function QuestionCard({
                 )}
               </span>
               <span className="text-xs text-muted-foreground">{option.impact}</span>
-            </button>
+            </ChoiceButton>
           );
         })}
         {writing ? (

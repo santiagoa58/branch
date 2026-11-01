@@ -7,6 +7,7 @@ import type { RequirementKind, Scope } from "@/schemas/aiDesign";
 import { useDiagramStore } from "@/store/diagramStore";
 import { createBrief } from "@/utils/aiDesign/inputs";
 import { inputClass, newId, sectionLabelClass } from "./briefEdits";
+import { ChoiceButton } from "./ChoiceButton";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 export const SCOPES: readonly { value: Scope; label: string; help: string }[] = [
@@ -111,21 +112,14 @@ export function Composer() {
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-medium text-foreground">How much detail?</legend>
         {SCOPES.map((option) => (
-          <button
+          <ChoiceButton
             key={option.value}
-            type="button"
-            aria-pressed={scope === option.value}
+            selected={scope === option.value}
             onClick={() => setScope(option.value)}
-            className={cn(
-              "flex min-h-11 flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-              scope === option.value
-                ? "border-primary ring-1 ring-primary"
-                : "border-border hover:border-zinc-400 dark:hover:border-zinc-600",
-            )}
           >
             <span className="text-sm font-semibold text-foreground">{option.label}</span>
             <span className="text-xs text-muted-foreground">{option.help}</span>
-          </button>
+          </ChoiceButton>
         ))}
       </fieldset>
 
