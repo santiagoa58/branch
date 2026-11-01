@@ -1,4 +1,4 @@
-// oxlint-disable max-lines -- debt: 780 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 685 lines (limit 450); split the module
 import { useCallback, useRef, useEffect, useMemo, type DragEvent, useState } from "react";
 import { ReactFlow, MiniMap, useReactFlow, useStoreApi, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -17,19 +17,13 @@ import type { ArchitectureNode, GroupNodeData } from "@/types";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { applyGroupCollapse } from "@/utils/groupRollup";
 import { cn } from "@/lib/utils";
-import {
-  ArrowDownTrayIcon,
-  DocumentDuplicateIcon,
-  ClipboardDocumentIcon,
-  ArrowUpCircleIcon,
-  ArrowDownCircleIcon,
-  Squares2X2Icon,
-} from "@heroicons/react/24/outline";
+import { Squares2X2Icon } from "@heroicons/react/24/outline";
 import { exportSelectedAsSvg, exportSelectedAsPng } from "@/utils/export";
 import { ShortcutsHelp } from "@/components/panels/ShortcutsHelp";
 import { SimulationPanel } from "@/components/panels/SimulationPanel";
 import { GettingStartedChecklist } from "@/components/panels/GettingStartedChecklist";
 import { DiagramInfoCard } from "@/components/panels/DiagramInfoCard";
+import { EditorContextMenu } from "@/components/panels/EditorContextMenu";
 import { ProtocolLegend } from "@/components/panels/ProtocolLegend";
 import { NodeDetailPopup } from "@/components/panels/NodeDetailPopup";
 import { CanvasStatusBar } from "@/components/panels/CanvasStatusBar";
@@ -108,7 +102,7 @@ function createPaletteNode(type: PaletteNodeType, position: { x: number; y: numb
   return node;
 }
 
-// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 18, 684 lines; extract branches and split into smaller units
+// oxlint-disable-next-line max-lines-per-function -- debt: 595 lines (limit 200); split into smaller units
 export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
   const { screenToFlowPosition, zoomIn, zoomOut, getZoom, getIntersectingNodes } = useReactFlow();
@@ -310,6 +304,8 @@ export function DiagramEditor() {
     [setSelectedEdge],
   );
 
+  const closeContextMenu = useCallback(() => setContextMenu({ x: 0, y: 0, show: false }), []);
+
   // Handle pane click (deselect)
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
@@ -507,109 +503,19 @@ export function DiagramEditor() {
 
         {/* Context Menu */}
         {contextMenu.show && (
-          <>
-            <button
-              type="button"
-              aria-label="Close context menu"
-              className="fixed inset-0 z-40"
-              onClick={() => setContextMenu({ x: 0, y: 0, show: false })}
-            />
-            <div
-              data-editor-shortcuts="blocked"
-              className="fixed z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden animate-slide-in min-w-48"
-              style={{
-                left: `${contextMenu.x}px`,
-                top: `${contextMenu.y}px`,
-              }}
-            >
-              <div className="p-1">
-                {/* Copy/Paste Section */}
-                {nodes.filter((n) => n.selected).length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                  >
-                    <DocumentDuplicateIcon className="w-3.5 h-3.5" />
-                    Copy
-                    <span className="ml-auto text-zinc-400 dark:text-zinc-500">Ctrl+C</span>
-                  </button>
-                )}
-                {hasClipboardContent() && (
-                  <button
-                    type="button"
-                    onClick={handlePaste}
-                    className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                  >
-                    <ClipboardDocumentIcon className="w-3.5 h-3.5" />
-                    Paste
-                    <span className="ml-auto text-zinc-400 dark:text-zinc-500">Ctrl+V</span>
-                  </button>
-                )}
-                {/* Divider */}
-                {nodes.filter((n) => n.selected).length > 0 && (
-                  <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                )}
-                {/* Layer Order Section - only for single selected group */}
-                {nodes.filter((n) => n.selected && n.type === "group").length === 1 &&
-                  (() => {
-                    const groupNode = nodes.find((n) => n.selected && n.type === "group")!;
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            bringNodeToFront(groupNode.id);
-                            setContextMenu({ x: 0, y: 0, show: false });
-                          }}
-                          className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                        >
-                          <ArrowUpCircleIcon className="w-3.5 h-3.5" />
-                          Bring to Front
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sendNodeToBack(groupNode.id);
-                            setContextMenu({ x: 0, y: 0, show: false });
-                          }}
-                          className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                        >
-                          <ArrowDownCircleIcon className="w-3.5 h-3.5" />
-                          Send to Back
-                        </button>
-                        <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                      </>
-                    );
-                  })()}
-                {/* Export Section */}
-                {nodes.filter((n) => n.selected).length > 0 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleExportSelectedSvg();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                    >
-                      <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                      Export Selection as SVG
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleExportSelectedPng();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                    >
-                      <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                      Export Selection as PNG
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </>
+          <EditorContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            nodes={nodes}
+            hasClipboardContent={hasClipboardContent()}
+            onClose={closeContextMenu}
+            onCopy={handleCopy}
+            onPaste={handlePaste}
+            onBringToFront={bringNodeToFront}
+            onSendToBack={sendNodeToBack}
+            onExportSvg={handleExportSelectedSvg}
+            onExportPng={handleExportSelectedPng}
+          />
         )}
 
         {/*
