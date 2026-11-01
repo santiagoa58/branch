@@ -50,6 +50,9 @@ describe("development runtime runner", () => {
     vi.stubEnv("CLERK_SECRET_KEY", "test-secret");
     vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "test-public");
     vi.stubEnv("CLERK_AUTHORIZED_PARTIES", "http://localhost:3000, https://branch.test");
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-gateway-key");
+    vi.stubEnv("AI_MODEL", "provider/default");
+    vi.stubEnv("AI_MODEL_API", "provider/api");
     vi.stubEnv("BRANCH_UNRELATED_SETTING", "do-not-forward");
     child = Object.assign(new EventEmitter(), {
       kill: vi.fn<(signal: NodeJS.Signals) => boolean>().mockReturnValue(true),
@@ -84,6 +87,9 @@ describe("development runtime runner", () => {
           CLERK_SECRET_KEY: "test-secret",
           VITE_CLERK_PUBLISHABLE_KEY: "test-public",
           CLERK_AUTHORIZED_PARTIES: "http://localhost:3000,https://branch.test",
+          AI_GATEWAY_API_KEY: "test-gateway-key",
+          AI_MODEL: "provider/default",
+          AI_MODEL_API: "provider/api",
         },
       }),
       { mode: 0o600 },
@@ -104,6 +110,7 @@ describe("development runtime runner", () => {
     ["CLERK_SECRET_KEY", undefined],
     ["VITE_CLERK_PUBLISHABLE_KEY", undefined],
     ["CLERK_AUTHORIZED_PARTIES", "not-an-origin"],
+    ["AI_MODEL", undefined],
   ])("rejects invalid %s before writing settings or spawning Vercel", async (name, value) => {
     vi.stubEnv(name, value);
 

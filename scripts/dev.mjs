@@ -2,13 +2,17 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { serverEnvSchema } from "../src/schemas/server.ts";
+import { aiEnvSchema, serverEnvSchema } from "../src/schemas/server.ts";
 import config from "../vercel.json" with { type: "json" };
 
 // Vercel's unlinked local runtime isolates function workers from the parent env.
 // Pass only the required settings through a private, short-lived local config.
 const settings = serverEnvSchema.parse(process.env);
-const env = { ...settings, CLERK_AUTHORIZED_PARTIES: settings.CLERK_AUTHORIZED_PARTIES.join(",") };
+const env = {
+  ...settings,
+  CLERK_AUTHORIZED_PARTIES: settings.CLERK_AUTHORIZED_PARTIES.join(","),
+  ...aiEnvSchema.parse(process.env),
+};
 const directory = await mkdtemp(join(tmpdir(), "branch-vercel-"));
 const path = join(directory, "vercel.json");
 try {

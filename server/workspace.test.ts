@@ -54,6 +54,11 @@ beforeAll(async () => {
   handle = createHandler({
     authenticate: async (request) => request.headers.get("x-test-user") || null,
     repository: new WorkspaceRepository(adapter),
+    ai: {
+      run: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 }, 30000);
 afterAll(async () => database?.close());

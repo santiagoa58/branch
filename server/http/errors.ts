@@ -5,10 +5,14 @@ import { apiErrorBodySchema } from "../../src/schemas/api";
 import { HttpError } from "../repository";
 import type { WorkspaceEnv } from "../types";
 
-function errorResponse(status: number, message: string): Response {
+function errorResponse(
+  status: number,
+  message: string,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(apiErrorBodySchema.parse({ message })), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 }
 
@@ -17,7 +21,7 @@ export const notFound: NotFoundHandler<WorkspaceEnv> = () =>
 
 export const handleError: ErrorHandler<WorkspaceEnv> = (error) => {
   if (error instanceof HttpError) {
-    return errorResponse(error.status, error.message);
+    return errorResponse(error.status, error.message, error.headers);
   }
   if (error instanceof HTTPException && (error.status === 400 || error.status === 405)) {
     return errorResponse(400, "Invalid JSON request.");

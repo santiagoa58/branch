@@ -6,6 +6,7 @@ import { workspaceRoutes } from "./routes/workspace";
 import { projectRoutes } from "./routes/projects";
 import { diagramRoutes } from "./routes/diagrams";
 import { versionRoutes } from "./routes/versions";
+import { aiRoutes } from "./routes/ai";
 import type { HandlerDependencies, WorkspaceEnv } from "./types";
 
 export function createHandler(deps: HandlerDependencies) {
@@ -25,5 +26,6 @@ export function createHandler(deps: HandlerDependencies) {
   app.route("/api", projectRoutes(deps.repository));
   app.route("/api", diagramRoutes(deps.repository));
   app.route("/api", versionRoutes(deps.repository));
+  app.route("/api", aiRoutes(deps.ai));
   return async (request: Request): Promise<Response> => app.fetch(request);
 }
