@@ -137,7 +137,7 @@ export async function exportSelectedAsSvg(selectedNodes: Node[]): Promise<void> 
     throw new Error("No nodes selected");
   }
 
-  const reactFlowContainer = document.querySelector(".react-flow__viewport") as HTMLElement;
+  const reactFlowContainer = document.querySelector<HTMLElement>(".react-flow__viewport");
   if (!reactFlowContainer) {
     throw new Error("React Flow viewport not found");
   }
@@ -169,7 +169,7 @@ export async function exportSelectedAsPng(selectedNodes: Node[]): Promise<void> 
     throw new Error("No nodes selected");
   }
 
-  const reactFlowContainer = document.querySelector(".react-flow__viewport") as HTMLElement;
+  const reactFlowContainer = document.querySelector<HTMLElement>(".react-flow__viewport");
   if (!reactFlowContainer) {
     throw new Error("React Flow viewport not found");
   }
