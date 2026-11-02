@@ -27,11 +27,9 @@ import {
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
-import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
-import { useMakeRequirement } from "./useMakeRequirement";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { InspectorFields } from "./InspectorFields";
-import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
+import { DecisionInspector } from "./DecisionInspector";
 
 type ProtocolGroup = (typeof PROTOCOL_CONFIG)[EdgeProtocol]["group"];
 
@@ -68,7 +66,6 @@ export function PropertiesPanel() {
 
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
-  const requireProps = useMakeRequirement();
   // The contract editor is not a form control, so the inspector's fieldset cannot disable it.
   const editBlocked = useEditBlocked();
 
@@ -392,13 +389,12 @@ export function PropertiesPanel() {
             </div>
 
             <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
-              <DesignDecisionEditor
+              <DecisionInspector
                 key={`decision-${selectedNode.id}`}
                 value={groupData.decision}
                 onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
-                {...requireProps}
+                nodeId={selectedNode.id}
               />
-              <RegenerateReasoningButton nodeId={selectedNode.id} />
             </div>
             <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
               {/* Metadata Section */}
@@ -659,7 +655,7 @@ export function PropertiesPanel() {
               </div>
             </div>
             <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
-              <DesignDecisionEditor
+              <DecisionInspector
                 key={selectedEdge.id}
                 value={edgeData.decision}
                 onChange={(decision) => updateEdgeData(selectedEdge.id, { decision })}

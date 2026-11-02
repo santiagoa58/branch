@@ -15,11 +15,8 @@ import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { getNodeAttributes } from "@/utils/architectureAttributes";
 import { hasDesignDecision } from "@/utils/designDecision";
-import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
-import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
+import { DecisionInspector } from "./DecisionInspector";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
-import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
-import { useMakeRequirement } from "./useMakeRequirement";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { InspectorFields } from "./InspectorFields";
 
@@ -39,7 +36,6 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const { nodes, updateNodeData, setSelectedNode, addNodeToGroup, removeNodeFromGroup } =
     useDiagramStore();
   const requestDelete = useAnimationStore((state) => state.requestDelete);
-  const requireProps = useMakeRequirement();
   const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
   const Icon = config.icon;
@@ -85,16 +81,15 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
       <InspectorFields className="flex-1 space-y-6 overflow-y-auto p-4">
         {activeTab === "design" && (
           <>
-            <DesignDecisionEditor
+            <DecisionInspector
+              key={node.id}
               value={data.decision}
               onChange={(decision) => updateNodeData(node.id, { decision })}
-              {...requireProps}
-            />
-            <RegenerateReasoningButton nodeId={node.id} />
-            <ArchitectureFactsEditor
-              key={node.id}
+              nodeId={node.id}
               attributes={getNodeAttributes(data)}
-              onChange={(attributes) => updateNodeData(node.id, { attributes, metadata: {} })}
+              onAttributesChange={(attributes) =>
+                updateNodeData(node.id, { attributes, metadata: {} })
+              }
             />
           </>
         )}

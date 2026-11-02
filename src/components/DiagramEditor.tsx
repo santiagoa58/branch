@@ -26,7 +26,6 @@ import { GettingStartedChecklist } from "@/components/panels/GettingStartedCheck
 import { DiagramInfoCard } from "@/components/panels/DiagramInfoCard";
 import { EditorContextMenu } from "@/components/panels/EditorContextMenu";
 import { ProtocolLegend } from "@/components/panels/ProtocolLegend";
-import { NodeDetailPopup } from "@/components/panels/NodeDetailPopup";
 import { CanvasStatusBar } from "@/components/panels/CanvasStatusBar";
 import { SpotlightSearch } from "@/components/panels/SpotlightSearch";
 import { FlowsPanel } from "@/components/panels/FlowsPanel";
@@ -754,7 +753,6 @@ export function DiagramEditor() {
         </div>
 
         {/* Canvas overlays — diagram info, protocol legend, node detail, status bar */}
-        <NodeDetailPopup />
         <CanvasStatusBar />
         <SpotlightSearch />
 
