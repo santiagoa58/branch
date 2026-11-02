@@ -19,7 +19,6 @@ import {
 } from "@/templates";
 import { appendDiagramData } from "@/utils/import";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
-
 import { notify } from "@/services/notify";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { editBlockReason, useEditBlocked } from "@/store/editLock";
@@ -51,11 +50,12 @@ export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialog
   return <TemplateGallery onClose={onClose} />;
 }
 
-// oxlint-disable-next-line max-lines-per-function -- debt: 281 lines; split into smaller units
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: gallery load guards; extract smaller components
 function TemplateGallery({ onClose }: { onClose: () => void }) {
   const canvasEmpty = useDiagramStore((s) => s.nodes.length === 0);
   const editBlocked = useEditBlocked();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const loadingRef = useRef(false);
   const { fitView } = useReactFlow();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
@@ -110,9 +110,10 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
   };
 
   const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
-    if (loadingId !== null) {
+    if (loadingRef.current || editBlockReason() !== null) {
       return;
     }
+    loadingRef.current = true;
     setLoadingId(template.id);
     const diagramId = cloudWorkspace.getState().diagram?.id;
     layoutTemplate(template)
@@ -130,6 +131,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
         }
       })
       .finally(() => {
+        loadingRef.current = false;
         if (open.current) {
           setLoadingId(null);
         }
@@ -137,6 +139,9 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
   };
 
   const primaryAction = (template: DiagramTemplate) => {
+    if (loadingRef.current || editBlockReason() !== null) {
+      return;
+    }
     if (canvasEmpty) {
       loadTemplate(template, "replace");
     } else {
@@ -347,6 +352,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                       <button
                         type="button"
                         onClick={() => loadTemplate(selected, "replace")}
+                        disabled={editBlocked || loadingId !== null}
                         className="flex-1 rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-destructive/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         Replace diagram
@@ -374,7 +380,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       onClick={() => setConfirmReplace(true)}
-                      disabled={loadingId !== null}
+                      disabled={editBlocked || loadingId !== null}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold transition-colors duration-300 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.98]"
                     >
                       <ArrowPathIcon aria-hidden="true" className="size-4" />

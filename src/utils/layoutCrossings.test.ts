@@ -65,14 +65,14 @@ describe("crossing regression", () => {
     for (const template of DIAGRAM_TEMPLATES) {
       const { data } = await layoutTemplate(template);
       const instance = diagramDataSchema.parse(instantiateTemplate({ ...template, data }));
-      expect(instance.nodes.length, template.id).toBe(data.nodes.length);
+      expect(instance.nodes.length).toBe(data.nodes.length);
       const keys = new Set(instance.nodes.map((node) => node.id));
       for (const edge of instance.edges) {
-        expect(keys.has(edge.source), template.id).toBe(true);
-        expect(keys.has(edge.target), template.id).toBe(true);
+        expect(keys.has(edge.source)).toBe(true);
+        expect(keys.has(edge.target)).toBe(true);
       }
       for (const flow of instance.flows ?? []) {
-        expect(keys.has(flow.sourceNodeId), template.id).toBe(true);
+        expect(keys.has(flow.sourceNodeId)).toBe(true);
       }
       total += canvasCrossings(data.nodes, data.edges);
     }

@@ -77,11 +77,13 @@ function buildPreview(data: DiagramData) {
 function compactPreview(data: DiagramData) {
   const components = data.nodes.filter((node) => node.type === "architecture").slice(0, 16);
   const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(components.length))));
-  const nodes = components.map((node, index) => ({
-    ...node,
-    parentId: undefined,
-    position: { x: (index % columns) * 230, y: Math.floor(index / columns) * 140 },
-  }));
+  const nodes = components.map((node, index) => {
+    const { parentId: _parentId, ...rest } = node;
+    return {
+      ...rest,
+      position: { x: (index % columns) * 230, y: Math.floor(index / columns) * 140 },
+    };
+  });
   const ids = new Set(nodes.map((node) => node.id));
   const edges = data.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
   return buildPreview({ nodes, edges });
