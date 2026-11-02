@@ -190,7 +190,7 @@ export function Composer() {
         aria-describedby={replaces ? noticeId : undefined}
         onClick={start}
       >
-        Start design
+        Generate design
       </Button>
     </div>
   );

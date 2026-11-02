@@ -8,7 +8,6 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore } from "@/store/uiStore";
 import {
   answerQuestion,
-  assumeRemaining,
   bringIntoScope,
   changeAssumption,
   confirmAssumption,
@@ -117,10 +116,10 @@ function row(text: string, section?: string): HTMLElement {
 }
 
 describe("composer", () => {
-  it("Start design creates the brief from the composer and runs the update", async () => {
+  it("Generate design creates the brief from the composer and runs the update", async () => {
     const user = userEvent.setup();
     mount(null);
-    const start = screen.getByRole("button", { name: "Start design" });
+    const start = screen.getByRole("button", { name: "Generate design" });
     expect(start).toBeDisabled();
 
     await user.type(
@@ -174,81 +173,15 @@ describe("composer", () => {
   });
 });
 
-describe("questions", () => {
-  it("Continue is disabled until every question has an answer", async () => {
-    const user = userEvent.setup();
+describe("saved open questions", () => {
+  it("shows the brief without a question round-trip", () => {
     mount(asking);
-    const next = screen.getByRole("button", { name: "Continue" });
-    expect(next).toBeDisabled();
-
-    const recommended = screen.getByRole("button", { name: /About 1M households/ });
-    expect(within(recommended).getByText("Recommended")).toBeVisible();
-    expect(within(recommended).getByText("Read replicas and a cache for hot lists")).toBeVisible();
-    await user.click(recommended);
-    expect(recommended).toHaveAttribute("aria-pressed", "true");
-    expect(next).toBeDisabled();
-
-    // A question without options takes a written answer.
-    await user.type(
-      screen.getByRole("textbox", { name: "What should happen without a signal in the store?" }),
-      "Read only offline",
-    );
-    expect(next).toBeEnabled();
-    await user.click(next);
-
-    let expected = answerQuestion(
-      asking,
-      asking.questions[0]!.question,
-      "About 1M households",
-      newId,
-    );
-    expected = answerQuestion(expected, asking.questions[1]!.question, "Read only offline", newId);
-    expect(currentBrief()).toEqual(expected);
-    expect(pipeline.update).toHaveBeenCalledTimes(1);
-  });
-
-  it("Assume the rest for me records assumed answers and runs the update", async () => {
-    const user = userEvent.setup();
-    mount(asking);
-    await user.click(screen.getByRole("button", { name: /Up to 10k households/ }));
-    await user.click(screen.getByRole("button", { name: "Assume the rest for me" }));
-
-    const expected = assumeRemaining(
-      answerQuestion(asking, asking.questions[0]!.question, "Up to 10k households", newId),
-      newId,
-    );
-    expect(currentBrief()).toEqual(expected);
-    expect(currentBrief()?.inputs.answers).toEqual([
-      expect.objectContaining({ answer: "Up to 10k households", assumed: false }),
-      expect.objectContaining({ answer: "The list keeps working offline", assumed: true }),
-    ]);
-    expect(pipeline.update).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows the recommended answer of a free-text question as a visible hint", () => {
-    mount(asking);
-    const hint = screen.getByText("Recommended:").closest("p");
-    expect(hint).toHaveTextContent("Recommended: The list keeps working offline");
-    expect(
-      screen.getByRole("textbox", { name: "What should happen without a signal in the store?" }),
-    ).toHaveAccessibleDescription("Recommended: The list keeps working offline");
-  });
-
-  it("offers a written answer where the question allows one", async () => {
-    const user = userEvent.setup();
-    mount({
-      ...asking,
-      questions: [{ ...asking.questions[0]!, allowsCustom: true }],
-    });
-    await user.click(screen.getByRole("button", { name: "Write my own answer" }));
-    await user.type(
-      screen.getByRole("textbox", { name: "Roughly how many households should this serve?" }),
-      "About 50k",
-    );
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(currentBrief()?.inputs.answers).toEqual([
-      expect.objectContaining({ answer: "About 50k", assumed: false }),
-    ]);
+    expect(screen.queryByRole("region", { name: "Questions" })).toBeNull();
+    for (const name of ["Continue", "Assume the rest for me"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    expect(screen.getByRole("region", { name: "Assumptions" })).toBeVisible();
+    expect(screen.getByText("Members of a household share the same lists")).toBeVisible();
   });
 });
 

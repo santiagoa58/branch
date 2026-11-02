@@ -67,6 +67,78 @@ describe("applyRequirements", () => {
     });
     expect(before.requirements).toEqual([]);
   });
+
+  describe("questions the model returns anyway", () => {
+    const question = (
+      overrides: Partial<RequirementsOutput["questions"][number]> = {},
+    ): RequirementsOutput["questions"][number] => ({
+      id: "q1",
+      topic: "Scale",
+      question: "How many households?",
+      why: "Sizes the store",
+      options: [
+        { label: "About 1M", impact: "One region" },
+        { label: "10M+", impact: "Sharding" },
+      ],
+      recommended: "About 1M",
+      allowsCustom: false,
+      ...overrides,
+    });
+
+    it("assumes each one's recommended answer and leaves no open question", () => {
+      const result = applyRequirements(brief(), {
+        ...output,
+        questions: [question(), question({ id: "q2", topic: " ", recommended: "Works offline" })],
+      });
+      expect(result.questions).toEqual([]);
+      expect(result.assumptions).toEqual([
+        { kind: "constraint", text: "Mobile web only" },
+        { kind: "constraint", text: "Scale: About 1M" },
+        { kind: "constraint", text: "Works offline" },
+      ]);
+    });
+
+    it("skips a question already assumed, or with no recommended answer", () => {
+      const result = applyRequirements(brief(), {
+        ...output,
+        assumptions: [{ kind: "nonFunctional", text: "scale: about 1m" }],
+        questions: [question(), question({ id: "q2", recommended: "  " })],
+      });
+      expect(result.assumptions).toEqual([{ kind: "nonFunctional", text: "scale: about 1m" }]);
+    });
+
+    it("keeps the inputs, so the requirements stage stays fresh", () => {
+      const before = brief();
+      const result = applyRequirements(before, { ...output, questions: [question()] });
+      expect(result.inputs).toBe(before.inputs);
+      expect(result.ranFrom.requirements).toBe(inputsFingerprint(before.inputs));
+    });
+  });
+});
+
+describe("saved briefs from the question round-trip", () => {
+  it("still load with their open questions and answers", () => {
+    const saved = brief({
+      inputs: {
+        ...brief().inputs,
+        answers: [{ id: "a1", question: "How fresh?", answer: "Instantly", assumed: true }],
+      },
+      questions: [
+        {
+          id: "q1",
+          topic: "Scale",
+          question: "How many households?",
+          why: "Sizes the store",
+          options: [],
+          recommended: "About 1M",
+          allowsCustom: true,
+        },
+      ],
+    });
+    const parsed = diagramDataSchema.safeParse({ nodes: [], edges: [], brief: saved });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.brief).toEqual(saved);
+  });
 });
 
 const baseOutput: ComponentsOutput = {

@@ -5,13 +5,14 @@
 Users describe a system and an AI designs it the way a strong candidate would in a system design
 interview:
 
-1. Clarify the requirements.
+1. Settle the requirements, assuming whatever the brief leaves open.
 2. Propose components and connections.
 3. Justify every choice with its tradeoffs.
 4. Define the API.
 5. On request, the data model.
 
-The user then refines the inputs and the design updates.
+The whole design is generated in one run from what the user first provides: nothing is asked
+along the way. The user then reviews the assumptions, refines the inputs and the design updates.
 
 At all times, without opening individual nodes, the user can see:
 
@@ -22,6 +23,8 @@ At all times, without opening individual nodes, the user can see:
 ### Out of scope
 
 - Conversational chat with the AI.
+- Clarifying questions. The AI never stops a run to ask; it assumes, and the user edits the
+  assumptions afterwards.
 - Incremental or partial updates to a generated design. Any change re-runs the affected stages in
   full.
 - Markdown export of the brief. JSON export and import carry it as part of the diagram.
@@ -32,9 +35,9 @@ The design is produced by a pipeline of five stages. Each stage is one structure
 through the Vercel AI SDK and the Vercel AI Gateway, made by our backend.
 
 ```
- user inputs (prompt, scope, requirement lines, out-of-scope lines, answers)
+ user inputs (prompt, scope, requirement lines, out-of-scope lines)
       │
- ┌────▼─────────────┐  open questions? → pipeline stops until the user answers
+ ┌────▼─────────────┐  asks nothing: open decisions become assumptions
  │ 1 Requirements   │
  └────┬─────────────┘
       │ design context (requirements, assumptions, out of scope)
@@ -51,10 +54,10 @@ through the Vercel AI SDK and the Vercel AI Gateway, made by our backend.
 
 **Every stage regenerates its whole output from its inputs.**
 
-|          | Responsible for                                                                                                                                                                   |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The AI   | Judgment only: which questions matter, what to assume, which components and connections meet the requirements, why each was chosen and at what cost, and what the API looks like. |
-| Our code | Everything else: what is out of date, what runs next, ids, reference cleanup, mapping to the diagram, layout, persistence, versions and undo.                                     |
+|          | Responsible for                                                                                                                                           |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The AI   | Judgment only: what to assume, which components and connections meet the requirements, why each was chosen and at what cost, and what the API looks like. |
+| Our code | Everything else: what is out of date, what runs next, ids, reference cleanup, mapping to the diagram, layout, persistence, versions and undo.             |
 
 ## 3. Concepts
 
@@ -69,22 +72,22 @@ The user owns a small set of inputs:
   - `fullstack` details both.
 - **Requirement lines:** free text, each with a kind: functional, non-functional or constraint.
 - **Out-of-scope lines:** free text.
-- **Answers:** the user's answer to each question stage 1 asked, stored with the question text.
-  An answer chosen by "Assume for me" is marked `assumed`.
+- **Answers:** kept only for briefs saved by the earlier question round-trip, which asked the user
+  questions before designing. Each is stored with its question text; one chosen by "Assume for me"
+  is marked `assumed`. New briefs never get answers.
 
 Everything else in the brief is AI output derived from these inputs. Every user action in the
 panel is an edit to the inputs:
 
-| User action                                     | Edit to inputs                                                                        |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Type or edit a requirement or out-of-scope line | Edit that line                                                                        |
-| Answer a question                               | Add an answer                                                                         |
-| Assume for me                                   | Add the question's recommended answer, marked `assumed`, for each unanswered question |
-| Confirm an assumption                           | Add its text as a requirement line                                                    |
-| Change an assumption                            | Add the edited text as a requirement line                                             |
-| Remove a derived requirement                    | Add its text as an out-of-scope line                                                  |
-| Bring a derived out-of-scope item into scope    | Add its text as a requirement line                                                    |
-| Require a "revisit when" condition              | Add the condition as a requirement line                                               |
+| User action                                     | Edit to inputs                                    |
+| ----------------------------------------------- | ------------------------------------------------- |
+| Type or edit a requirement or out-of-scope line | Edit that line                                    |
+| Confirm an assumption                           | Add its text as a requirement line                |
+| Confirm or change a saved assumed answer        | Record it as the user's answer (`assumed: false`) |
+| Change an assumption                            | Add the edited text as a requirement line         |
+| Remove a derived requirement                    | Add its text as an out-of-scope line              |
+| Bring a derived out-of-scope item into scope    | Add its text as a requirement line                |
+| Require a "revisit when" condition              | Add the condition as a requirement line           |
 
 User lines are always displayed verbatim. Stage 1 never restates them; it adds derived items around
 them.
@@ -114,8 +117,10 @@ Each stage records the fingerprint it ran from:
 **Update** runs the first out-of-date stage and every stage after it, in order:
 
 - Stages 3 and 4 run concurrently.
-- The pipeline stops after stage 1 while it has open questions. Stage 2 never runs with
-  unanswered questions.
+- Nothing stops the pipeline between stages: stage 1 asks no questions, so a new brief runs every
+  stage in one go.
+- A brief saved by the earlier question round-trip may still hold open questions. It runs from
+  stage 1, which now assumes them.
 
 Consequences:
 
@@ -177,13 +182,14 @@ input: {
   prompt: string; scope: Scope;
   requirements: { kind: RequirementKind; text: string }[];          // user lines
   outOfScope: string[];                                              // user lines
-  answers: { question: string; answer: string; assumed: boolean }[];
+  answers: { question: string; answer: string; assumed: boolean }[];  // from saved briefs only
+  askQuestions: false;   // the design runs in one go; stage 1 never asks
 }
 output: {
   questions: {
     id: string; topic: string; question: string; why: string;
     options: { label: string; impact: string }[];  // empty for a free-text answer; otherwise ≥2, since one option is not a choice
-    recommended: string;                            // required: "Assume for me" answers with it
+    recommended: string;                            // required: a question returned anyway is assumed with it
     allowsCustom: boolean;
   }[];
   requirements: { kind: RequirementKind; text: string; category?: NfrCategory }[];  // derived; never restates user lines
@@ -192,14 +198,20 @@ output: {
 }
 ```
 
+`askQuestions` is a literal `false`: the field states the contract explicitly in every request,
+and widening it to a boolean is the way to bring a question mode back. The output keeps its
+`questions` field, so the output schema and saved briefs stay as they were; the prompt says it is
+always an empty list.
+
 Prompt rules:
 
-- **When to ask.** Ask only when the answer changes which components exist or a major technology
-  choice; anything smaller is assumed and listed.
-- **Answered questions.** Never re-ask them. Turn answers into derived requirements; an answer
-  marked `assumed` becomes an assumption instead.
+- **Ask nothing.** Decide everything that is open yourself, including anything that changes which
+  components exist or a major technology choice, and list each decision as an assumption.
+- **Answered questions** (saved briefs). Never re-ask them. Turn answers into derived requirements;
+  an answer marked `assumed` becomes an assumption instead.
 - **Conflicts.** When the user's lines conflict with an earlier assumption, drop the assumption.
-- **Ambiguous inputs.** When two user lines conflict, ask a question about it.
+- **Ambiguous inputs.** When two user lines conflict, choose the reading that fits the rest of the
+  brief and list that choice as an assumption.
 
 ### 4.3 Stage 2: components
 
@@ -291,7 +303,7 @@ interface DesignBrief {
     answers: { id: string; question: string; answer: string; assumed: boolean }[];
   };
   // Stage 1 output (latest run)
-  questions: Stage1Output["questions"]; // open questions; empty when none
+  questions: Stage1Output["questions"]; // always empty now; saved round-trip briefs may hold some
   requirements: { kind: RequirementKind; text: string; category?: NfrCategory }[];
   assumptions: { kind: RequirementKind; text: string }[];
   outOfScope: string[];
@@ -320,6 +332,16 @@ Pure functions in `src/utils/aiDesign/`, each unit tested.
 
 1. Replace the brief's stage 1 fields with the output.
 2. Drop derived items that exactly duplicate a user line, after normalization.
+3. **Assume any question.** The model is told to ask nothing, but code owns the result: each
+   question it returns anyway becomes an assumption, `{ kind: "constraint", text: "<topic>:
+   <recommended>" }`, unless an assumption with that text exists or there is no recommended
+   answer. `questions` is stored empty, so nothing blocks the run.
+
+   Assumptions are stage 1 output, not inputs, so the inputs stay the user's own: the inputs
+   fingerprint does not change and stage 1 stays fresh after the run. Stages 2 to 4 read
+   assumptions through `DesignContext`, so they see these in the same run. (Recording them as
+   assumed answers instead would change the inputs, leave stage 1 out of date straight after the
+   run, and hide them from stages 2 to 4, which never read answers.)
 
 ### Stage 2
 
@@ -430,9 +452,9 @@ undo/redo.
 
 **The pipeline hook** (`useDesignPipeline`):
 
-- Runs from the first out-of-date stage.
+- Runs from the first out-of-date stage. For a new brief that is the whole design, in one run.
 - Runs stages 3 and 4 concurrently.
-- Stops at open questions.
+- Never stops for questions.
 - Supports cancel, retry of a failed stage, and "Regenerate reasoning" for a single node.
 - Canvas editing is locked while a run is in progress.
 
@@ -458,14 +480,11 @@ A docked panel with four tabs in interview order. A tab shows a dot when its con
   - scope control: Frontend / Backend / Full stack, each with a one-line description of what will
     be detailed
   - an optional "Add requirements" section for requirement and out-of-scope lines
-  - **Start design**
-- **Questions:** cards in which options are chips showing their impact. The recommended option is
-  marked, and custom answers are allowed where the question permits. Actions: **Continue** (enabled
-  once every question is answered) and **Assume the rest for me**. Both record the answers and run
-  the update.
+  - **Generate design**, which runs every stage in one go
 - **Requirements:** grouped by kind. User lines are editable and removable. Derived requirements
   have **Remove**.
-- **Assumptions:** stage 1 assumptions and assumed answers, each with **Confirm** and **Change**.
+- **Assumptions:** stage 1 assumptions (including questions it assumed) and, in saved briefs,
+  assumed answers, each with **Confirm** and **Change**.
 - **Out of scope:** user lines are editable. Derived items have **Bring into scope**.
 
 **Design**
@@ -576,7 +595,7 @@ Then:
 **Component**
 
 - Composer.
-- Questions, including Assume for me.
+- A saved brief with open questions shows no question round-trip and offers Update.
 - Each assumption, requirement and out-of-scope action.
 - The update bar's content.
 - Progress, cancel and retry.
@@ -589,8 +608,8 @@ Then:
   and self-conflicting briefs, across all three scopes.
 - **Checks:**
   - schema conformance
-  - question discipline: asks when it should, asks nothing for a complete brief, never re-asks an
-    answered question, always gives a recommended answer
+  - question discipline: asks nothing in any case, and lists at least one assumption for a brief
+    that leaves decisions open
   - structural expectations, for example a realtime transport for collaborative or chat systems,
     and a decision for every node
   - output size and latency
@@ -617,36 +636,27 @@ should produce.
 
 ### A.1 First run
 
-**Step 1. The user starts a design** (inputs fingerprint `i1`):
+**Step 1. The user presses Generate design** (inputs fingerprint `i1`):
 
 - Prompt: "Design a shared grocery list app for households. Members add items and check them off
   while shopping."
 - Requirement line (functional): "Members of a household share the same lists".
 
-**Step 2. Stage 1 runs.** It asks two questions:
-
-- Scale. Options: up to 10k households, about 1M, 10M+. Recommended: about 1M.
-- How quickly members must see each other's changes. Options: instantly, or within a minute.
-  Recommended: instantly.
-
-It also returns:
+**Step 2. Stage 1 runs and asks nothing.** It decides what the brief leaves open and returns:
 
 - Derived requirements: add, edit and remove items; check items off; invite members; check-off
   feels immediate.
-- Assumptions: "online only"; "email or social sign-in".
+- Assumptions: "About 1M households"; "Members see each other's changes instantly"; "online
+  only"; "email or social sign-in".
 - Derived out of scope: ordering groceries; recipes.
 
-The pipeline stops because questions are open.
+Had it returned a question anyway, such as scale with the recommended answer "About 1M", code
+would have added the assumption "Scale: About 1M" instead. The run carries straight on.
 
-**Step 3. The user answers.** They pick "About 1M households" for scale, then press **Assume the
-rest for me**. The visibility answer is recorded as assumed. The inputs fingerprint becomes `i2`.
+**Steps 3 and 4** are gone: the earlier flow stopped here for the user to answer, then ran stage
+1 again. The steps below keep their numbers.
 
-**Step 4. Stage 1 runs again.** There are no questions this time.
-
-- Derived requirements now include "Serve about 1M households".
-- Assumptions now include "Members see changes instantly".
-
-**Step 5. Stage 2 runs.** It returns:
+**Step 5. Stage 2 runs, in the same run.** It returns:
 
 - Components:
   - mobile and web apps
@@ -682,17 +692,15 @@ The graph is applied and laid out. The graph fingerprint is `g1`.
 fingerprint becomes `i3`. Every stage is now out of date. The update bar reads "Requirements,
 components, reasoning and API will update".
 
-**Step 8. The user presses Update design.** Stage 1 re-runs:
+**Step 8. The user presses Update design.** Stage 1 re-runs and asks nothing:
 
 - "Online only" is no longer assumed, because it contradicts a user line.
-- It asks: "When two members change the same item offline, which change wins?" Options: last write
-  wins, or keep both and let a member resolve.
+- It assumes "Last write wins when two members change the same item offline" and lists it with
+  the other assumptions, where the user can change it later.
 
-The pipeline stops at the open question.
+**Step 9** is gone: the earlier flow stopped here for an answer.
 
-**Step 9. The user answers.** Stage 1 runs and returns no questions.
-
-**Step 10. A version is saved,** then stage 2 runs. The previous keys are kept, and these are
+**Step 10. A version is saved,** then stage 2 runs in the same run. The previous keys are kept, and these are
 added:
 
 - local storage on the mobile app

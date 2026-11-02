@@ -65,43 +65,42 @@ describe.skipIf(!process.env["AI_EVAL"])("prompt evaluation against the gateway"
       );
       failures.push(...checkRequirements(c, requirements).map((f) => `requirements: ${f}`));
 
-      if (requirements.questions.length === 0) {
-        const context = contextFrom(c, requirements);
-        const input = componentsInput(context);
-        const components: ComponentsOutput = await timed(timings, "components", input, () =>
-          runner.run("components", input, owner, signal),
-        );
-        failures.push(...checkComponents(c, components).map((f) => `components: ${f}`));
+      // Questions never stop the run: contextFrom assumes them, as the pipeline does.
+      const context = contextFrom(c, requirements);
+      const input = componentsInput(context);
+      const components: ComponentsOutput = await timed(timings, "components", input, () =>
+        runner.run("components", input, owner, signal),
+      );
+      failures.push(...checkComponents(c, components).map((f) => `components: ${f}`));
 
-        // One call per component, all at once, as the pipeline does.
-        const decisionInputs = decisionsInputs(context, components);
-        const decisions: Record<string, DecisionsOutput> = {};
-        await Promise.all(
-          decisionInputs.map(async (decisionInput) => {
-            decisions[decisionInput.node.key] = await timed(
-              timings,
-              `decisions:${decisionInput.node.key}`,
-              decisionInput,
-              () => runner.run("decisions", decisionInput, owner, signal),
-            );
-          }),
-        );
-        failures.push(
-          ...checkDecisions(
-            components.components.map((component) => component.key),
-            decisions,
-          ).map((f) => `decisions: ${f}`),
-        );
+      // One call per component, all at once, as the pipeline does.
+      const decisionInputs = decisionsInputs(context, components);
+      const decisions: Record<string, DecisionsOutput> = {};
+      await Promise.all(
+        decisionInputs.map(async (decisionInput) => {
+          decisions[decisionInput.node.key] = await timed(
+            timings,
+            `decisions:${decisionInput.node.key}`,
+            decisionInput,
+            () => runner.run("decisions", decisionInput, owner, signal),
+          );
+        }),
+      );
+      failures.push(
+        ...checkDecisions(
+          components.components.map((component) => component.key),
+          decisions,
+        ).map((f) => `decisions: ${f}`),
+      );
 
-        const apiIn = apiInput(context, components);
-        const api: ApiOutput = await timed(timings, "api", apiIn, () =>
-          runner.run("api", apiIn, owner, signal),
-        );
-        const dataModelIn = dataModelInput(context, components, api);
-        await timed(timings, "data-model", dataModelIn, () =>
-          runner.run("data-model", dataModelIn, owner, signal),
-        );
-      }
+      const apiIn = apiInput(context, components);
+      const api: ApiOutput = await timed(timings, "api", apiIn, () =>
+        runner.run("api", apiIn, owner, signal),
+      );
+      const dataModelIn = dataModelInput(context, components, api);
+      await timed(timings, "data-model", dataModelIn, () =>
+        runner.run("data-model", dataModelIn, owner, signal),
+      );
 
       const lines = timings.map(
         (t) => `  ${t.stage}: in ${t.inputBytes} B, out ${t.outputBytes} B, ${t.ms} ms`,

@@ -9,11 +9,12 @@ type ArchitectureNodeType = z.infer<typeof architectureNodeTypeSchema>;
 type EdgeProtocol = z.infer<typeof edgeProtocolSchema>;
 
 // Evaluation cases for the stage prompts, drawn from the validation scenarios in
-// docs/system-design-capability-audit.md. Each scope has one case per kind:
-// - vague: only a prompt; the model must ask.
+// docs/system-design-capability-audit.md. The design runs in one go, so stage 1 never asks: it
+// assumes what is open. Each scope has one case per kind:
+// - vague: only a prompt; the model must assume the open decisions.
 // - partial: some lines and answers, but a decision that changes the components is still open.
-// - complete: every such decision is stated or answered; the model must not ask.
-// - conflicting: user lines contradict each other; the model must ask about it.
+// - complete: every such decision is stated or answered.
+// - conflicting: user lines contradict each other; the model must assume a reading.
 
 export interface EvalCase {
   id: string;
@@ -21,7 +22,8 @@ export interface EvalCase {
   kind: "vague" | "partial" | "complete" | "conflicting";
   input: RequirementsInput;
   expect: {
-    asks: boolean;
+    /** The case leaves decisions open, so stage 1 must list at least one assumption. */
+    assumes: boolean;
     mustInclude?: { types?: ArchitectureNodeType[]; protocols?: EdgeProtocol[] };
   };
 }
@@ -29,9 +31,17 @@ export interface EvalCase {
 function input(
   prompt: string,
   scope: Scope,
-  rest: Partial<Omit<RequirementsInput, "prompt" | "scope">> = {},
+  rest: Partial<Omit<RequirementsInput, "prompt" | "scope" | "askQuestions">> = {},
 ): RequirementsInput {
-  return { prompt, scope, requirements: [], outOfScope: [], answers: [], ...rest };
+  return {
+    prompt,
+    scope,
+    requirements: [],
+    outOfScope: [],
+    answers: [],
+    ...rest,
+    askQuestions: false,
+  };
 }
 
 export const evalCases: EvalCase[] = [
@@ -41,7 +51,7 @@ export const evalCases: EvalCase[] = [
     scope: "frontend",
     kind: "vague",
     input: input("Design an autocomplete search box.", "frontend"),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
   {
     id: "frontend-partial",
@@ -56,7 +66,7 @@ export const evalCases: EvalCase[] = [
         { question: "Which platforms must it support?", answer: "Web only", assumed: false },
       ],
     }),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
   {
     id: "frontend-complete",
@@ -93,7 +103,7 @@ export const evalCases: EvalCase[] = [
         },
       ],
     }),
-    expect: { asks: false, mustInclude: { types: ["component", "cache"], protocols: ["http"] } },
+    expect: { assumes: false, mustInclude: { types: ["component", "cache"], protocols: ["http"] } },
   },
   {
     id: "frontend-conflicting",
@@ -106,7 +116,7 @@ export const evalCases: EvalCase[] = [
         { kind: "nonFunctional", text: "Edits appear instantly with no spinner" },
       ],
     }),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
 
   // --- Backend: distributed queue (#45), ride matching (#66) ---
@@ -115,7 +125,7 @@ export const evalCases: EvalCase[] = [
     scope: "backend",
     kind: "vague",
     input: input("Design a distributed message queue.", "backend"),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
   {
     id: "backend-partial",
@@ -128,7 +138,7 @@ export const evalCases: EvalCase[] = [
       ],
       outOfScope: ["Driver onboarding"],
     }),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
   {
     id: "backend-complete",
@@ -165,7 +175,7 @@ export const evalCases: EvalCase[] = [
         },
       ],
     }),
-    expect: { asks: false, mustInclude: { types: ["stream", "coordinator"] } },
+    expect: { assumes: false, mustInclude: { types: ["stream", "coordinator"] } },
   },
   {
     id: "backend-conflicting",
@@ -184,7 +194,7 @@ export const evalCases: EvalCase[] = [
         },
       ],
     }),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
 
   // --- Fullstack: collaborative editor (#94), ride matching (#105), LLM assistant (#120) ---
@@ -193,7 +203,7 @@ export const evalCases: EvalCase[] = [
     scope: "fullstack",
     kind: "vague",
     input: input("Design an AI assistant with retrieval and tools.", "fullstack"),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
   {
     id: "fullstack-partial",
@@ -216,7 +226,7 @@ export const evalCases: EvalCase[] = [
         ],
       },
     ),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
   {
     id: "fullstack-complete",
@@ -250,7 +260,7 @@ export const evalCases: EvalCase[] = [
       ],
     }),
     expect: {
-      asks: false,
+      assumes: false,
       mustInclude: { types: ["webapp", "database"], protocols: ["websocket"] },
     },
   },
@@ -269,6 +279,6 @@ export const evalCases: EvalCase[] = [
         },
       ],
     }),
-    expect: { asks: true },
+    expect: { assumes: true },
   },
 ];

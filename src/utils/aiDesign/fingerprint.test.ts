@@ -194,16 +194,16 @@ describe("nextStages", () => {
 
   it("new brief: every stage is next", () => expect(nextStages(brief(), [], [])).toEqual(all));
 
-  it("open questions stop the pipeline after requirements", () => {
+  it("open questions saved by the old round-trip re-run every stage, so none is left open", () => {
     const input = inputsFingerprint(inputs());
     const waiting = brief({
       questions: [question()],
       ranFrom: { requirements: input },
     });
-    expect(nextStages(waiting, nodes, edges)).toEqual([]);
+    expect(nextStages(waiting, nodes, edges)).toEqual(all);
   });
 
-  it("outdated requirements win over open questions", () => {
+  it("outdated requirements re-run every stage with or without open questions", () => {
     const waiting = brief({
       questions: [question()],
       ranFrom: { requirements: "stale" },

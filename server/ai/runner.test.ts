@@ -215,6 +215,7 @@ describe("createGatewayRunner with the AI SDK", () => {
         requirements: [],
         outOfScope: [],
         answers: [],
+        askQuestions: false,
       },
       output: {
         questions: [

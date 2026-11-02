@@ -78,7 +78,7 @@ describe("DesignPanel", () => {
   it("shows the composer without tabs while the diagram has no brief", () => {
     render(<DesignPanel />);
     expect(screen.getByRole("heading", { name: "Design with AI" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Start design" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Generate design" })).toBeVisible();
     expect(screen.queryByRole("navigation", { name: "Design sections" })).not.toBeInTheDocument();
   });
 
@@ -181,36 +181,7 @@ describe("DesignPanel", () => {
 });
 
 describe("tab after a run", () => {
-  const question = {
-    id: "q1",
-    topic: "scale",
-    question: "How many links a day?",
-    why: "Sizes storage.",
-    options: [
-      { label: "About 1k", impact: "One small database" },
-      { label: "About 1M", impact: "A cache in front of the database" },
-    ],
-    recommended: "About 1M",
-    allowsCustom: false,
-  };
-
-  it("switches to the Brief tab when a run ends with open questions", async () => {
-    const user = userEvent.setup();
-    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
-    render(<DesignPanel />);
-    await user.click(tab("API"));
-    act(() => {
-      useAiDesignStore.getState().start("d1");
-    });
-    act(() => {
-      useDiagramStore.setState({ brief: { ...base, questions: [question] } });
-      useAiDesignStore.getState().finish();
-    });
-    expect(tab("Brief")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("region", { name: "Questions" })).toBeVisible();
-  });
-
-  it("keeps the open tab when a run ends without questions", async () => {
+  it("keeps the open tab when a run ends", async () => {
     const user = userEvent.setup();
     useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
     render(<DesignPanel />);
@@ -224,12 +195,11 @@ describe("tab after a run", () => {
     expect(tab("API")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("keeps the tab and chosen answers while the inspector holds the slot", async () => {
+  it("keeps the tab while the inspector holds the slot", async () => {
     const user = userEvent.setup();
     useUIStore.getState().openDesignPanel();
-    useDiagramStore.setState({ brief: { ...base, questions: [question] }, nodes: [], edges: [] });
+    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
     render(<EditorRightPanel />);
-    await user.click(screen.getByRole("button", { name: /About 1k/ }));
     await user.click(tab("Data model"));
 
     act(() => {
@@ -241,50 +211,15 @@ describe("tab after a run", () => {
     });
 
     expect(tab("Data model")).toHaveAttribute("aria-pressed", "true");
-    await user.click(tab("Brief"));
-    expect(screen.getByRole("button", { name: /About 1k/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-  });
-
-  it("starts a new round of questions with no answers chosen", async () => {
-    const user = userEvent.setup();
-    useDiagramStore.setState({ brief: { ...base, questions: [question] }, nodes: [], edges: [] });
-    render(<DesignPanel />);
-    await user.click(screen.getByRole("button", { name: /About 1k/ }));
-    act(() => {
-      useDiagramStore.setState({ brief: { ...base, questions: [{ ...question }] } });
-    });
-    expect(screen.getByRole("button", { name: /About 1k/ })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
   });
 });
 
 describe("replacement notice before a run", () => {
-  const question = {
-    id: "q1",
-    topic: "scale",
-    question: "How many links a day?",
-    why: "Sizes storage.",
-    options: [{ label: "About 1k", impact: "One small database" }],
-    recommended: "About 1k",
-    allowsCustom: false,
-  };
-  /** Stage 1 ran from these inputs and asked a question. */
-  const asking: DesignBrief = {
-    ...base,
-    questions: [question],
-    ranFrom: { requirements: inputsFingerprint(base.inputs) },
-  };
-
   it("warns in the composer when the diagram already has components", () => {
     useDiagramStore.setState({ nodes: [service], edges: [] });
     render(<DesignPanel />);
     expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Start design" })).toHaveAccessibleDescription(
+    expect(screen.getByRole("button", { name: "Generate design" })).toHaveAccessibleDescription(
       REPLACEMENT_NOTICE,
     );
   });
@@ -294,53 +229,30 @@ describe("replacement notice before a run", () => {
     expect(screen.queryByText(REPLACEMENT_NOTICE)).not.toBeInTheDocument();
   });
 
-  it("warns next to the question actions when answering would replace the design", () => {
+  it("offers Update design, with the notice, for a saved brief that stopped at questions", () => {
+    const asking: DesignBrief = {
+      ...base,
+      questions: [
+        {
+          id: "q1",
+          topic: "scale",
+          question: "How many links a day?",
+          why: "Sizes storage.",
+          options: [],
+          recommended: "About 1k",
+          allowsCustom: true,
+        },
+      ],
+      ranFrom: { requirements: inputsFingerprint(base.inputs) },
+    };
     useDiagramStore.setState({ brief: asking, nodes: [service], edges: [] });
     render(<DesignPanel />);
-    const questions = screen.getByRole("region", { name: "Questions" });
-    expect(within(questions).getByText(REPLACEMENT_NOTICE)).toBeVisible();
-    for (const name of ["Continue", "Assume the rest for me"]) {
-      expect(within(questions).getByRole("button", { name })).toHaveAccessibleDescription(
-        REPLACEMENT_NOTICE,
-      );
-    }
-  });
-
-  it("does not warn next to the questions without components to replace", () => {
-    useDiagramStore.setState({ brief: asking, nodes: [], edges: [] });
-    render(<DesignPanel />);
-    expect(screen.getByRole("region", { name: "Questions" })).toBeVisible();
-    expect(screen.queryByText(REPLACEMENT_NOTICE)).not.toBeInTheDocument();
-  });
-});
-
-describe("Questions keys", () => {
-  it("renders questions and options whose ids and labels repeat, without duplicate keys", () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const question = {
-      id: "q1",
-      topic: "scale",
-      question: "How many links a day?",
-      why: "Sizes storage.",
-      options: [
-        { label: "About 1k", impact: "One small database" },
-        { label: "About 1k", impact: "A cache in front of the database" },
-      ],
-      recommended: "About 1k",
-      allowsCustom: false,
-    };
-    const brief: DesignBrief = {
-      ...base,
-      questions: [question, { ...question, question: "How many users?" }],
-    };
-    useDiagramStore.setState({ brief, nodes: [], edges: [] });
-    render(<DesignPanel />);
-
-    expect(screen.getAllByRole("group")).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: /About 1k/ })).toHaveLength(4);
-    expect(screen.getAllByText("A cache in front of the database")).toHaveLength(2);
-    expect(error.mock.calls.flat().join(" ")).not.toMatch(/same key/);
-    error.mockRestore();
+    expect(screen.queryByRole("region", { name: "Questions" })).toBeNull();
+    expect(
+      screen.getByText("Requirements, components, reasoning and API will update"),
+    ).toBeVisible();
+    expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Update design" })).toBeVisible();
   });
 });
 

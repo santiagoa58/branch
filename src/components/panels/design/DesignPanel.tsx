@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -111,18 +111,6 @@ function PanelHeader({ brief, running }: { brief: DesignBrief | null; running: b
   );
 }
 
-/**
- * When a run ends with open questions, answering them is the next step: show the Brief tab, which
- * holds them, whichever tab was open.
- */
-function showQuestionsAfterRuns(): () => void {
-  return useAiDesignStore.subscribe((state, previous) => {
-    if (previous.running && !state.running && useDiagramStore.getState().brief?.questions.length) {
-      useUIStore.getState().setDesignTab("brief");
-    }
-  });
-}
-
 function TabContent({ tab }: { tab: DesignTabId }) {
   switch (tab) {
     case "brief":
@@ -143,7 +131,6 @@ export function DesignPanel() {
   const running = useAiDesignStore((state) => state.running);
   const tab = useUIStore((state) => state.designTab);
   const setTab = useUIStore((state) => state.setDesignTab);
-  useEffect(() => showQuestionsAfterRuns(), []);
   const outdated = useMemo(() => (stale ? outdatedTabs(stale) : null), [stale]);
 
   return (

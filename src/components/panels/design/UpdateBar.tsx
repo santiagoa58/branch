@@ -38,17 +38,14 @@ export function updateMessage(stages: readonly PipelineStage[]): string {
   return `${list.charAt(0).toUpperCase()}${list.slice(1)} will update`;
 }
 
-/**
- * Pinned to the bottom of the panel while anything is out of date. Hidden during a run and while
- * stage 1 has open questions: answering them is the next step then.
- */
+/** Pinned to the bottom of the panel while anything is out of date; hidden during a run. */
 export function UpdateBar() {
   const pipeline = useDesignPipeline();
   const running = useAiDesignStore((state) => state.running);
   const brief = useDiagramStore((state) => state.brief);
   const nodes = useDiagramStore((state) => state.nodes);
   const stages = useOutdatedStages().next;
-  if (!brief || running || brief.questions.length > 0 || stages.length === 0) {
+  if (!brief || running || stages.length === 0) {
     return null;
   }
   const replaces =

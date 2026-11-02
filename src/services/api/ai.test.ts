@@ -15,6 +15,7 @@ const requirementsInput: RequirementsInput = {
   requirements: [],
   outOfScope: [],
   answers: [],
+  askQuestions: false,
 };
 
 const requirementsOutput = {

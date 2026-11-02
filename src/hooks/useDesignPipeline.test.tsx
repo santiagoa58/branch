@@ -21,7 +21,7 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { archEdge, archNode, groupNode } from "@/templates/builders";
 import type { NamedFlow } from "@/types/simulation";
 import { diffDiagrams } from "@/utils/diagramDiff";
-import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
+import { inputsFingerprint, nextStages, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import {
   runDataModel,
   runDecision,
@@ -229,23 +229,60 @@ afterEach(() => {
 });
 
 describe("runPipeline", () => {
-  it("stops after requirements when questions are open", async () => {
-    handlers.requirements = async () => stage1WithQuestions;
+  it("generates the whole design in one run: requirements once, then components, decisions and api", async () => {
     await runPipeline(deps);
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(lastBrief()?.questions).toEqual(stage1WithQuestions.questions);
+    expect(stagesCalled()).toEqual([
+      "requirements",
+      "components",
+      "decisions",
+      "decisions",
+      "decisions",
+      "api",
+    ]);
+    expect(run.mock.calls[0]?.[1]).toMatchObject({ askQuestions: false });
+    const brief = current.brief;
+    if (!brief) {
+      throw new Error("brief missing");
+    }
+    expect(brief.questions).toEqual([]);
+    expect(nextStages(brief, current.nodes, current.edges)).toEqual([]);
     expect(runState().running).toBe(false);
   });
 
-  it("does nothing while open questions block a fresh requirements stage", async () => {
+  it("assumes questions the model returns anyway and carries on to the design", async () => {
+    handlers.requirements = async () => stage1WithQuestions;
+    await runPipeline(deps);
+    expect(stagesCalled().filter((stage) => stage === "requirements")).toHaveLength(1);
+    expect(stagesCalled()).toContain("components");
+    expect(stagesCalled()).toContain("api");
+    expect(current.brief?.questions).toEqual([]);
+    expect(current.brief?.assumptions).toContainEqual({
+      kind: "constraint",
+      text: "Scale: A million",
+    });
+    const components = run.mock.calls.find(([stage]) => stage === "components")?.[1];
+    const context = components && "context" in components ? components.context : undefined;
+    expect(context?.requirements).toContainEqual({
+      kind: "constraint",
+      text: "Scale: A million",
+      assumed: true,
+    });
+    const brief = current.brief;
+    if (!brief) {
+      throw new Error("brief missing");
+    }
+    expect(nextStages(brief, current.nodes, current.edges)).toEqual([]);
+  });
+
+  it("re-runs requirements for a saved brief that stopped at open questions", async () => {
     const brief = makeBrief({ questions: stage1WithQuestions.questions });
     current.brief = {
       ...brief,
       ranFrom: { requirements: inputsFingerprint(brief.inputs) },
     };
     await runPipeline(deps);
-    expect(run).not.toHaveBeenCalled();
-    expect(runState().runId).toBe(0);
+    expect(stagesCalled().slice(0, 2)).toEqual(["requirements", "components"]);
+    expect(current.brief?.questions).toEqual([]);
   });
 
   it("does nothing without an open diagram or brief", async () => {
@@ -586,6 +623,25 @@ describe("runPipeline", () => {
     expect(runState().errors).toEqual({});
     expect(runState().running).toBe(false);
     expect(notify.success).not.toHaveBeenCalled();
+  });
+
+  it("cancel during components keeps the assumed requirements and stops the run", async () => {
+    handlers.requirements = async () => stage1WithQuestions;
+    handlers.components = async (_input, signal) => untilAborted(signal);
+
+    const pipeline = runPipeline(deps);
+    await vi.waitFor(() => expect(stagesCalled()).toContain("components"));
+    useAiDesignStore.getState().cancel();
+    await pipeline;
+
+    expect(stagesCalled()).toEqual(["requirements", "components"]);
+    expect(current.brief?.assumptions).toContainEqual({
+      kind: "constraint",
+      text: "Scale: A million",
+    });
+    expect(current.nodes).toEqual([]);
+    expect(runState().errors).toEqual({});
+    expect(runState().running).toBe(false);
   });
 
   describe("request timeout", () => {

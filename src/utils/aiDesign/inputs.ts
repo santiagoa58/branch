@@ -94,8 +94,9 @@ export function removeOutOfScopeLine(brief: DesignBrief, id: string): DesignBrie
   });
 }
 
-// Answers are matched by question text. Confirming or changing an assumed answer goes through here
-// too, so it is always recorded as `assumed: false`.
+// Answers come from briefs saved by the earlier question round-trip; the design run no longer asks.
+// They are matched by question text. Confirming or changing an assumed answer goes through here,
+// so it is always recorded as `assumed: false`.
 export function answerQuestion(
   brief: DesignBrief,
   question: string,
@@ -110,22 +111,6 @@ export function answerQuestion(
         )
       : [...brief.inputs.answers, { id: newId(), question, answer, assumed: false }],
   });
-}
-
-export function assumeRemaining(brief: DesignBrief, newId: NewId): DesignBrief {
-  const answered = new Set(brief.inputs.answers.map((entry) => entry.question));
-  const added = brief.questions
-    .filter((entry) => !answered.has(entry.question))
-    .map((entry) => ({
-      id: newId(),
-      question: entry.question,
-      answer: entry.recommended,
-      assumed: true,
-    }));
-  if (added.length === 0) {
-    return brief;
-  }
-  return withInputs(brief, { answers: [...brief.inputs.answers, ...added] });
 }
 
 export function confirmAssumption(brief: DesignBrief, index: number, newId: NewId): DesignBrief {
@@ -199,6 +184,7 @@ export function requirementsInput(brief: DesignBrief): RequirementsInput {
       answer,
       assumed,
     })),
+    askQuestions: false,
   };
 }
 

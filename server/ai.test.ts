@@ -33,6 +33,7 @@ const valid = {
   requirements: [],
   outOfScope: [],
   answers: [],
+  askQuestions: false,
 };
 const stage1Output = { questions: [], requirements: [], assumptions: [], outOfScope: [] };
 

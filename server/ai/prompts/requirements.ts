@@ -1,24 +1,22 @@
 import type { RequirementsInput } from "../../../src/schemas/aiDesign";
 import { joinSections, scopeLine, section, SYSTEM_PREAMBLE, type StagePrompt } from "./shared";
 
+// The design is generated in one run (`askQuestions: false`): stage 1 settles the requirements
+// itself, and the user reviews and edits its assumptions afterwards.
 const SYSTEM = joinSections(
   SYSTEM_PREAMBLE,
-  `Your task: clarify the requirements before anything is designed.
+  `Your task: settle the requirements before anything is designed, in one pass, without asking the user anything.
 The user's requirement and out-of-scope lines are fixed. Never restate or reword them; add only derived items around them.
-- questions: what you still need to know.
+- questions: "questions" is always an empty list. Ask nothing: the user is not asked in this flow.
 - requirements: requirements derived from the prompt and the answers. Each has a "kind" (functional, nonFunctional or constraint) and its "text"; give nonFunctional ones a "category" too.
-- assumptions: decisions you made for the user instead of asking, each with a "kind" and its "text".
+- assumptions: every decision you made for the user, each with a "kind" and its "text". The user reviews them after the design is generated.
 - outOfScope: things you are deliberately leaving out, one string each.`,
   `Rules:
-- When to ask: ask only when the answer changes which components exist or a major technology choice. Assume anything smaller and list it as an assumption.
+- Ask nothing. Decide everything that is open yourself, as a strong candidate would, and list each decision as an assumption. That includes anything that changes which components exist or a major technology choice, such as scale, latency, consistency or platforms.
+- Each assumption is one short statement of what you decided, such as "About 1M households" or "Members see each other's changes instantly".
 - Answered questions: never re-ask them. Turn each answer into derived requirements. An answer marked (assumed) becomes an assumption instead.
 - Conflicts: when the user's lines conflict with an earlier assumption, drop the assumption.
-- Ambiguous inputs: when two user lines conflict with each other, ask a question about it.`,
-  `Questions:
-- Keep them few and short; "why" says what the answer changes in the design.
-- Give two to four options, each a short "label" with its "impact", or no options for a free-text answer. Never give exactly one option.
-- "recommended" is the answer you would assume if the user asks you to, as a string: the label of one of the options, copied exactly, or the answer itself for a free-text question. It must be filled in.
-- "allowsCustom" is true when the user may write their own answer instead of picking an option.`,
+- Ambiguous inputs: when two user lines conflict with each other, choose the reading that fits the rest of the brief and list that choice as an assumption.`,
 );
 
 export function buildRequirementsPrompt(input: RequirementsInput): StagePrompt {
@@ -39,6 +37,8 @@ export function buildRequirementsPrompt(input: RequirementsInput): StagePrompt {
             `Q: ${question}\n  A: ${answer}${assumed ? " (assumed)" : ""}`,
         ),
       ),
+      // `askQuestions` is always false, so the request repeats the rule next to the inputs.
+      "Ask nothing: assume what is open and list it as assumptions.",
     ),
   };
 }

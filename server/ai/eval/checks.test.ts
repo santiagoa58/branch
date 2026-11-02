@@ -8,12 +8,19 @@ import type {
 import { checkComponents, checkDecisions, checkRequirements } from "./checks";
 import type { EvalCase } from "./fixtures";
 
-const asking: EvalCase = {
-  id: "asking",
+const open: EvalCase = {
+  id: "open",
   scope: "backend",
   kind: "vague",
-  input: { prompt: "A queue", scope: "backend", requirements: [], outOfScope: [], answers: [] },
-  expect: { asks: true },
+  input: {
+    prompt: "A queue",
+    scope: "backend",
+    requirements: [],
+    outOfScope: [],
+    answers: [],
+    askQuestions: false,
+  },
+  expect: { assumes: true },
 };
 
 const settled: EvalCase = {
@@ -26,11 +33,12 @@ const settled: EvalCase = {
     requirements: [{ kind: "functional", text: "Producers publish jobs" }],
     outOfScope: [],
     answers: [{ question: "How many messages per second?", answer: "10k", assumed: false }],
+    askQuestions: false,
   },
-  expect: { asks: false, mustInclude: { types: ["queue"], protocols: ["amqp"] } },
+  expect: { assumes: false, mustInclude: { types: ["queue"], protocols: ["amqp"] } },
 };
 
-const question = (overrides: Partial<RequirementsOutput["questions"][number]> = {}) => ({
+const question = {
   id: "q1",
   topic: "Delivery",
   question: "Is at-least-once delivery acceptable?",
@@ -41,57 +49,36 @@ const question = (overrides: Partial<RequirementsOutput["questions"][number]> = 
   ],
   recommended: "Yes",
   allowsCustom: true,
-  ...overrides,
-});
+};
 
-const requirementsOut = (questions: RequirementsOutput["questions"]): RequirementsOutput => ({
-  questions,
-  requirements: [],
-  assumptions: [],
-  outOfScope: [],
-});
+const requirementsOut = (
+  questions: RequirementsOutput["questions"],
+  assumptions: RequirementsOutput["assumptions"] = [],
+): RequirementsOutput => ({ questions, requirements: [], assumptions, outOfScope: [] });
+
+const assumption = { kind: "nonFunctional", text: "At-least-once delivery" } as const;
 
 describe("checkRequirements", () => {
-  it("passes when a case that should ask asks with recommended answers", () => {
-    expect(checkRequirements(asking, requirementsOut([question()]))).toEqual([]);
+  it("passes when a case with open decisions assumes them without asking", () => {
+    expect(checkRequirements(open, requirementsOut([], [assumption]))).toEqual([]);
   });
 
-  it("fails when a case that should ask asks nothing", () => {
-    expect(checkRequirements(asking, requirementsOut([]))).toEqual([
-      "expected questions but got none",
+  it("fails when a case with open decisions lists no assumption", () => {
+    expect(checkRequirements(open, requirementsOut([]))).toEqual([
+      "expected assumptions but got none",
     ]);
   });
 
-  it("passes when a case that should not ask asks nothing", () => {
+  it("passes when a settled case asks nothing and assumes nothing", () => {
     expect(checkRequirements(settled, requirementsOut([]))).toEqual([]);
   });
 
-  it("fails when a case that should not ask asks", () => {
-    expect(checkRequirements(settled, requirementsOut([question()]))).toEqual([
+  it("fails whenever a question is asked", () => {
+    expect(checkRequirements(settled, requirementsOut([question]))).toEqual([
       "expected no questions but got 1",
     ]);
-  });
-
-  it("fails when an answered question is asked again", () => {
-    const again = question({ question: "  how many MESSAGES per second? " });
-    const failures = checkRequirements(
-      { ...settled, expect: { asks: true } },
-      requirementsOut([again]),
-    );
-    expect(failures).toEqual(['re-asks an answered question: "how many MESSAGES per second?"']);
-  });
-
-  it("passes when the asked question differs from the answered ones", () => {
-    const failures = checkRequirements(
-      { ...settled, expect: { asks: true } },
-      requirementsOut([question()]),
-    );
-    expect(failures).toEqual([]);
-  });
-
-  it("fails when a question has no recommended answer", () => {
-    expect(checkRequirements(asking, requirementsOut([question({ recommended: " " })]))).toEqual([
-      'question "q1" has no recommended answer',
+    expect(checkRequirements(open, requirementsOut([question], [assumption]))).toEqual([
+      "expected no questions but got 1",
     ]);
   });
 });
@@ -116,7 +103,7 @@ describe("checkComponents", () => {
   });
 
   it("passes when the case requires nothing", () => {
-    expect(checkComponents(asking, components({ components: [], connections: [] }))).toEqual([]);
+    expect(checkComponents(open, components({ components: [], connections: [] }))).toEqual([]);
   });
 
   it("fails for a missing component type", () => {

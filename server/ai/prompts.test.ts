@@ -26,6 +26,7 @@ const stage1Input: RequirementsInput = {
   requirements: [{ kind: "functional", text: "Members share lists" }],
   outOfScope: ["Ordering groceries"],
   answers: [{ question: "How many households?", answer: "About 1M households", assumed: false }],
+  askQuestions: false,
 };
 
 const withAssumedAnswer: RequirementsInput = {
@@ -94,6 +95,15 @@ describe("stage prompts", () => {
     expect(system).toMatch(/system design interview/i);
     expect(system).toMatch(/never re-ask/i);
     expect(system).toMatch(/conflict/i);
+  });
+  it("requirements prompt asks nothing and lists every open decision as an assumption", () => {
+    const { system, prompt } = buildRequirementsPrompt(stage1Input);
+    expect(system).toMatch(/ask nothing/i);
+    expect(system).toMatch(/"questions" is always an empty list/);
+    expect(system).toMatch(/decide everything that is open yourself/i);
+    expect(system).toMatch(/list each decision as an assumption/i);
+    expect(system).not.toMatch(/when to ask/i);
+    expect(prompt).toMatch(/ask nothing/i);
   });
   it("components prompt lists previous keys and the example", () => {
     const { system, prompt } = buildComponentsPrompt(stage2Input);
@@ -191,9 +201,9 @@ describe("stage output schema in the system prompt", () => {
     expect(system).not.toContain("$schema");
   });
 
-  it("explains recommended as an option label or the free-text answer", () => {
+  it("tells the requirements stage to leave the questions in its schema empty", () => {
     const system = systemFor("requirements");
-    expect(system).toMatch(/"recommended".*label of one of the options/);
+    expect(system).toMatch(/"questions" is always an empty list/);
     expect(system).toMatch(/kind/);
   });
 });

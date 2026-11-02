@@ -1,4 +1,4 @@
-// oxlint-disable max-lines -- debt: 484 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 487 lines (limit 450); split the module
 import type { Edge, Node } from "@xyflow/react";
 import type { AiStage, DesignBrief, StageInput, StageOutput } from "@/schemas/aiDesign";
 import { aiStageSchema } from "@/schemas/aiDesign";
@@ -344,11 +344,8 @@ async function runDesignStages(
     if (!latest) {
       return false;
     }
-    const brief = applyRequirements(latest.brief, result.value);
-    deps.apply({ brief });
-    if (brief.questions.length > 0) {
-      return false;
-    }
+    // Questions never stop the run: applyRequirements assumes them and the design carries on.
+    deps.apply({ brief: applyRequirements(latest.brief, result.value) });
   }
   if (!stages.includes("components")) {
     return { change: null };
@@ -404,7 +401,10 @@ async function runDesignStages(
   return { change: { before: snapshot, after: { nodes: designed.nodes, edges: designed.edges } } };
 }
 
-/** Runs the first out-of-date stage and every stage after it (spec 3.2). */
+/**
+ * Runs the first out-of-date stage and every stage after it (spec 3.2). A new brief gets the whole
+ * design in one run: requirements, components, then reasoning and API, with nothing to answer.
+ */
 export async function runPipeline(
   deps: PipelineDeps,
   options: { decisionConcurrency?: number } = {},

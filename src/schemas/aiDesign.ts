@@ -60,6 +60,9 @@ const requirementsInputSchema = z.strictObject({
   answers: z.array(
     z.strictObject({ question: z.string(), answer: z.string(), assumed: z.boolean() }),
   ),
+  // The design is generated in one run: stage 1 never stops it to ask the user anything. It
+  // decides what is open and lists those decisions as assumptions, which the user edits afterwards.
+  askQuestions: z.literal(false),
 });
 
 const questionSchema = z
@@ -69,7 +72,7 @@ const questionSchema = z
     question: z.string(),
     why: z.string(),
     options: z.array(z.strictObject({ label: z.string(), impact: z.string() })),
-    // Required: "Assume for me" answers the question with it.
+    // Required: a question returned anyway is assumed with this answer.
     recommended: z.string(),
     allowsCustom: z.boolean(),
   })
@@ -286,7 +289,8 @@ export const designBriefSchema = z.strictObject({
       }),
     ),
   }),
-  // Stage 1 output (latest run)
+  // Stage 1 output (latest run). Questions are always assumed now, so this is empty; briefs saved
+  // by the earlier question round-trip may still hold open ones.
   questions: z.array(questionSchema),
   requirements: requirementsOutputSchema.shape.requirements,
   assumptions: requirementsOutputSchema.shape.assumptions,

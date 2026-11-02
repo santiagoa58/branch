@@ -102,14 +102,12 @@ export function outdatedStages(brief: DesignBrief, nodes: Node[], edges: Edge[])
 
 /**
  * The stages an update should run, given the brief's outdated stages: the first outdated stage
- * and every stage after it. Stage 1 open questions stop the pipeline while requirements is fresh.
+ * and every stage after it. A brief saved by the earlier question round-trip can still hold open
+ * questions; the design never waits on them now, so it runs from stage 1, which assumes them.
  */
 export function stagesToRun(brief: DesignBrief, outdated: PipelineStage[]): PipelineStage[] {
-  if (outdated.includes("requirements")) {
+  if (outdated.includes("requirements") || brief.questions.length > 0) {
     return [...PIPELINE];
-  }
-  if (brief.questions.length > 0) {
-    return [];
   }
   const first = outdated[0];
   return first ? PIPELINE.slice(PIPELINE.indexOf(first)) : [];

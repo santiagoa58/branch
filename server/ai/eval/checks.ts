@@ -5,26 +5,15 @@ import type {
 } from "../../../src/schemas/aiDesign";
 import type { EvalCase } from "./fixtures";
 
-const normalize = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
-
-/** Stage 1: asks when it should, never re-asks an answered question, always recommends. */
+/** Stage 1: asks nothing, and lists assumptions when the case leaves decisions open. */
 export function checkRequirements(c: EvalCase, out: RequirementsOutput): string[] {
   const failures: string[] = [];
   const asked = out.questions.length;
-  if (c.expect.asks && asked === 0) {
-    failures.push("expected questions but got none");
-  }
-  if (!c.expect.asks && asked > 0) {
+  if (asked > 0) {
     failures.push(`expected no questions but got ${asked}`);
   }
-  const answered = new Set(c.input.answers.map(({ question }) => normalize(question)));
-  for (const question of out.questions) {
-    if (answered.has(normalize(question.question)) || answered.has(normalize(question.topic))) {
-      failures.push(`re-asks an answered question: "${question.question.trim()}"`);
-    }
-    if (question.recommended.trim() === "") {
-      failures.push(`question "${question.id}" has no recommended answer`);
-    }
+  if (c.expect.assumes && out.assumptions.length === 0) {
+    failures.push("expected assumptions but got none");
   }
   return failures;
 }

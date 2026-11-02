@@ -5,7 +5,6 @@ import {
   addOutOfScopeLine,
   addRequirementLine,
   answerQuestion,
-  assumeRemaining,
   bringIntoScope,
   buildDesignContext,
   changeAssumption,
@@ -195,28 +194,6 @@ describe("answerQuestion", () => {
   });
 });
 
-describe("assumeRemaining", () => {
-  it("answers only unanswered questions with their recommended answer", () => {
-    const base = withOutputs();
-    base.inputs.answers = [answered];
-    const next = assumeRemaining(base, ids());
-    expect(next.inputs.answers).toEqual([
-      answered,
-      { id: "id-1", question: "How fresh?", answer: "Instantly", assumed: true },
-    ]);
-    expect(outputsOf(next)).toEqual(outputsOf(base));
-  });
-
-  it("changes nothing when every question is answered", () => {
-    const base = withOutputs();
-    base.inputs.answers = [
-      answered,
-      { id: "a-2", question: "How fresh?", answer: "Hourly", assumed: false },
-    ];
-    expect(assumeRemaining(base, ids())).toEqual(base);
-  });
-});
-
 describe("derived items", () => {
   it("confirmAssumption adds its text as a requirement line of its kind", () => {
     const base = withOutputs();
@@ -334,6 +311,7 @@ describe("requirementsInput", () => {
       ],
       outOfScope: ["Billing"],
       answers: [{ question: "How fresh?", answer: "Instantly", assumed: true }],
+      askQuestions: false,
     });
   });
 });

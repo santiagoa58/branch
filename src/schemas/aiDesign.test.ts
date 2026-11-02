@@ -122,6 +122,25 @@ const briefWithScope = (scope: string) => ({
   brief: { ...brief, inputs: { ...brief.inputs, scope } },
 });
 
+describe("stage 1 input", () => {
+  const input = {
+    prompt: "A URL shortener",
+    scope: "backend",
+    requirements: [],
+    outOfScope: [],
+    answers: [],
+    askQuestions: false,
+  };
+  it("asks for a design with no questions", () => {
+    expect(stageSchemas.requirements.input.safeParse(input).success).toBe(true);
+  });
+  it.each([true, undefined])("rejects askQuestions: %s", (askQuestions) => {
+    expect(stageSchemas.requirements.input.safeParse({ ...input, askQuestions }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe("stage 1 output", () => {
   it("accepts a free-text question with no options", () => {
     expect(requirementsOutputSchema.safeParse(stage1({ options: [] })).success).toBe(true);

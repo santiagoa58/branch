@@ -104,7 +104,7 @@ describe("UpdateBar", () => {
     expect(screen.queryByText(/The current design is replaced/)).not.toBeInTheDocument();
   });
 
-  it("is hidden when nothing is out of date, during a run, or while questions are open", () => {
+  it("is hidden when nothing is out of date or during a run, and shown for saved open questions", () => {
     useDiagramStore.setState({ brief: freshBrief([service]), nodes: [service], edges: [] });
     const { rerender } = render(<UpdateBar />);
     expect(screen.queryByRole("button", { name: "Update design" })).not.toBeInTheDocument();
@@ -139,7 +139,8 @@ describe("UpdateBar", () => {
         },
       });
     });
-    expect(screen.queryByRole("button", { name: "Update design" })).not.toBeInTheDocument();
+    // Nothing waits on questions any more: Update design re-runs the requirements, which assume them.
+    expect(screen.getByRole("button", { name: "Update design" })).toBeVisible();
   });
 });
 
