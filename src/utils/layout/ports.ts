@@ -22,13 +22,15 @@ export function nearestSides(source: Rect, target: Rect): {
   const horizontal = horizontalGap > 0 && (verticalGap === 0 || Math.abs(dx) >= Math.abs(dy));
   const vertical = verticalGap > 0 && !horizontal;
   if (horizontal || (!vertical && Math.abs(dx) >= Math.abs(dy))) {
-    return dx >= 0
-      ? { source: "right", target: "left" }
-      : { source: "left", target: "right" };
+    if (dx >= 0) {
+      return { source: "right", target: "left" };
+    }
+    return { source: "left", target: "right" };
   }
-  return dy >= 0
-    ? { source: "bottom", target: "top" }
-    : { source: "top", target: "bottom" };
+  if (dy >= 0) {
+    return { source: "bottom", target: "top" };
+  }
+  return { source: "top", target: "bottom" };
 }
 
 /** React Flow's default output is right and its default input is left. */

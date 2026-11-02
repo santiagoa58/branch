@@ -35,7 +35,9 @@ export function ConnectionPortsEditor({
               className="min-w-0 rounded-md border border-input bg-background px-2 py-2 text-sm text-foreground"
             >
               {OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
           </label>

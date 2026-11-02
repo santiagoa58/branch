@@ -58,7 +58,7 @@ function resolveGroupParents(groups: Group[], warnings: string[]): Map<string, s
     const parent = optionalGroupKey(group.parent);
     if (parent !== undefined && !keys.has(parent)) {
       warnings.push(
-        `Detached group "${group.key}" from parent "${parent}": "${parent}" is not a group.`
+        `Detached group "${group.key}" from parent "${parent}": "${parent}" is not a group.`,
       );
       parents.set(group.key, undefined);
     } else {

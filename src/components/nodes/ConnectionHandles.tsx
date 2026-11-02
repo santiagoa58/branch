@@ -9,12 +9,54 @@ export function ConnectionHandles({ group = false }: { group?: boolean }) {
     <>
       <Handle type="target" position={Position.Left} title="Input left" className={className} />
       <Handle type="source" position={Position.Right} title="Output right" className={className} />
-      <Handle type="target" position={Position.Top} id="top" title="Input top" className={className} style={{ left: "40%" }} />
-      <Handle type="source" position={Position.Bottom} id="bottom" title="Output bottom" className={className} style={{ left: "60%" }} />
-      <Handle type="source" position={Position.Left} id="left" title="Output left" className={className} style={{ top: "35%" }} />
-      <Handle type="target" position={Position.Right} id="right" title="Input right" className={className} style={{ top: "65%" }} />
-      <Handle type="source" position={Position.Top} id="top" title="Output top" className={className} style={{ left: "60%" }} />
-      <Handle type="target" position={Position.Bottom} id="bottom" title="Input bottom" className={className} style={{ left: "40%" }} />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top"
+        title="Input top"
+        className={className}
+        style={{ left: "40%" }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        title="Output bottom"
+        className={className}
+        style={{ left: "60%" }}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left"
+        title="Output left"
+        className={className}
+        style={{ top: "35%" }}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right"
+        title="Input right"
+        className={className}
+        style={{ top: "65%" }}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top"
+        title="Output top"
+        className={className}
+        style={{ left: "60%" }}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom"
+        title="Input bottom"
+        className={className}
+        style={{ left: "40%" }}
+      />
     </>
   );
 }
