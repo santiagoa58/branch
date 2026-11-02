@@ -186,13 +186,21 @@ export function applyGroupCollapse(nodes: Node[], edges: Edge[]): DisplayGraph {
       continue;
     }
 
-    // Pick handles by dominant axis so the rollup edge attaches sensibly: the default
-    // right-to-left ports for mostly-horizontal pairs, bottom-to-top otherwise.
+    // Expose the facing handles in all directions, including westbound and upward rollups.
     const sPos = absolutePosition(sourceNode, nodeById);
     const tPos = absolutePosition(targetNode, nodeById);
     const dx = tPos.x - sPos.x;
     const dy = tPos.y - sPos.y;
-    const horizontal = Math.abs(dx) > Math.abs(dy) && dx > 0;
+    let handles: { sourceHandle?: string; targetHandle?: string } = {};
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx < 0) {
+        handles = { sourceHandle: "left", targetHandle: "right" };
+      }
+    } else if (dy >= 0) {
+      handles = { sourceHandle: "bottom", targetHandle: "top" };
+    } else {
+      handles = { sourceHandle: "top", targetHandle: "bottom" };
+    }
 
     const data: RollupEdgeData = {
       count: agg.edgeIds.length,
@@ -208,7 +216,7 @@ export function applyGroupCollapse(nodes: Node[], edges: Edge[]): DisplayGraph {
       id: `${ROLLUP_EDGE_PREFIX}${key}`,
       source: agg.source,
       target: agg.target,
-      ...(horizontal ? {} : { sourceHandle: "bottom", targetHandle: "top" }),
+      ...handles,
       type: "rollup",
       selectable: false,
       deletable: false,
