@@ -34,6 +34,7 @@ import { AiRunCanvasHint } from "@/components/panels/AiRunCanvasHint";
 import { ImportDialog } from "@/components/ui/ImportDialog";
 import { TemplateGalleryDialog } from "@/components/ui/TemplateGalleryDialog";
 import { LaserPointer } from "@/components/ui/LaserPointer";
+import { ZoneBands } from "@/components/canvas/ZoneBands";
 import { ToolbarButton, ToolbarDivider } from "@/components/ui/ToolbarButton";
 import {
   Activity,
@@ -730,6 +731,7 @@ export function DiagramEditor() {
             nodesConnectable={!editBlocked}
             edgesReconnectable={!editBlocked}
           >
+            <ZoneBands />
             <MiniMap
               pannable
               zoomable

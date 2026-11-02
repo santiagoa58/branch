@@ -49,6 +49,12 @@
   --grid-color: #a1a1aa;
   --edge-color: #71717a;
   --edge-selected: #52525b;
+  /* Auto-layout zone bands behind the canvas: subtle, alternating fills. */
+  --zone-band: color-mix(in oklch, var(--muted) 70%, transparent);
+  --zone-band-alt: color-mix(in oklch, var(--muted) 35%, transparent);
+  --zone-border: var(--border);
+  --zone-label: var(--muted-foreground);
+  --zone-divider: var(--ring);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -94,6 +100,9 @@
   --grid-color: #3f3f46;
   --edge-color: #71717a;
   --edge-selected: #a1a1aa;
+  --zone-band: color-mix(in oklch, var(--muted) 45%, transparent);
+  --zone-band-alt: color-mix(in oklch, var(--muted) 22%, transparent);
+  --zone-border: color-mix(in oklch, var(--border) 70%, transparent);
 }
 
 /* Shared loading motion uses opacity only and remains legible without animation. */

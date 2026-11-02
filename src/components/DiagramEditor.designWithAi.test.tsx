@@ -34,6 +34,8 @@ vi.mock("@xyflow/react", async (importOriginal) => ({
   useReactFlow: () => flow,
   useStoreApi: () => ({ getState: () => ({ nodeLookup: new Map() }) }),
 }));
+// The canvas is a stub here; the zone layer needs a real React Flow store.
+vi.mock("@/components/canvas/ZoneBands", () => ({ ZoneBands: () => null }));
 vi.mock("@/components/nodes", () => ({ nodeTypes: {} }));
 vi.mock("@/components/edges", () => ({ edgeTypes: {} }));
 vi.mock("@/hooks/useSimulationAnimation", () => ({ useSimulationAnimation: () => {} }));
