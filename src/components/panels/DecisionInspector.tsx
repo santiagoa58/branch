@@ -23,7 +23,13 @@ interface Props {
  * through the existing store actions (and therefore the normal persistence/history workflow).
  * The parent keys this component by selection so edits never follow a different node or edge.
  */
-export function DecisionInspector({ value, onChange, attributes, onAttributesChange, nodeId }: Props) {
+export function DecisionInspector({
+  value,
+  onChange,
+  attributes,
+  onAttributesChange,
+  nodeId,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const aiDesign = useDiagramStore((state) => state.brief !== null);
   const requireProps = useMakeRequirement();
