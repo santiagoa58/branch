@@ -103,7 +103,11 @@ export interface DiagramStore {
   setSelectedEdge: (id: string | null) => void;
 
   // Layout actions
-  applyAutoLayout: () => boolean;
+  /**
+   * Auto-format as one undoable edit. Resolves false when nothing changed, an edit block applies,
+   * or the diagram changed or closed while the layout ran.
+   */
+  applyAutoLayout: () => Promise<boolean>;
 
   // History actions
   undo: () => void;
@@ -1135,36 +1139,62 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
     return true;
   },
 
-  applyAutoLayout: () => {
-    const { nodes, edges, history, historyIndex } = get();
-    // Check every edit block, an AI run included, before any layout, history entry or save.
-    if (nodes.length === 0 || editBlockReason() !== null) {
-      return false;
-    }
-
-    const formatted = autoLayoutDiagram(nodes, edges);
-    if (JSON.stringify(formatted) === JSON.stringify(nodes)) {
-      return false;
-    }
-
-    get().saveToHistory();
-    const before = get().history[get().historyIndex]!;
-    // History stores post-edit snapshots. Refresh the current baseline (including
-    // measured dimensions), then add exactly one new state for undo and redo.
-    const nextHistory = [
-      ...history.slice(0, Math.max(0, historyIndex)),
-      before,
-      historyEntry(structuredClone(formatted), structuredClone(edges), before.brief ?? null),
-    ].slice(-MAX_HISTORY_LENGTH);
-    setIfEditable({
-      nodes: formatted,
-      history: nextHistory,
-      historyIndex: nextHistory.length - 1,
-    });
-    get().saveDiagram();
-    return true;
-  },
+  applyAutoLayout: () => formatDiagram(LAYOUT_ATTEMPTS),
 }));
+
+/** Layout runs again when the diagram changes meanwhile, such as React Flow measuring a node. */
+const LAYOUT_ATTEMPTS = 3;
+
+async function formatDiagram(attempts: number): Promise<boolean> {
+  const { nodes, edges } = useDiagramStore.getState();
+  // Check every edit block, an AI run included, before any layout, history entry or save.
+  if (nodes.length === 0 || editBlockReason() !== null) {
+    return false;
+  }
+  const diagramId = cloudWorkspace.getState().diagram?.id;
+  const formatted = await autoLayoutDiagram(nodes, edges);
+
+  // Layout is asynchronous. Drop a result that would land on another diagram or during a block,
+  // and lay out again from the latest graph when it changed meanwhile.
+  if (cloudWorkspace.getState().diagram?.id !== diagramId || editBlockReason() !== null) {
+    return false;
+  }
+  const {
+    nodes: latestNodes,
+    edges: latestEdges,
+    history,
+    historyIndex,
+  } = useDiagramStore.getState();
+  if (latestNodes !== nodes || latestEdges !== edges) {
+    return attempts > 1 ? formatDiagram(attempts - 1) : false;
+  }
+  if (formatted.edges === edges && JSON.stringify(formatted.nodes) === JSON.stringify(nodes)) {
+    return false;
+  }
+
+  const store = useDiagramStore.getState();
+  store.saveToHistory();
+  const before = useDiagramStore.getState().history[useDiagramStore.getState().historyIndex]!;
+  // History stores post-edit snapshots. Refresh the current baseline (including
+  // measured dimensions), then add exactly one new state for undo and redo.
+  const nextHistory = [
+    ...history.slice(0, Math.max(0, historyIndex)),
+    before,
+    historyEntry(
+      structuredClone(formatted.nodes),
+      structuredClone(formatted.edges),
+      before.brief ?? null,
+    ),
+  ].slice(-MAX_HISTORY_LENGTH);
+  setIfEditable({
+    nodes: formatted.nodes,
+    edges: formatted.edges,
+    history: nextHistory,
+    historyIndex: nextHistory.length - 1,
+  });
+  store.saveDiagram();
+  return true;
+}
 
 setDiagramHydrator((data) => useDiagramStore.getState().hydrateDiagram(data));
 // An AI run belongs to one diagram. Registered once, here, rather than in the editor: the editor

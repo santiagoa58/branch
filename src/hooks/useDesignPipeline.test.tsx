@@ -21,6 +21,7 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { archEdge, archNode, groupNode } from "@/templates/builders";
 import type { NamedFlow } from "@/types/simulation";
 import { diffDiagrams } from "@/utils/diagramDiff";
+import * as layout from "@/utils/layout";
 import { inputsFingerprint, nextStages, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import {
   runDataModel,
@@ -468,6 +469,26 @@ describe("runPipeline", () => {
     expect(runState().running).toBe(false);
   });
 
+  it.each(["the user leaves the diagram", "the run is cancelled"])(
+    "discards the design when %s while it is being laid out",
+    async (change) => {
+      const realLayout = layout.autoLayoutDiagram;
+      vi.spyOn(layout, "autoLayoutDiagram").mockImplementationOnce(async (nodes, edges) => {
+        if (change === "the user leaves the diagram") {
+          current.id = "other";
+        } else {
+          useAiDesignStore.getState().cancel();
+        }
+        return realLayout(nodes, edges);
+      });
+      await runPipeline(deps);
+      expect(stagesCalled()).toEqual(["requirements", "components"]);
+      expect(applyComponentsCallOrder()).toBeNaN();
+      expect(runState().warnings).toEqual([]);
+      expect(runState().running).toBe(false);
+    },
+  );
+
   it("discards a late decision when the diagram changes during stage 3", async () => {
     current.nodes = existingNodes();
     current.brief = graphOnlyBrief();
@@ -789,6 +810,11 @@ describe("runPipeline", () => {
 
   describe("change highlight", () => {
     beforeEach(() => {
+      // Auto-layout schedules its work with timers; keep it out of the faked highlight timer.
+      vi.spyOn(layout, "autoLayoutDiagram").mockImplementation(async (nodes, edges) => ({
+        nodes,
+        edges,
+      }));
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       current.nodes = existingNodes();
       current.edges = existingEdges();

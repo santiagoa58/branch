@@ -141,13 +141,13 @@ describe("diagramStore brief", () => {
     expect(useDiagramStore.getState().flows).toEqual([flow]);
   });
 
-  it("keeps the brief when auto layout rewrites history", () => {
+  it("keeps the brief when auto layout rewrites history", async () => {
     hydrate({ brief: briefA });
     useDiagramStore.setState({
       nodes: [node("x"), { ...node("y"), position: { x: 0, y: 0 } }],
       edges: [{ id: "e", source: "x", target: "y" }],
     });
-    expect(useDiagramStore.getState().applyAutoLayout()).toBe(true);
+    expect(await useDiagramStore.getState().applyAutoLayout()).toBe(true);
     useDiagramStore.getState().undo();
     useDiagramStore.getState().redo();
     expect(useDiagramStore.getState().brief).toEqual(briefA);

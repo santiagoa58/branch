@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import {
   XMarkIcon,
@@ -13,12 +13,14 @@ import {
   TEMPLATE_CATEGORIES,
   findTemplates,
   instantiateTemplate,
+  layoutTemplate,
   type DiagramTemplate,
   type TemplateCategory,
 } from "@/templates";
 import { appendDiagramData } from "@/utils/import";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
 import { notify } from "@/services/notify";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { cn } from "@/lib/utils";
 
 interface TemplateGalleryDialogProps {
@@ -65,7 +67,16 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     setConfirmReplace(false);
   };
 
-  const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
+  // Layout is asynchronous; a template must not land after the gallery closed or the user left.
+  const open = useRef(true);
+  useEffect(
+    () => () => {
+      open.current = false;
+    },
+    [],
+  );
+
+  const applyTemplate = (template: DiagramTemplate, mode: LoadMode) => {
     const { exportDiagram, importDiagram } = useDiagramStore.getState();
     const instance = instantiateTemplate(template);
     let finalData = instance;
@@ -85,6 +96,22 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
         void fitView({ padding: 0.2, maxZoom: 1 });
       });
     });
+  };
+
+  const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
+    const diagramId = cloudWorkspace.getState().diagram?.id;
+    layoutTemplate(template)
+      .then((laidOut) => {
+        if (open.current && cloudWorkspace.getState().diagram?.id === diagramId) {
+          applyTemplate(laidOut, mode);
+        }
+      })
+      .catch(() => {
+        notify.error({
+          title: "Could not load the template",
+          message: "Your diagram is unchanged.",
+        });
+      });
   };
 
   const primaryAction = (template: DiagramTemplate) => {
@@ -217,7 +244,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                         )}
                       >
                         <span className="block h-28 border-b border-border bg-background p-2 text-muted-foreground">
-                          <TemplatePreview data={template.data} />
+                          <TemplatePreview template={template} />
                         </span>
                         <span className="flex flex-col gap-1 p-3">
                           <span className="flex items-center gap-2">
@@ -248,7 +275,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
               className="flex shrink-0 flex-col border-t border-border bg-muted/40 lg:w-96 lg:border-l lg:border-t-0"
             >
               <div className="hidden h-48 border-b border-border bg-background p-4 text-muted-foreground lg:block">
-                <TemplatePreview data={selected.data} />
+                <TemplatePreview template={selected} />
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <div>

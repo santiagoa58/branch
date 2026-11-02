@@ -74,7 +74,7 @@ describe.skipIf(!process.env["AI_EVAL"])("prompt evaluation against the gateway"
       failures.push(...checkComponents(c, components).map((f) => `components: ${f}`));
 
       // One call per component, all at once, as the pipeline does.
-      const decisionInputs = decisionsInputs(context, components);
+      const decisionInputs = await decisionsInputs(context, components);
       const decisions: Record<string, DecisionsOutput> = {};
       await Promise.all(
         decisionInputs.map(async (decisionInput) => {
@@ -93,11 +93,11 @@ describe.skipIf(!process.env["AI_EVAL"])("prompt evaluation against the gateway"
         ).map((f) => `decisions: ${f}`),
       );
 
-      const apiIn = apiInput(context, components);
+      const apiIn = await apiInput(context, components);
       const api: ApiOutput = await timed(timings, "api", apiIn, () =>
         runner.run("api", apiIn, owner, signal),
       );
-      const dataModelIn = dataModelInput(context, components, api);
+      const dataModelIn = await dataModelInput(context, components, api);
       await timed(timings, "data-model", dataModelIn, () =>
         runner.run("data-model", dataModelIn, owner, signal),
       );

@@ -27,7 +27,7 @@ function render<S extends AiStage>(stage: S, input: StageInput<S>): string {
 }
 
 describe.skipIf(!process.env["AI_EVAL_DUMP"])("dump evaluation prompts", () => {
-  it("writes one file per case and stage", () => {
+  it("writes one file per case and stage", async () => {
     mkdirSync(OUT_DIR, { recursive: true });
     const components = syntheticComponents();
     const api = syntheticApi();
@@ -40,14 +40,17 @@ describe.skipIf(!process.env["AI_EVAL_DUMP"])("dump evaluation prompts", () => {
       const context = contextFrom(c);
       write(`${c.id}-requirements`, render("requirements", c.input));
       write(`${c.id}-components`, render("components", componentsInput(context)));
-      const firstDecision = decisionsInputs(context, components).find(
+      const firstDecision = (await decisionsInputs(context, components)).find(
         (input) => input.node.key === "gateway",
       );
       if (firstDecision) {
         write(`${c.id}-decisions`, render("decisions", firstDecision));
       }
-      write(`${c.id}-api`, render("api", apiInput(context, components)));
-      write(`${c.id}-data-model`, render("data-model", dataModelInput(context, components, api)));
+      write(`${c.id}-api`, render("api", await apiInput(context, components)));
+      write(
+        `${c.id}-data-model`,
+        render("data-model", await dataModelInput(context, components, api)),
+      );
     }
     expect(written).toBe(evalCases.length * 5);
   });

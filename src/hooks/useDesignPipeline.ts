@@ -320,6 +320,32 @@ interface DesignChange {
   after: DiagramSide;
 }
 
+/** Lays out and applies stage 2's design. False when it does not apply, so the run stops. */
+async function applyDesign(
+  deps: PipelineDeps,
+  session: Session,
+  latest: LiveDiagram,
+  output: StageOutput<"components">,
+): Promise<boolean> {
+  const applied = await applyComponents(latest, output, deps.now());
+  // Layout is asynchronous: drop the design if the run was cancelled or the user left meanwhile.
+  if (!session.current()) {
+    return false;
+  }
+  deps.run.addWarnings(applied.warnings);
+  if (!applied.ok) {
+    deps.run.setError("components", NO_COMPONENTS_ERROR);
+    return false;
+  }
+  deps.apply({
+    nodes: applied.nodes,
+    edges: applied.edges,
+    flows: applied.flows,
+    brief: applied.brief,
+  });
+  return true;
+}
+
 /**
  * Stages 1 and 2. Returns stage 2's change when it applied, false to stop. The change is captured
  * before stage 3 writes decisions, so reasoning on kept components does not count as a change.
@@ -382,18 +408,9 @@ async function runDesignStages(
   if (!latest) {
     return false;
   }
-  const applied = applyComponents(latest, result.value, deps.now());
-  deps.run.addWarnings(applied.warnings);
-  if (!applied.ok) {
-    deps.run.setError("components", NO_COMPONENTS_ERROR);
+  if (!(await applyDesign(deps, session, latest, result.value))) {
     return false;
   }
-  deps.apply({
-    nodes: applied.nodes,
-    edges: applied.edges,
-    flows: applied.flows,
-    brief: applied.brief,
-  });
   const designed = session.current();
   if (!designed) {
     return false;

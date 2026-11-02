@@ -1,0 +1,24 @@
+import { useEffect, useState } from "react";
+import { layoutTemplate, type DiagramTemplate } from "@/templates";
+import type { DiagramData } from "@/types";
+
+/** A template's laid-out data once auto-layout has run for it, else null (also on failure). */
+export function useTemplateLayout(template: DiagramTemplate): DiagramData | null {
+  const [laidOut, setLaidOut] = useState<DiagramTemplate | null>(null);
+  useEffect(() => {
+    let active = true;
+    layoutTemplate(template)
+      .then((result) => {
+        if (active) {
+          setLaidOut(result);
+        }
+      })
+      .catch(() => {
+        // The preview stays empty; loading the template reports the failure.
+      });
+    return () => {
+      active = false;
+    };
+  }, [template]);
+  return laidOut?.id === template.id ? laidOut.data : null;
+}

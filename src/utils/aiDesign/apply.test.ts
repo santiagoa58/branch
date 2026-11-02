@@ -47,7 +47,7 @@ describe("applyRequirements", () => {
     outOfScope: ["  payments", "Offline editing"],
   };
 
-  it("drops derived items that duplicate a user line", () => {
+  it("drops derived items that duplicate a user line", async () => {
     const result = applyRequirements(brief(), output);
     expect(result.requirements).toEqual([
       { kind: "nonFunctional", text: "Sync within a second", category: "latency" },
@@ -57,7 +57,7 @@ describe("applyRequirements", () => {
     expect(result.questions).toEqual([]);
   });
 
-  it("sets only ranFrom.requirements", () => {
+  it("sets only ranFrom.requirements", async () => {
     const before = brief({ ranFrom: { components: "x", api: "y" } });
     const result = applyRequirements(before, output);
     expect(result.ranFrom).toEqual({
@@ -220,7 +220,8 @@ function current(over: { brief?: DesignBrief; flows?: NamedFlow[]; nodes?: Node[
   };
 }
 
-function ok(result: ReturnType<typeof applyComponents>) {
+async function ok(pending: ReturnType<typeof applyComponents>) {
+  const result = await pending;
   if (!result.ok) {
     throw new Error(`expected ok, got warnings: ${result.warnings.join("; ")}`);
   }
@@ -231,8 +232,8 @@ const validates = (r: { nodes: Node[]; edges: Edge[]; flows: NamedFlow[] }) =>
   diagramDataSchema.parse({ nodes: r.nodes, edges: r.edges, flows: r.flows });
 
 describe("applyComponents", () => {
-  it("builds groups before children with parentId and extent parent", () => {
-    const r = ok(applyComponents(current(), nestedOutput, NOW));
+  it("builds groups before children with parentId and extent parent", async () => {
+    const r = await ok(applyComponents(current(), nestedOutput, NOW));
     const ids = r.nodes.map((n) => n.id);
     const parented = r.nodes.filter((n) => n.parentId !== undefined);
     expect(parented.map((n) => n.id).sort()).toEqual(["api", "lists", "lists-svc"]);
@@ -255,7 +256,7 @@ describe("applyComponents", () => {
     expect(() => validates(r)).not.toThrow();
   });
 
-  it("turns a comment inside a replaced (nested) group into a top-level comment", () => {
+  it("turns a comment inside a replaced (nested) group into a top-level comment", async () => {
     const outer: Node = {
       id: "outer",
       type: "group",
@@ -278,7 +279,7 @@ describe("applyComponents", () => {
       extent: "parent",
       data: { text: "Inside", parentId: "inner" },
     };
-    const r = ok(
+    const r = await ok(
       applyComponents(current({ nodes: [outer, inner, nested, comment] }), nestedOutput, NOW),
     );
     const moved = r.nodes.find((n) => n.id === "note-nested")!;
@@ -290,7 +291,7 @@ describe("applyComponents", () => {
     expect(() => validates(r)).not.toThrow();
   });
 
-  it("detaches a comment whose group key is reused, and keeps comment-in-comment", () => {
+  it("detaches a comment whose group key is reused, and keeps comment-in-comment", async () => {
     const old: Node = {
       id: "backend",
       type: "group",
@@ -313,7 +314,9 @@ describe("applyComponents", () => {
       extent: "parent",
       data: { text: "B", parentId: "note-a" },
     };
-    const r = ok(applyComponents(current({ nodes: [old, inOld, inComment] }), nestedOutput, NOW));
+    const r = await ok(
+      applyComponents(current({ nodes: [old, inOld, inComment] }), nestedOutput, NOW),
+    );
     const a = r.nodes.find((n) => n.id === "note-a")!;
     expect(a.parentId).toBeUndefined();
     expect(a.position).toEqual({ x: 55, y: 65 });
@@ -323,8 +326,8 @@ describe("applyComponents", () => {
     );
   });
 
-  it("builds components with description, empty attributes and no decision", () => {
-    const r = ok(applyComponents(current(), baseOutput, NOW));
+  it("builds components with description, empty attributes and no decision", async () => {
+    const r = await ok(applyComponents(current(), baseOutput, NOW));
     const api = r.nodes.find((n) => n.id === "api");
     expect(api?.type).toBe("architecture");
     expect(api?.data).toMatchObject({
@@ -337,8 +340,8 @@ describe("applyComponents", () => {
     expect(r.nodes.find((n) => n.id === "old-node")).toBeUndefined();
   });
 
-  it("builds edges with ids, protocol, label and async", () => {
-    const r = ok(applyComponents(current(), baseOutput, NOW));
+  it("builds edges with ids, protocol, label and async", async () => {
+    const r = await ok(applyComponents(current(), baseOutput, NOW));
     expect(r.edges.map((e) => e.id)).toEqual(["ai-web-api-0", "ai-api-db-1"]);
     expect(r.edges[0]).toMatchObject({
       source: "web",
@@ -347,15 +350,15 @@ describe("applyComponents", () => {
     });
   });
 
-  it("lays out generated nodes and appends comments untouched", () => {
-    const r = ok(applyComponents(current(), nestedOutput, NOW));
+  it("lays out generated nodes and appends comments untouched", async () => {
+    const r = await ok(applyComponents(current(), nestedOutput, NOW));
     expect(r.nodes.at(-1)).toEqual(comment);
     const positions = r.nodes.filter((n) => n.type !== "comment").map((n) => n.position);
     expect(new Set(positions.map((p) => `${p.x},${p.y}`)).size).toBeGreaterThan(1);
   });
 
-  it("keeps comment nodes and valid saved flows, replaces the AI flow", () => {
-    const r = ok(applyComponents(current(), baseOutput, NOW));
+  it("keeps comment nodes and valid saved flows, replaces the AI flow", async () => {
+    const r = await ok(applyComponents(current(), baseOutput, NOW));
     expect(r.nodes.filter((n) => n.type === "comment")).toEqual([comment]);
     expect(r.flows.map((f) => f.id)).toEqual(["flow-ai-main", "flow-keep"]);
     expect(r.flows[0]).toEqual({
@@ -371,8 +374,8 @@ describe("applyComponents", () => {
     expect(() => validates(r)).not.toThrow();
   });
 
-  it("drops the old AI flow when the new entry is dropped", () => {
-    const r = ok(
+  it("drops the old AI flow when the new entry is dropped", async () => {
+    const r = await ok(
       applyComponents(
         current(),
         { ...baseOutput, mainFlow: { ...baseOutput.mainFlow, entry: "ghost" } },
@@ -383,9 +386,9 @@ describe("applyComponents", () => {
     expect(r.warnings).toEqual([`Dropped main flow "Open a list": "ghost" is not a component.`]);
   });
 
-  it("stores the summary and ranFrom.components without touching other keys", () => {
+  it("stores the summary and ranFrom.components without touching other keys", async () => {
     const before = current();
-    const r = ok(applyComponents(before, baseOutput, NOW));
+    const r = await ok(applyComponents(before, baseOutput, NOW));
     expect(r.brief.summary).toBe(baseOutput.summary);
     expect(r.brief.ranFrom).toEqual({
       requirements: "r",
@@ -455,48 +458,48 @@ describe("applyComponents", () => {
     ["unknown group parent", unknownParent],
     ["unknown component group", unknownGroup],
     ["unknown connection endpoint", unknownEndpoint],
-  ])("cleans %s with a warning", (_name, output) => {
-    const r = ok(applyComponents(current(), output, NOW));
+  ])("cleans %s with a warning", async (_name, output) => {
+    const r = await ok(applyComponents(current(), output, NOW));
     expect(r.warnings.length).toBeGreaterThan(0);
     expect(() => validates(r)).not.toThrow();
   });
 
-  it("keeps the first of duplicate keys and drops colliding comment ids", () => {
-    const dup = ok(applyComponents(current(), dupKeys, NOW));
+  it("keeps the first of duplicate keys and drops colliding comment ids", async () => {
+    const dup = await ok(applyComponents(current(), dupKeys, NOW));
     expect(dup.nodes.filter((n) => n.id === "api")).toHaveLength(1);
     expect(dup.nodes.find((n) => n.id === "api")?.data["label"]).toBe("API");
-    const clash = ok(applyComponents(current(), commentCollision, NOW));
+    const clash = await ok(applyComponents(current(), commentCollision, NOW));
     expect(clash.nodes.filter((n) => n.id === "note-1")).toEqual([comment]);
   });
 
-  it("detaches a cyclic group parent and an unknown one, keeping both groups", () => {
-    const cyc = ok(applyComponents(current(), groupCycle, NOW));
+  it("detaches a cyclic group parent and an unknown one, keeping both groups", async () => {
+    const cyc = await ok(applyComponents(current(), groupCycle, NOW));
     const parents = ["a", "b"].map((id) => cyc.nodes.find((n) => n.id === id)?.parentId);
     expect(parents.filter(Boolean)).toHaveLength(1);
-    const unk = ok(applyComponents(current(), unknownParent, NOW));
+    const unk = await ok(applyComponents(current(), unknownParent, NOW));
     expect(unk.nodes.find((n) => n.id === "backend")?.parentId).toBeUndefined();
     expect(unk.warnings).toEqual([
       `Detached group "backend" from parent "nowhere": "nowhere" is not a group.`,
     ]);
   });
 
-  it("names the dropped item in plain English", () => {
-    expect(ok(applyComponents(current(), unknownEndpoint, NOW)).warnings).toEqual([
+  it("names the dropped item in plain English", async () => {
+    expect((await ok(applyComponents(current(), unknownEndpoint, NOW))).warnings).toEqual([
       `Dropped connection "a" → "b": "a" is not a component.`,
     ]);
-    expect(ok(applyComponents(current(), edgeToGroup, NOW)).warnings).toEqual([
+    expect((await ok(applyComponents(current(), edgeToGroup, NOW))).warnings).toEqual([
       `Dropped connection "web" → "backend": "backend" is not a component.`,
     ]);
-    expect(ok(applyComponents(current(), selfLoop, NOW)).warnings).toEqual([
+    expect((await ok(applyComponents(current(), selfLoop, NOW))).warnings).toEqual([
       `Dropped connection "api" → "api": a component cannot connect to itself.`,
     ]);
-    expect(ok(applyComponents(current(), unknownGroup, NOW)).warnings).toEqual([
+    expect((await ok(applyComponents(current(), unknownGroup, NOW))).warnings).toEqual([
       `Moved component "web" to the top level: "nowhere" is not a group.`,
     ]);
   });
 
-  it("returns ok:false when no components remain", () => {
-    const result = applyComponents(
+  it("returns ok:false when no components remain", async () => {
+    const result = await applyComponents(
       current(),
       { ...baseOutput, components: [], connections: [] },
       NOW,
@@ -531,7 +534,7 @@ describe("stage 3 to 5 results", () => {
     revisitWhen: ["Traffic doubles"],
   };
 
-  it("maps a decision onto DesignDecision fields", () => {
+  it("maps a decision onto DesignDecision fields", async () => {
     const result = applyDecision(nodes, "sync", decision);
     expect(result.find((n) => n.id === "sync")?.data["decision"]).toEqual({
       choice: decision.choice,
@@ -549,11 +552,11 @@ describe("stage 3 to 5 results", () => {
     expect(nodes[0]!.data["decision"]).toBeUndefined();
   });
 
-  it("leaves nodes unchanged for an unknown key", () => {
+  it("leaves nodes unchanged for an unknown key", async () => {
     expect(applyDecision(nodes, "ghost", decision)).toEqual(nodes);
   });
 
-  it("writes to group nodes but never to a comment", () => {
+  it("writes to group nodes but never to a comment", async () => {
     const group: Node = {
       id: "grp",
       type: "group",
@@ -594,13 +597,13 @@ describe("stage 3 to 5 results", () => {
     ],
   };
 
-  it("stores api output and ranFrom.api", () => {
+  it("stores api output and ranFrom.api", async () => {
     const result = applyApi(brief({ ranFrom: { components: "c" } }), apiOutput, "fp");
     expect(result.api).toEqual({ endpoints: apiOutput.endpoints, events: apiOutput.events });
     expect(result.ranFrom).toEqual({ components: "c", api: "fp" });
   });
 
-  it("stores data model output and ranFrom.dataModel", () => {
+  it("stores data model output and ranFrom.dataModel", async () => {
     const model: DataModelOutput = {
       entities: [
         {
@@ -616,7 +619,7 @@ describe("stage 3 to 5 results", () => {
     expect(result.ranFrom).toEqual({ dataModel: "fp2" });
   });
 
-  it("flags endpoints whose service or caller is unknown", () => {
+  it("flags endpoints whose service or caller is unknown", async () => {
     const withApi = applyApi(brief(), apiOutput, "fp");
     expect(unknownEndpointRefs(withApi, nodes)).toEqual(new Set(["e1", "e2"]));
     expect(unknownEndpointRefs(brief(), nodes)).toEqual(new Set());

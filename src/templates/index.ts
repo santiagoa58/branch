@@ -1,5 +1,6 @@
 import type { DiagramData } from "@/types";
-import { designDecisionSchema } from "@/schemas/diagram";
+import { designDecisionSchema, diagramDataSchema } from "@/schemas/diagram";
+import { autoLayoutDiagram } from "@/utils/layout";
 import type { DiagramTemplate, TemplateCategory } from "./types";
 import { threeTierWeb } from "./threeTierWeb";
 import { microservicesEcommerce } from "./microservicesEcommerce";
@@ -57,6 +58,30 @@ export function instantiateTemplate(template: DiagramTemplate): DiagramData {
   }));
 
   return { nodes, edges, flows };
+}
+
+const laidOut = new Map<string, Promise<DiagramTemplate>>();
+
+/**
+ * The template with positions, group sizes and ports from the shared auto formatter. Layout is
+ * asynchronous, so it runs when a template is first shown or loaded, once per template.
+ */
+export function layoutTemplate(template: DiagramTemplate): Promise<DiagramTemplate> {
+  let layout = laidOut.get(template.id);
+  if (!layout) {
+    layout = autoLayoutDiagram(template.data.nodes, template.data.edges).then(
+      ({ nodes, edges }) => ({
+        ...template,
+        data: diagramDataSchema.parse({ ...template.data, nodes, edges }),
+      }),
+      (error: unknown) => {
+        laidOut.delete(template.id);
+        throw error;
+      },
+    );
+    laidOut.set(template.id, layout);
+  }
+  return layout;
 }
 
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [

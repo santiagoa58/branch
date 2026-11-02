@@ -27,7 +27,8 @@ The type unions live in `src/types/index.ts` (`ArchitectureNodeType`, `EdgeProto
 3. The config entry in `src/constants/index.ts`: `NODE_TYPES_CONFIG` via `catalogNode()`
    (style preset, label, description, Heroicon `icon`, search keywords), `GROUP_TYPES_CONFIG`,
    or `PROTOCOL_CONFIG` (label, group, colors, style, `requestResponse`, `defaultForNodes`).
-4. Node types: a palette category in `src/constants/nodeCategories.ts`.
+4. Node types: a palette category in `src/constants/nodeCategories.ts`, and an auto-layout
+   zone in `NODE_TIERS` (`src/constants/layoutTiers.ts`; a typed record, so TypeScript enforces it).
 5. Protocols: no `<option>` to add. The protocol `<select>` in
    `src/components/panels/PropertiesPanel.tsx` is generated from `PROTOCOL_CONFIG`; a new
    `group` needs a label in its `PROTOCOL_GROUP_LABELS` (a typed record, so TypeScript enforces it).

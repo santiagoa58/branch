@@ -15,14 +15,14 @@ import { syntheticApi, syntheticComponents, syntheticContext } from "./synthetic
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 
 // Every stage input a browser can send for the fixtures and the synthetic 40-component design.
-function measuredInputs() {
+async function measuredInputs() {
   const components = syntheticComponents();
   const api = syntheticApi();
   const synthetic = [
     ["components", componentsInput(syntheticContext)],
-    ["decisions", decisionsInputs(syntheticContext, components)[0]],
-    ["api", apiInput(syntheticContext, components)],
-    ["data-model", dataModelInput(syntheticContext, components, api)],
+    ["decisions", (await decisionsInputs(syntheticContext, components))[0]],
+    ["api", await apiInput(syntheticContext, components)],
+    ["data-model", await dataModelInput(syntheticContext, components, api)],
   ] as const;
   const fixtures = evalCases.flatMap((c) => [
     ["requirements", c.input] as const,
@@ -32,7 +32,7 @@ function measuredInputs() {
 }
 
 describe("synthetic design", () => {
-  it("has 40 components and valid stage inputs", () => {
+  it("has 40 components and valid stage inputs", async () => {
     const components = syntheticComponents();
     expect(components.components).toHaveLength(40);
     const keys = new Set(components.components.map((component) => component.key));
@@ -40,15 +40,15 @@ describe("synthetic design", () => {
     for (const { from, to } of components.connections) {
       expect(keys.has(from) && keys.has(to)).toBe(true);
     }
-    for (const [stage, input] of measuredInputs()) {
+    for (const [stage, input] of await measuredInputs()) {
       expect(stageSchemas[stage].input.safeParse(input).success).toBe(true);
     }
   });
 });
 
 describe("AI_MAX_BODY_BYTES", () => {
-  it("leaves four times headroom over every measured stage input", () => {
-    const tooLarge = measuredInputs()
+  it("leaves four times headroom over every measured stage input", async () => {
+    const tooLarge = (await measuredInputs())
       .filter(([, input]) => bytes(input) * 4 > AI_MAX_BODY_BYTES)
       .map(([stage, input]) => `${stage}: ${bytes(input)} B`);
     expect(tooLarge).toEqual([]);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { TemplateGalleryDialog } from "./TemplateGalleryDialog";
 import { useDiagramStore } from "@/store/diagramStore";
@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("TemplateGalleryDialog", () => {
-  it("finds an app by name, selects it and loads it onto an empty canvas", () => {
+  it("finds an app by name, selects it and loads it onto an empty canvas", async () => {
     const onClose = mount();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search templates" }), {
       target: { value: "Google Drive" },
@@ -49,6 +49,8 @@ describe("TemplateGalleryDialog", () => {
     ).toBeVisible();
 
     fireEvent.click(within(details).getByRole("button", { name: "Use template" }));
+    // Templates are laid out on first use, which is asynchronous.
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce(), { timeout: 10_000 });
 
     const { nodes, edges, flows } = useDiagramStore.getState();
     expect(nodes.some((node) => node.data["label"] === "Metadata service")).toBe(true);
@@ -58,7 +60,7 @@ describe("TemplateGalleryDialog", () => {
     expect(cloudWorkspace.schedule).toHaveBeenCalledOnce();
   });
 
-  it("filters by category and offers suggestions when nothing matches", () => {
+  it("filters by category and offers suggestions when nothing matches", async () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: /Marketplaces & logistics/ }));
     expect(screen.getByRole("button", { name: /Ride hailing, like Uber/ })).toBeVisible();
@@ -74,7 +76,7 @@ describe("TemplateGalleryDialog", () => {
     expect(screen.getByRole("button", { name: /Payments API, like Stripe/ })).toBeVisible();
   });
 
-  it("keeps the current design brief when adding a template", () => {
+  it("keeps the current design brief when adding a template", async () => {
     const brief = {
       inputs: {
         prompt: "Mine",
@@ -102,11 +104,13 @@ describe("TemplateGalleryDialog", () => {
 
     fireEvent.click(within(details).getByRole("button", { name: "Add to canvas" }));
 
-    expect(useDiagramStore.getState().nodes.length).toBeGreaterThan(1);
+    await waitFor(() => expect(useDiagramStore.getState().nodes.length).toBeGreaterThan(1), {
+      timeout: 10_000,
+    });
     expect(useDiagramStore.getState().brief).toEqual(brief);
   });
 
-  it("adds next to an existing diagram or replaces it only after confirmation", () => {
+  it("adds next to an existing diagram or replaces it only after confirmation", async () => {
     useDiagramStore.getState().addNode({
       id: "existing",
       type: "architecture",
@@ -123,6 +127,9 @@ describe("TemplateGalleryDialog", () => {
     expect(useDiagramStore.getState().nodes.map((node) => node.id)).toEqual(["existing"]);
 
     fireEvent.click(within(details).getByRole("button", { name: "Add to canvas" }));
+    await waitFor(() => expect(useDiagramStore.getState().nodes.length).toBeGreaterThan(1), {
+      timeout: 10_000,
+    });
     const nodes = useDiagramStore.getState().nodes;
     expect(nodes.some((node) => node.id === "existing")).toBe(true);
     expect(nodes.some((node) => node.data["label"] === "WebSocket gateway")).toBe(true);

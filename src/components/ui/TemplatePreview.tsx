@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { Node } from "@xyflow/react";
 import type { ArchitectureNodeType, DiagramData } from "@/types";
+import type { DiagramTemplate } from "@/templates";
+import { useTemplateLayout } from "@/hooks/useTemplateLayout";
 import { cn } from "@/lib/utils";
 import { NODE_TYPES_CONFIG } from "@/constants";
 
@@ -15,7 +17,7 @@ const NODE_W = 150;
 const NODE_H = 90;
 
 interface TemplatePreviewProps {
-  data: DiagramData;
+  template: DiagramTemplate;
   className?: string;
 }
 
@@ -85,8 +87,14 @@ function buildPreview(data: DiagramData) {
   return { groups, blocks, lines, viewBox };
 }
 
-export function TemplatePreview({ data, className }: TemplatePreviewProps) {
-  const { groups, blocks, lines, viewBox } = useMemo(() => buildPreview(data), [data]);
+export function TemplatePreview({ template, className }: TemplatePreviewProps) {
+  // Templates are laid out on first use; the preview stays blank until then.
+  const data = useTemplateLayout(template);
+  const preview = useMemo(() => (data ? buildPreview(data) : null), [data]);
+  if (!preview) {
+    return <svg className={cn("w-full h-full", className)} aria-hidden="true" />;
+  }
+  const { groups, blocks, lines, viewBox } = preview;
 
   return (
     <svg

@@ -110,13 +110,14 @@ function detachFromReplacedParents(comments: Node[], previous: Node[]): Node[] {
 /**
  * Stage 2: replace the generated graph. Cleans the model output into something valid (each
  * repair is reported as a warning), keeps comment nodes and still-valid saved flows, and lays
- * the result out. Returns `ok: false` when no component survives.
+ * the result out (asynchronously: auto-layout runs ELK). Returns `ok: false` when no component
+ * survives. Pure: the caller decides whether the result still applies when it resolves.
  */
-export function applyComponents(
+export async function applyComponents(
   current: { nodes: Node[]; edges: Edge[]; flows: NamedFlow[]; brief: DesignBrief },
   output: ComponentsOutput,
   now: string,
-): ApplyComponentsResult {
+): Promise<ApplyComponentsResult> {
   const warnings: string[] = [];
   const comments = current.nodes.filter((node) => node.type === "comment");
   const commentIds = new Set(comments.map((node) => node.id));
@@ -161,7 +162,7 @@ export function applyComponents(
     });
   });
 
-  const edges: Edge[] = [];
+  const connections: Edge[] = [];
   output.connections.forEach((connection, index) => {
     const { from, to } = connection;
     const missing = [from, to].find((key) => !componentKeys.has(key));
@@ -172,7 +173,7 @@ export function applyComponents(
         `Dropped connection "${from}" → "${to}": a component cannot connect to itself.`,
       );
     } else {
-      edges.push(
+      connections.push(
         archEdge(`ai-${from}-${to}-${index}`, from, to, {
           protocol: connection.protocol,
           label: connection.purpose,
@@ -182,10 +183,9 @@ export function applyComponents(
     }
   });
 
-  const nodes = [
-    ...autoLayoutDiagram([...groupNodes, ...componentNodes], edges),
-    ...detachFromReplacedParents(comments, current.nodes),
-  ];
+  const laidOut = await autoLayoutDiagram([...groupNodes, ...componentNodes], connections);
+  const nodes = [...laidOut.nodes, ...detachFromReplacedParents(comments, current.nodes)];
+  const edges = laidOut.edges;
 
   const entry = output.mainFlow.entry;
   const aiFlow: NamedFlow | undefined = componentKeys.has(entry)

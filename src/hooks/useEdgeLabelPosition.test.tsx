@@ -1,16 +1,16 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import {
   ReactFlowProvider,
-  getBezierPath,
   useStoreApi,
   type InternalNode,
   type Node,
   type Rect,
 } from "@xyflow/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { layoutTemplate } from "@/templates";
 import { collaborativeDocs } from "@/templates/catalog/storage";
 import { autoLayoutDiagram } from "@/utils/layout";
-import { leafSize } from "@/utils/layout/geometry";
+import { absoluteRects, leafSize } from "@/utils/layout/geometry";
 import * as edgeLabels from "@/utils/edgeLabels";
 import { useEdgeLabelPosition } from "./useEdgeLabelPosition";
 
@@ -75,32 +75,23 @@ function expectClear(x: number, y: number, obstacles: Rect[], width = 180) {
 }
 
 describe("collision-aware edge labels", () => {
-  it("reproduces and fixes the collaborative editor autoformat overlap", () => {
-    const edges = structuredClone(collaborativeDocs.data.edges);
-    const nodes = autoLayoutDiagram(
-      collaborativeDocs.data.nodes.map((entry) =>
+  it("moves a label off a node of the auto-formatted collaborative editor", async () => {
+    const template = await layoutTemplate(collaborativeDocs);
+    const edges = structuredClone(template.data.edges);
+    const { nodes } = await autoLayoutDiagram(
+      template.data.nodes.map((entry) =>
         entry.type === "architecture" ? { ...entry, measured: { width: 160, height: 104 } } : entry,
       ),
       edges,
     );
     const snapshot = structuredClone({ nodes, edges });
-    const byId = new Map(nodes.map((entry) => [entry.id, entry]));
-    const group = byId.get("collab")!;
-    const source = byId.get("collab-svc")!;
-    const target = byId.get("docs")!;
-    const [, midpointX, midpointY] = getBezierPath({
-      sourceX: group.position.x + source.position.x + 80,
-      sourceY: group.position.y + source.position.y + 104,
-      targetX: target.position.x + 80,
-      targetY: target.position.y,
-    });
-    const { result } = mount(nodes, midpointX, midpointY);
-    const presence = rect(result.current.store.getState().nodeLookup.get("presence")!);
+    const presence = absoluteRects(nodes).get("presence")!;
+    // An anchor on top of a node, as a connection running past it would give its label.
+    const anchorX = presence.x + presence.width / 2;
+    const anchorY = presence.y + presence.height / 2;
+    const { result } = mount(nodes, anchorX, anchorY);
 
-    expect(midpointX).toBeGreaterThan(presence.x);
-    expect(midpointX).toBeLessThan(presence.x + presence.width);
-    expect(midpointY).toBeGreaterThan(presence.y);
-    expect(midpointY).toBeLessThan(presence.y + presence.height);
+    expect(rect(result.current.store.getState().nodeLookup.get("presence")!)).toEqual(presence);
     const obstacles = [...result.current.store.getState().nodeLookup.values()]
       .filter((entry) => entry.type !== "group")
       .map(rect);
