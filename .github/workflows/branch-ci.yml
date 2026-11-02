@@ -32,9 +32,10 @@ jobs:
             sleep 1
           done
           node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
           const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
           let pages;
-          for (let i = 0; i < 50; i++) {
+          for (let i = 0; i < 150; i++) {
             try {
               pages = await fetch("http://127.0.0.1:9222/json/list").then((r) => r.json());
               if (pages.some((page) => page.type === "page")) break;
@@ -42,7 +43,11 @@ jobs:
             await sleep(100);
           }
           const page = pages?.find((entry) => entry.type === "page");
-          if (!page) throw new Error("Chrome debugging target did not start");
+          if (!page) {
+            console.error("Chrome output:", readFileSync("/tmp/chrome.log", "utf8"));
+            console.error("Pages:", pages);
+            throw new Error("Chrome debugging target did not start");
+          }
           const ws = new WebSocket(page.webSocketDebuggerUrl);
           await new Promise((resolve, reject) => {
             ws.addEventListener("open", resolve, { once: true });
