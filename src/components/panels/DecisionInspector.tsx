@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { PencilSquareIcon } from "@heroicons/react/24/outline";
 import type { ArchitectureAttribute, DesignDecision } from "@/types";
 import { useDiagramStore } from "@/store/diagramStore";
-import { getNodeAttributes, formatArchitectureAttribute } from "@/utils/architectureAttributes";
+import { formatArchitectureAttribute } from "@/utils/architectureAttributes";
 import { DesignDecisionSummary } from "@/components/ui/DesignDecisionSummary";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
@@ -55,7 +55,7 @@ export function DecisionInspector({ value, onChange, attributes, onAttributesCha
         </div>
       ) : (
         <div className="min-w-0 space-y-5">
-          <DesignDecisionSummary value={value} compact assumptions={aiDesign} />
+          <DesignDecisionSummary value={value} compact stacked assumptions={aiDesign} />
           {attributes && attributes.length > 0 && (
             <section aria-label="Architecture attributes" className="min-w-0 space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground">

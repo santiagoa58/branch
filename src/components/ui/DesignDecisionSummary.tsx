@@ -6,6 +6,8 @@ import { consideredKey, getDocumentedDecision, hasDesignDecision } from "@/utils
 interface Props {
   value: DesignDecision | undefined;
   compact?: boolean;
+  /** Stack gains and costs for narrow inspector columns. */
+  stacked?: boolean;
   /**
    * In an AI design the `revisitWhen` items are the assumptions the choice rests on, so they are
    * headed "Assumes" instead of "Revisit when".
@@ -15,7 +17,12 @@ interface Props {
 
 const textClassName = "whitespace-pre-wrap wrap-anywhere text-pretty";
 
-export function DesignDecisionSummary({ value, compact = false, assumptions = false }: Props) {
+export function DesignDecisionSummary({
+  value,
+  compact = false,
+  stacked = false,
+  assumptions = false,
+}: Props) {
   if (!hasDesignDecision(value)) {
     return <p className="text-sm text-muted-foreground">No decision documented yet.</p>;
   }
@@ -42,7 +49,7 @@ export function DesignDecisionSummary({ value, compact = false, assumptions = fa
           {reason && <p className={cn(textClassName, "text-sm text-muted-foreground")}>{reason}</p>}
         </div>
       )}
-      <TradeoffList gains={benefits} costs={drawbacks} />
+      <TradeoffList gains={benefits} costs={drawbacks} stacked={stacked} />
       {considered.length > 0 && (
         <section aria-label="Considered instead" className="min-w-0">
           <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Considered instead</h4>

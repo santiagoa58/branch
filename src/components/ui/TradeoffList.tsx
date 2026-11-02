@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   gains: string[];
   costs: string[];
+  stacked?: boolean;
 }
 
 const textClassName = "whitespace-pre-wrap wrap-anywhere text-pretty";
@@ -57,13 +58,13 @@ function Side({ side, items }: { side: keyof typeof sides; items: string[] }) {
 }
 
 /** What a decision gains and what it costs, side by side when there is room. */
-export function TradeoffList({ gains, costs }: Props) {
+export function TradeoffList({ gains, costs, stacked = false }: Props) {
   if (gains.length === 0 && costs.length === 0) {
     return null;
   }
   const both = gains.length > 0 && costs.length > 0;
   return (
-    <div className={cn("grid min-w-0 gap-3", both && "@xs:grid-cols-2")}>
+    <div className={cn("grid min-w-0 gap-3", both && !stacked && "@xs:grid-cols-2")}>
       {gains.length > 0 && <Side side="gain" items={gains} />}
       {costs.length > 0 && <Side side="cost" items={costs} />}
     </div>
