@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"/><title>ELK browser smoke</title></head>
+  <body>
+    <output id="status">PENDING</output>
+    <script type="module">
+      import { layoutSiblings } from "/src/utils/layout/elk.ts";
+      const boxes = [
+        { id: "client", width: 180, height: 140, tier: 0 },
+        { id: "gateway", width: 180, height: 140, tier: 1 },
+        { id: "service", width: 180, height: 140, tier: 2 },
+        { id: "database", width: 180, height: 140, tier: 4 }
+      ];
+      const edges = [
+        { source: "client", target: "gateway" },
+        { source: "gateway", target: "service" },
+        { source: "service", target: "database" }
+      ];
+      const start = performance.now();
+      try {
+        const result = await layoutSiblings(boxes, edges, true);
+        if (result.positions.size !== 4) {
+          throw new Error("Missing layout positions");
+        }
+        document.querySelector("#status").textContent =
+          "ELK_PASS " + Math.round(performance.now() - start) + "ms";
+      } catch (error) {
+        document.querySelector("#status").textContent = "ELK_FAIL " + String(error);
+      }
+    </script>
+  </body>
+</html>

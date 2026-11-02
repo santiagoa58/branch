@@ -20,6 +20,24 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
+      - name: Browser ELK worker smoke
+        run: |
+          pnpm exec vite --host 127.0.0.1 --port 5173 >/tmp/branch-vite.log 2>&1 &
+          server=$!
+          trap 'kill "$server" || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173/elk-layout-smoke.html >/dev/null; then break; fi
+            sleep 1
+          done
+          timeout 45s google-chrome --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=20000 --dump-dom http://127.0.0.1:5173/elk-layout-smoke.html >/tmp/elk-dom.txt 2>/tmp/chrome-error.txt || {
+            cat /tmp/chrome-error.txt /tmp/branch-vite.log
+            exit 1
+          }
+          cat /tmp/elk-dom.txt
+          grep -q "ELK_PASS" /tmp/elk-dom.txt || {
+            cat /tmp/chrome-error.txt /tmp/branch-vite.log
+            exit 1
+          }
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build
