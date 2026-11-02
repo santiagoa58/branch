@@ -225,11 +225,7 @@ export function FlowsPanel() {
         title="Delete saved flow?"
         description={`Delete "${flowToDelete?.name ?? ""}"? This removes the saved replay scenario and cannot be undone.`}
         confirmLabel="Delete flow"
-        onOpenChange={(open) => {
-          if (!open) {
-            setFlowToDelete(null);
-          }
-        }}
+        onOpenChange={() => setFlowToDelete(null)}
         onConfirm={() => {
           if (flowToDelete) {
             deleteFlow(flowToDelete.id);
