@@ -144,6 +144,14 @@ function beginRun(deps: PipelineDeps, stages: readonly AiStage[]): Session | nul
   };
 }
 
+/**
+ * Reasoning requests (stage 3) in flight at once. Each component gets its own request, so an
+ * unbounded run of a 40-component design would send 40 at once and risk provider rate limits.
+ * Six keeps a typical design to a few rounds. `runPipeline` callers can pass another limit, or
+ * `Infinity` for none.
+ */
+const DEFAULT_DECISION_CONCURRENCY = 6;
+
 /** Runs `worker` over `items` with at most `limit` in flight. Workers must not throw. */
 async function forEachLimited<T>(
   items: readonly T[],
@@ -395,7 +403,13 @@ export async function runPipeline(
       deps.run.setStage(runDecisionsStage ? "decisions" : "api");
       await Promise.all([
         runDecisionsStage
-          ? runDecisions(deps, session, base, ranFrom, options.decisionConcurrency ?? Infinity)
+          ? runDecisions(
+              deps,
+              session,
+              base,
+              ranFrom,
+              options.decisionConcurrency ?? DEFAULT_DECISION_CONCURRENCY,
+            )
           : undefined,
         runApiStage ? runApi(deps, session, base, ranFrom) : undefined,
       ]);

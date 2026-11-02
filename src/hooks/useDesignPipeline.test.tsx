@@ -336,6 +336,60 @@ describe("runPipeline", () => {
     expect(nodeDecisions()).toHaveLength(3);
   });
 
+  describe("with a large design", () => {
+    const manyNodes = () =>
+      Array.from({ length: 12 }, (_, index) =>
+        archNode(`svc${index}`, "service", `Service ${index}`, 0, 0),
+      );
+    const decisionKeys = () =>
+      run.mock.calls.flatMap(([stage, input]) =>
+        stage === "decisions" && "node" in input ? [input.node.key] : [],
+      );
+
+    beforeEach(() => {
+      current.nodes = manyNodes();
+      current.brief = graphOnlyBrief();
+    });
+
+    it("sends at most six decision requests at once by default", async () => {
+      let inFlight = 0;
+      let peak = 0;
+      handlers.decisions = async (input) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight -= 1;
+        return decision(input.node.key);
+      };
+      await runPipeline(deps);
+      expect(peak).toBe(6);
+      expect(decisionKeys()).toEqual(manyNodes().map((node) => node.id));
+      expect(nodeDecisions()).toHaveLength(12);
+      expect(runState().decisions).toEqual({ done: 12, total: 12 });
+      expect(current.brief?.ranFrom.decisions).toBe(
+        resultFingerprint(graphOnlyBrief(), manyNodes(), []),
+      );
+    });
+
+    it("cancel leaves the queued decisions unsent", async () => {
+      const signals: AbortSignal[] = [];
+      handlers.decisions = async (_input, signal) => {
+        signals.push(signal);
+        return untilAborted(signal);
+      };
+      const pipeline = runPipeline(deps);
+      await vi.waitFor(() => expect(signals).toHaveLength(6));
+      useAiDesignStore.getState().cancel();
+      await pipeline;
+
+      expect(decisionKeys()).toHaveLength(6);
+      expect(signals.every((signal) => signal.aborted)).toBe(true);
+      expect(nodeDecisions()).toHaveLength(0);
+      expect(runState().errors).toEqual({});
+      expect(runState().running).toBe(false);
+    });
+  });
+
   it("saves a version before replacing an existing graph", async () => {
     current.nodes = existingNodes();
     current.edges = existingEdges();
