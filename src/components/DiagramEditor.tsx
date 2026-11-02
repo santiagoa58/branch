@@ -121,7 +121,6 @@ export function DiagramEditor() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [showSimulationPanel, setShowSimulationPanel] = useState(false);
-  const [showFlowsPanel, setShowFlowsPanel] = useState(false);
   const [laserMode, setLaserMode] = useState(false);
 
   // Simulation & animation hooks
@@ -163,26 +162,9 @@ export function DiagramEditor() {
   // pan, zoom and selection work, but nothing can be moved, connected, added or removed.
   const editBlocked = useEditBlocked();
 
-  // "Design with AI" shows the design panel in the right-hand slot. Selection gives the slot to the
-  // inspector, so opening the panel clears it. During a run the slot shows the panel (its progress
-  // and Cancel) whenever nothing is selected, and the button cannot close it, like its header.
-  const designPanelShown = useUIStore(
-    (state) => state.rightPanelVisible && (state.designPanelOpen || aiRunning),
-  );
-  const hasSelection = useDiagramStore(
-    (state) => state.selectedNodeId !== null || state.selectedEdgeId !== null,
-  );
-  const openDesignPanel = useCallback(() => {
-    setSelectedNode(null);
-    useUIStore.getState().openDesignPanel();
-  }, [setSelectedNode]);
-  const toggleDesignPanel = () => {
-    if (designPanelShown && !hasSelection && !aiRunning) {
-      useUIStore.getState().closeDesignPanel();
-    } else {
-      openDesignPanel();
-    }
-  };
+  const rightPanelTab = useUIStore((state) => state.rightPanelTab);
+  const rightPanelVisible = useUIStore((state) => state.rightPanelVisible);
+  const openDesignPanel = useCallback(() => useUIStore.getState().openRightPanel("brief"), []);
 
   // Display graph — children of collapsed groups hidden, boundary edges
   // aggregated into synthetic rollup edges. The store keeps the real graph;
@@ -296,6 +278,7 @@ export function DiagramEditor() {
         return;
       }
       setSelectedNode(node.id);
+      useUIStore.getState().openRightPanel("inspect");
     },
     [
       setSelectedNode,
@@ -312,6 +295,7 @@ export function DiagramEditor() {
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: { id: string }) => {
       setSelectedEdge(edge.id);
+      useUIStore.getState().openRightPanel("inspect");
     },
     [setSelectedEdge],
   );
@@ -618,8 +602,8 @@ export function DiagramEditor() {
             <ToolbarButton
               label="Design with AI"
               showLabel="Design with AI"
-              active={designPanelShown && !hasSelection}
-              onClick={toggleDesignPanel}
+              active={rightPanelVisible && rightPanelTab === "brief"}
+              onClick={openDesignPanel}
             >
               <Sparkles className="size-4" aria-hidden="true" />
             </ToolbarButton>
@@ -644,9 +628,8 @@ export function DiagramEditor() {
             </ToolbarButton>
             <ToolbarButton
               label="Saved request flows"
-              disabled={editBlocked && !showFlowsPanel}
-              active={showFlowsPanel}
-              onClick={() => setShowFlowsPanel((v) => !v)}
+              active={rightPanelVisible && rightPanelTab === "flows"}
+              onClick={() => useUIStore.getState().openRightPanel("flows")}
             >
               <Route className="size-4" aria-hidden="true" />
             </ToolbarButton>
@@ -767,13 +750,6 @@ export function DiagramEditor() {
               simulationSetMode("idle");
             }}
           />
-        )}
-
-        {/* Saved flows sidebar (anchored to the canvas right edge) */}
-        {showFlowsPanel && (
-          <div className="absolute top-0 right-0 h-full z-30">
-            <FlowsPanel onClose={() => setShowFlowsPanel(false)} />
-          </div>
         )}
 
         {/* Empty-canvas call to action */}

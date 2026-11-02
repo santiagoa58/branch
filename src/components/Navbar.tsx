@@ -199,11 +199,11 @@ export function Navbar() {
               <Squares2X2Icon className="w-3.5 h-3.5" />
             </button>
           </Tooltip>
-          <Tooltip content="Properties panel">
+          <Tooltip content="Sidebar">
             <button
               type="button"
               onClick={toggleRightPanel}
-              aria-label="Properties panel"
+              aria-label="Sidebar"
               aria-pressed={rightPanelVisible}
               className={`p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors ${
                 rightPanelVisible

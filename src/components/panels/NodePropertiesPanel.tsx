@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Node } from "@xyflow/react";
 import { Icon as IconifyIcon } from "@iconify/react";
-import { TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { NODE_TYPES_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
 import { applyValidatedInput } from "@/lib/validatedInput";
@@ -33,8 +33,7 @@ interface Props {
 
 export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  const { nodes, updateNodeData, setSelectedNode, addNodeToGroup, removeNodeFromGroup } =
-    useDiagramStore();
+  const { nodes, updateNodeData, addNodeToGroup, removeNodeFromGroup } = useDiagramStore();
   const requestDelete = useAnimationStore((state) => state.requestDelete);
   const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
@@ -42,10 +41,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const hasDecision = hasDesignDecision(data.decision);
 
   return (
-    <aside
-      aria-label="Node details"
-      className="z-20 flex w-80 flex-col border-l border-border bg-background xl:w-96"
-    >
+    <div aria-label="Node details" className="flex min-h-0 w-full flex-1 flex-col">
       <div className="flex items-start justify-between gap-3 border-b border-border p-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className={cn("rounded-lg border p-3", config.bgClass, config.borderClass)}>
@@ -60,14 +56,6 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
             <p className="text-xs text-muted-foreground">{config.label}</p>
           </div>
         </div>
-        <button
-          type="button"
-          aria-label="Close node details"
-          onClick={() => setSelectedNode(null)}
-          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <XMarkIcon className="size-4" />
-        </button>
       </div>
       <InspectorTabs
         items={[
@@ -210,6 +198,6 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
         onSelect={(iconifyIcon) => updateNodeData(node.id, { iconifyIcon, iconColor: "" })}
         {...(data.iconifyIcon ? { currentIcon: data.iconifyIcon } : {})}
       />
-    </aside>
+    </div>
   );
 }

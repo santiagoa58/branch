@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  XMarkIcon,
   PlayIcon,
   StopIcon,
   PencilSquareIcon,
@@ -15,12 +14,8 @@ import type { ArchitectureNodeData } from "@/types";
 import type { NamedFlow } from "@/types/simulation";
 import { cn } from "@/lib/utils";
 
-interface FlowsPanelProps {
-  onClose: () => void;
-}
-
 // oxlint-disable-next-line max-lines-per-function -- debt: 216 lines; split into smaller units
-export function FlowsPanel({ onClose }: FlowsPanelProps) {
+export function FlowsPanel() {
   const flows = useDiagramStore((s) => s.flows);
   const nodes = useDiagramStore((s) => s.nodes);
   const addFlow = useDiagramStore((s) => s.addFlow);
@@ -34,15 +29,6 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
   const simIsRunning = useSimulationStore((s) => s.isRunning);
   const stopSim = useSimulationStore((s) => s.stop);
   const setSimMode = useSimulationStore((s) => s.setMode);
-
-  const handleClose = () => {
-    // Stop any active flow simulation so the diagram doesn't stay highlighted
-    if (simMode !== "idle") {
-      stopSim();
-      setSimMode("idle");
-    }
-    onClose();
-  };
 
   // 'new' = create with the current sim source; or { id } for edit.
   const [dialog, setDialog] = useState<{ kind: "new" } | { kind: "edit"; id: string } | null>(null);
@@ -81,20 +67,12 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
 
   return (
     <>
-      <aside className="w-72 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Flows</span>
             <span className="text-[10px] font-mono text-muted-foreground">{flows.length}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            title="Close"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -239,7 +217,7 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
             </p>
           )}
         </div>
-      </aside>
+      </div>
 
       {dialog !== null && (
         <SaveFlowDialog

@@ -3,6 +3,7 @@ import type { EdgeProtocol } from "@/types";
 import type { PaletteNodeType } from "@/schemas/ui";
 
 export type DesignTabId = "brief" | "design" | "api" | "dataModel";
+export type RightPanelTab = "inspect" | DesignTabId | "flows";
 
 /**
  * Below Tailwind's lg breakpoint the side panels slide over the canvas instead of sitting beside
@@ -26,18 +27,12 @@ interface UIState {
   toggleRightPanel: () => void;
   closePanels: () => void;
 
-  /**
-   * The AI design panel shares the right-hand slot with the inspector, which takes precedence
-   * while something is selected.
-   */
-  designPanelOpen: boolean;
-  /** Shows the right-hand slot with the design panel; a compact screen closes the palette. */
+  /** One tab controls the only editor sidebar, regardless of how it was opened. */
+  rightPanelTab: RightPanelTab;
+  /** Open the sidebar at a specific section; on narrow screens hide the palette. */
+  openRightPanel: (tab: RightPanelTab) => void;
+  /** Convenience shortcut used by Design with AI entry points; not a separate panel. */
   openDesignPanel: () => void;
-  /** On a compact screen this also hides the right-hand slot instead of revealing the inspector. */
-  closeDesignPanel: () => void;
-  /** Kept here, not in the panel, so the tab survives the inspector taking the slot. */
-  designTab: DesignTabId;
-  setDesignTab: (tab: DesignTabId) => void;
 
   /** A component chosen in the palette by click or tap, added by the editor at the view center. */
   pendingPaletteAdd: PaletteNodeType | null;
@@ -79,24 +74,16 @@ export const useUIStore = create<UIState>((set) => ({
         ? { rightPanelVisible, leftPanelVisible: false }
         : { rightPanelVisible };
     }),
-  closePanels: () =>
-    set({ leftPanelVisible: false, rightPanelVisible: false, designPanelOpen: false }),
+  closePanels: () => set({ leftPanelVisible: false, rightPanelVisible: false }),
 
-  designPanelOpen: false,
-  openDesignPanel: () =>
+  rightPanelTab: "inspect",
+  openRightPanel: (rightPanelTab) =>
     set(
       isCompactLayout()
-        ? { designPanelOpen: true, rightPanelVisible: true, leftPanelVisible: false }
-        : { designPanelOpen: true, rightPanelVisible: true },
+        ? { rightPanelTab, rightPanelVisible: true, leftPanelVisible: false }
+        : { rightPanelTab, rightPanelVisible: true },
     ),
-  closeDesignPanel: () =>
-    set(
-      isCompactLayout()
-        ? { designPanelOpen: false, rightPanelVisible: false }
-        : { designPanelOpen: false },
-    ),
-  designTab: "brief",
-  setDesignTab: (designTab) => set({ designTab }),
+  openDesignPanel: () => useUIStore.getState().openRightPanel("brief"),
   pendingPaletteAdd: null,
   requestPaletteAdd: (type) => set({ pendingPaletteAdd: type }),
   completePaletteAdd: () =>

@@ -19,7 +19,6 @@ import {
   architectureEdgeDataSchema,
 } from "@/schemas/diagram";
 import {
-  XMarkIcon,
   TrashIcon,
   CursorArrowRippleIcon,
   ChevronDownIcon,
@@ -56,8 +55,6 @@ export function PropertiesPanel() {
     edges,
     selectedNodeId,
     selectedEdgeId,
-    setSelectedNode,
-    setSelectedEdge,
     updateNodeData,
     updateGroupData,
     toggleGroupCollapse,
@@ -100,7 +97,7 @@ export function PropertiesPanel() {
 
   if (!selectedNode && !selectedEdge) {
     return (
-      <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Properties</span>
         </div>
@@ -110,7 +107,7 @@ export function PropertiesPanel() {
             <p className="text-xs text-muted-foreground">Select a node to view properties</p>
           </div>
         </div>
-      </aside>
+      </div>
     );
   }
 
@@ -123,19 +120,12 @@ export function PropertiesPanel() {
       const colorConfig = COMMENT_CONFIG.colors[color];
 
       return (
-        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <div className="flex min-h-0 w-full flex-1 flex-col">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Comment Properties
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedNode(null)}
-              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Content */}
@@ -261,7 +251,7 @@ export function PropertiesPanel() {
               Delete Comment
             </button>
           </InspectorFields>
-        </aside>
+        </div>
       );
     }
 
@@ -272,19 +262,12 @@ export function PropertiesPanel() {
       const Icon = config.icon;
 
       return (
-        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <div className="flex min-h-0 w-full flex-1 flex-col">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Group Properties
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedNode(null)}
-              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
           </div>
 
           <InspectorTabs
@@ -443,7 +426,7 @@ export function PropertiesPanel() {
               </button>
             </div>
           </InspectorFields>
-        </aside>
+        </div>
       );
     }
 
@@ -461,17 +444,10 @@ export function PropertiesPanel() {
     const edgeData = architectureEdgeDataSchema.parse(selectedEdge.data ?? {});
 
     return (
-      <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         {/* Header */}
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Connection</span>
-          <button
-            type="button"
-            onClick={() => setSelectedEdge(null)}
-            className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
         </div>
 
         <InspectorTabs
@@ -868,7 +844,7 @@ export function PropertiesPanel() {
             </button>
           </div>
         </InspectorFields>
-      </aside>
+      </div>
     );
   }
 
