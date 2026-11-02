@@ -1,8 +1,8 @@
-// oxlint-disable max-lines -- debt: 457 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 456 lines (limit 450); split the module
 import type { Edge, Node } from "@xyflow/react";
 import type { AiStage, DesignBrief, StageInput, StageOutput } from "@/schemas/aiDesign";
 import { aiStageSchema } from "@/schemas/aiDesign";
-import { aiApi } from "@/services/api";
+import { aiApi, ApiError } from "@/services/api";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
 import { useAiDesignStore, type AiDesignState } from "@/store/aiDesignStore";
@@ -57,13 +57,12 @@ export interface PipelineDeps {
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; message: string | null };
 
-/** The server's message from `ApiError` ("POST /ai/x failed (402 …): <message>"), else the whole message. */
+/** The reason a request failed (`ApiError.detail`), else the error's whole message. */
 function errorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return "Something went wrong.";
+  if (error instanceof ApiError) {
+    return error.detail ?? error.message;
   }
-  const index = error.message.indexOf("): ");
-  return index === -1 ? error.message : error.message.slice(index + 3);
+  return error instanceof Error ? error.message : "Something went wrong.";
 }
 
 // --- Stage inputs ---

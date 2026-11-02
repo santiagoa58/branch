@@ -11,6 +11,8 @@ import type {
   StageOutput,
 } from "@/schemas/aiDesign";
 import { MAX_HISTORY_LENGTH } from "@/constants";
+import { aiApi } from "@/services/api/ai";
+import { setApiTokenProvider } from "@/services/api/auth";
 import { ApiError } from "@/services/api/errors";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
@@ -176,8 +178,14 @@ const afterComponents = () => {
   const next = apply.mock.calls.find(([entry]) => entry.flows !== undefined)?.[0];
   return { nodes: next?.nodes ?? [], edges: next?.edges ?? [] };
 };
+/** The `ApiError` the transport throws for a valid error body; its detail is the server message. */
 const failure = (stage: string, status: number, statusText: string, message: string) =>
-  new ApiError(status, `POST /ai/${stage} failed (${status} ${statusText}): ${message}`);
+  new ApiError(
+    status,
+    `POST /ai/${stage} failed (${status} ${statusText}): ${message}`,
+    undefined,
+    message,
+  );
 
 /** A request that settles only when the run aborts it, the way fetch does. */
 const untilAborted = (signal: AbortSignal) =>
@@ -216,6 +224,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  setApiTokenProvider(null);
 });
 
 describe("runPipeline", () => {
@@ -456,6 +466,37 @@ describe("runPipeline", () => {
     expect(runState().errors.requirements).toBe("AI budget reached");
     expect(apply).not.toHaveBeenCalled();
     expect(runState().running).toBe(false);
+  });
+
+  it.each([
+    [
+      402,
+      "Payment Required",
+      JSON.stringify({ message: "AI budget reached" }),
+      "AI budget reached",
+    ],
+    [504, "Gateway Timeout", "<html>Timeout</html>", "the backend returned malformed JSON."],
+  ])("shows the reason of a %i response for a stage", async (status, statusText, body, reason) => {
+    setApiTokenProvider(async () => "token");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockImplementation(async () => new Response(body, { status, statusText })),
+    );
+    handlers.requirements = (input, signal) => aiApi.run("requirements", input, signal);
+    await runPipeline(deps);
+    expect(runState().errors.requirements).toBe(reason);
+    expect(apply).not.toHaveBeenCalled();
+    expect(runState().running).toBe(false);
+  });
+
+  it("shows the whole message of an ApiError without a detail", async () => {
+    handlers.requirements = async () => {
+      throw new ApiError(401, "Sign in to access this workspace.");
+    };
+    await runPipeline(deps);
+    expect(runState().errors.requirements).toBe("Sign in to access this workspace.");
   });
 
   it("falls back to the whole message when an error has no server message", async () => {
