@@ -332,6 +332,7 @@ describe("cloud document lifecycle", () => {
       status: "deleting",
       locked: true,
       transitioning: true,
+      activity: "deleting",
     });
     expect(api.update).not.toHaveBeenCalled();
     await Promise.resolve();
@@ -343,6 +344,7 @@ describe("cloud document lifecycle", () => {
       status: "idle",
       dirty: false,
       locked: false,
+      activity: undefined,
     });
     expect(api.update).not.toHaveBeenCalled();
     expect(api.createVersion).not.toHaveBeenCalled();

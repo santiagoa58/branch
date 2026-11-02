@@ -352,7 +352,7 @@ export function Navbar() {
             cloud.status === "versioning" ||
             cloud.status === "restoring") && <LoadingIndicator className="size-3" />}
           <span className="sr-only whitespace-nowrap lg:not-sr-only">
-            {SAVE_STATUS_LABELS[cloud.status]}
+            {cloud.activity === "deleting" ? "Deleting…" : SAVE_STATUS_LABELS[cloud.status]}
           </span>
         </output>
         <div className="hidden md:flex items-center gap-2 lg:gap-4">

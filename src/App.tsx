@@ -78,7 +78,7 @@ function App() {
           <div className="fixed inset-0 z-90 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
             <LoadingState
               label={
-                cloud.status === "deleting"
+                cloud.activity === "deleting" || cloud.status === "deleting"
                   ? "Deleting diagram…"
                   : cloud.status === "restoring"
                     ? "Restoring version…"

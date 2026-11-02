@@ -32,6 +32,8 @@ export interface CloudState {
   dirty: boolean;
   locked: boolean;
   transitioning: boolean;
+  /** Independent operation intent: an in-flight save must not relabel deletion as versioning. */
+  activity?: "deleting" | undefined;
   message: string | null;
   loadFailure?: LoadFailure | undefined;
   conflict?: SaveConflict | undefined;
@@ -165,7 +167,7 @@ export class CloudPersistence {
     this.transition = true;
     this.cancelTimer();
     this.pending = null;
-    this.set({ status: "deleting", dirty: false, message: null });
+    this.set({ status: "deleting", activity: "deleting", dirty: false, message: null });
     try {
       // Do not send queued writes, but let a write already in flight finish before DELETE.
       await this.saving?.catch(() => {});
@@ -184,6 +186,7 @@ export class CloudPersistence {
           status: draft ? "pending" : oldStatus === "saving" ? "saved" : oldStatus,
           dirty: draft !== null,
           message: null,
+          activity: undefined,
         });
         if (draft) {
           this.timer = setTimeout(() => {
@@ -194,7 +197,7 @@ export class CloudPersistence {
       throw error;
     } finally {
       this.transition = false;
-      this.set({});
+      this.set({ activity: undefined });
     }
   };
   reset = () => {
@@ -213,6 +216,7 @@ export class CloudPersistence {
       message: null,
       loadFailure: undefined,
       conflict: undefined,
+      activity: undefined,
     });
   };
   cancelLoad = () => {
