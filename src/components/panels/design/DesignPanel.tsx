@@ -31,7 +31,10 @@ export function DesignPanel({ tab }: { tab: DesignTabId }) {
     <>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {tab === "brief" && brief && (
-          <section aria-label="Design problem" className="mb-4 rounded-lg border border-border bg-muted/30 p-3">
+          <section
+            aria-label="Design problem"
+            className="mb-4 rounded-lg border border-border bg-muted/30 p-3"
+          >
             <p className="whitespace-pre-wrap wrap-anywhere text-sm text-foreground">
               {brief.inputs.prompt}
             </p>
