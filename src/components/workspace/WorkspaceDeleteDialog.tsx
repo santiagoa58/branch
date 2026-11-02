@@ -9,7 +9,7 @@ interface WorkspaceDeleteDialogProps {
   onCancel: () => void;
   onDelete: (target: WorkspaceDeleteTarget) => void;
   pending?: boolean;
-  errorMessage?: string;
+  errorMessage?: string | undefined;
 }
 
 /** Explicit confirmation before a project or diagram is removed. Dismissal does nothing. */
