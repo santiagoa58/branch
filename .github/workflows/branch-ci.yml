@@ -20,6 +20,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
+      - run: pnpm exec vp check --fix; git diff -- scripts/check-native-dialogs.mjs src/components/ui/ConfirmDialog.tsx src/components/panels/FlowsPanel.test.tsx src/components/ui/ConfirmDialog.test.tsx src/components/ui/TemplateGalleryDialog.tsx src/utils/layout.ts src/utils/layout/elk.ts src/templates/index.ts
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build
