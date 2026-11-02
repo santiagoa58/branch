@@ -482,7 +482,10 @@ describe("group and connection properties", () => {
       targetHandle: "bottom",
       data: { sourceSide: "top", targetSide: "bottom" },
     });
-    act(() => useDiagramStore.getState().hydrateDiagram(saved));
+    act(() => {
+      useDiagramStore.getState().hydrateDiagram(saved);
+      useDiagramStore.getState().setSelectedEdge("edge");
+    });
     expect(screen.getByRole("combobox", { name: "Source side" })).toHaveValue("top");
     expect(screen.getByRole("combobox", { name: "Target side" })).toHaveValue("bottom");
   });
