@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { layoutTemplate, type DiagramTemplate } from "@/templates";
 import type { DiagramData } from "@/types";
 
+interface CachedLayout {
+  source: DiagramTemplate;
+  result: DiagramTemplate;
+}
+
 /** A template's laid-out data once auto-layout has run for it, else null (also on failure). */
 export function useTemplateLayout(template: DiagramTemplate, enabled = true): DiagramData | null {
-  const [laidOut, setLaidOut] = useState<{ source: DiagramTemplate; result: DiagramTemplate } | null>(
-    null,
-  );
+  const [laidOut, setLaidOut] = useState<CachedLayout | null>(null);
   useEffect(() => {
     if (!enabled) {
       return;
