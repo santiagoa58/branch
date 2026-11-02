@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { type NodeProps, NodeResizer, Handle, Position } from "@xyflow/react";
+import { type NodeProps, NodeResizer } from "@xyflow/react";
+import { ConnectionHandles } from "./ConnectionHandles";
 import { cn } from "@/lib/utils";
 import type { GroupNode as GroupFlowNode } from "@/types";
 import { GROUP_TYPES_CONFIG } from "@/constants";
@@ -86,32 +87,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         </div>
 
         {/* Connection handles */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="top"
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="bottom"
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
+        <ConnectionHandles group />
       </div>
     );
   }
@@ -156,32 +132,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         </div>
 
         {/* Connection handles */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="top"
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="bottom"
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
+        <ConnectionHandles group />
       </div>
     </div>
   );

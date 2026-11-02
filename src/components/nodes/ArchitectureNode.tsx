@@ -1,6 +1,7 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { type NodeProps } from "@xyflow/react";
+import { ConnectionHandles } from "./ConnectionHandles";
 import { Icon as IconifyIcon } from "@iconify/react";
 import { cn } from "@/lib/utils";
 import { NODE_TYPES_CONFIG } from "@/constants";
@@ -137,28 +138,7 @@ export const ArchitectureNode = memo(
           </div>
         )}
 
-        {/* Default ports follow the left-to-right layout and come first: React Flow
-            connects an edge without a handle id to the first handle in the DOM. Top and bottom
-            stay available as named ports. */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          title="Input"
-          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          title="Output"
-          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
-        />
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="top"
-          title="Input"
-          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! -top-1! hover:scale-150! transition-transform!"
-        />
+        <ConnectionHandles />
 
         {/* Icon */}
         <div
@@ -270,14 +250,6 @@ export const ArchitectureNode = memo(
             )}
           </div>
         )}
-
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="bottom"
-          title="Output"
-          className="w-2! h-2! rounded-full! bg-zinc-200! dark:bg-zinc-500! border-2! border-white! dark:border-zinc-950! -bottom-1! hover:scale-150! transition-transform!"
-        />
 
         {/* Icon Picker Dialog (via Portal) */}
         {isIconPickerOpen &&
