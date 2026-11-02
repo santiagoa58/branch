@@ -5,6 +5,7 @@ import type { RollupEdgeData, EdgeProtocol } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
 
 import { useDiagramStore } from "@/store/diagramStore";
+import { useEditBlocked } from "@/store/editLock";
 import { useEdgeLabelPosition } from "@/hooks/useEdgeLabelPosition";
 
 /**
@@ -25,6 +26,8 @@ export function RollupEdge({
   const edgeData = data as RollupEdgeData | undefined;
 
   const toggleGroupCollapse = useDiagramStore((s) => s.toggleGroupCollapse);
+  // Expanding the groups is an edit, so it is off while edits are blocked (an AI run).
+  const editBlocked = useEditBlocked();
 
   const [edgePath, preferredLabelX, preferredLabelY] = getBezierPath({
     sourceX,
@@ -78,13 +81,14 @@ export function RollupEdge({
           ref={labelRef}
           type="button"
           onClick={handleExpand}
+          disabled={editBlocked}
           style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             pointerEvents: "all",
           }}
           className={cn(
-            "nodrag nopan flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-pointer transition-colors",
+            "nodrag nopan flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-pointer transition-colors disabled:cursor-default",
             "bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm",
             "border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300",
             "hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400",

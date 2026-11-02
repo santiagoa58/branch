@@ -1,4 +1,4 @@
-// oxlint-disable max-lines -- debt: 863 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 885 lines (limit 450); split the module
 import { create } from "zustand";
 import {
   type Connection,
@@ -177,7 +177,26 @@ function setIfEditable(
   }
 }
 
-// oxlint-disable-next-line max-lines-per-function -- debt: 735 lines; split into smaller units
+/** Selection is not a document edit, so only the cloud lock (a version save or restore) blocks it. */
+function isSelectable() {
+  return !cloudWorkspace.getState().locked;
+}
+
+/**
+ * React Flow changes that only view the document, allowed while an AI run edits it: selection,
+ * and the measured sizes of the nodes the run adds. A resizer's dimension changes carry
+ * `resizing` or `setAttributes`; they are edits.
+ */
+function isViewingChange(change: NodeChange | EdgeChange): boolean {
+  return (
+    change.type === "select" ||
+    (change.type === "dimensions" &&
+      change.resizing === undefined &&
+      change.setAttributes === undefined)
+  );
+}
+
+// oxlint-disable-next-line max-lines-per-function -- debt: 746 lines; split into smaller units
 export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Initial state
   nodes: [],
@@ -193,11 +212,11 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   // Node changes (drag, select, etc.)
   onNodesChange: (changes) => {
     if (useAiDesignStore.getState().running) {
-      // The canvas is locked during an AI run, but React Flow must still report measured sizes
-      // for the nodes the run adds. Everything else stays blocked.
-      const measurements = changes.filter((change) => change.type === "dimensions");
-      if (measurements.length > 0 && !cloudWorkspace.getState().locked) {
-        set((state) => ({ nodes: applyNodeChanges(measurements, state.nodes) }));
+      // Edits are locked during an AI run, but the viewer may still select and inspect nodes,
+      // and React Flow must report measured sizes for the nodes the run adds.
+      const viewing = changes.filter(isViewingChange);
+      if (viewing.length > 0 && isSelectable()) {
+        set((state) => ({ nodes: applyNodeChanges(viewing, state.nodes) }));
       }
       return;
     }
@@ -217,6 +236,14 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
 
   // Edge changes
   onEdgesChange: (changes) => {
+    if (useAiDesignStore.getState().running) {
+      // As for nodes: the viewer may select connections during a run, but not change them.
+      const viewing = changes.filter(isViewingChange);
+      if (viewing.length > 0 && isSelectable()) {
+        set((state) => ({ edges: applyEdgeChanges(viewing, state.edges) }));
+      }
+      return;
+    }
     setIfEditable((state) => ({
       edges: applyEdgeChanges(changes, state.edges),
     }));
@@ -850,12 +877,17 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   },
 
   // Selection
+  // An AI run leaves selection open so its result can be inspected.
   setSelectedNode: (id) => {
-    setIfEditable({ selectedNodeId: id, selectedEdgeId: null });
+    if (isSelectable()) {
+      set({ selectedNodeId: id, selectedEdgeId: null });
+    }
   },
 
   setSelectedEdge: (id) => {
-    setIfEditable({ selectedEdgeId: id, selectedNodeId: null });
+    if (isSelectable()) {
+      set({ selectedEdgeId: id, selectedNodeId: null });
+    }
   },
 
   // Save current state to history
@@ -1069,6 +1101,13 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       brief: next.brief,
       history,
       historyIndex: history.length - 1,
+      // The viewer may have selected something the run has since removed.
+      selectedNodeId: nodes.some((node) => node.id === state.selectedNodeId)
+        ? state.selectedNodeId
+        : null,
+      selectedEdgeId: edges.some((edge) => edge.id === state.selectedEdgeId)
+        ? state.selectedEdgeId
+        : null,
     });
     get().saveDiagram();
   },

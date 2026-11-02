@@ -1,8 +1,9 @@
-// oxlint-disable max-lines -- debt: 845 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 850 lines (limit 450); split the module
 import { useState } from "react";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import { useEditBlocked } from "@/store/editLock";
 import { GROUP_TYPES_CONFIG, DATA_FORMATS, COMMENT_CONFIG, PROTOCOL_CONFIG } from "@/constants";
 import type { GroupNodeType, DataFormat, EdgeProtocol } from "@/types";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ import { NodePropertiesPanel } from "./NodePropertiesPanel";
 import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
 import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
+import { InspectorFields } from "./InspectorFields";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 
 type ProtocolGroup = (typeof PROTOCOL_CONFIG)[EdgeProtocol]["group"];
@@ -48,7 +50,7 @@ for (const protocol of edgeProtocolSchema.options) {
   PROTOCOL_OPTION_GROUPS.set(group, [...(PROTOCOL_OPTION_GROUPS.get(group) ?? []), protocol]);
 }
 
-// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 47, 770 lines; extract branches and split into smaller units
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 47, 773 lines; extract branches and split into smaller units
 export function PropertiesPanel() {
   const {
     nodes,
@@ -67,6 +69,8 @@ export function PropertiesPanel() {
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
   const requireProps = useRequireCondition();
+  // The contract editor is not a form control, so the inspector's fieldset cannot disable it.
+  const editBlocked = useEditBlocked();
 
   // Associate the selected contract side with its edge so changing selection
   // naturally falls back to the request side without an effect-driven reset.
@@ -137,7 +141,7 @@ export function PropertiesPanel() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+          <InspectorFields className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
             {/* Header Section */}
             <div className="flex items-start gap-4">
               <div className={cn("p-3 rounded-lg border", colorConfig.border, colorConfig.bg)}>
@@ -258,7 +262,7 @@ export function PropertiesPanel() {
               <TrashIcon className="w-3 h-3" />
               Delete Comment
             </button>
-          </div>
+          </InspectorFields>
         </aside>
       );
     }
@@ -299,7 +303,7 @@ export function PropertiesPanel() {
             onChange={chooseInspectorTab}
           />
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
+          <InspectorFields className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
             {/* Header Section */}
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/30 dark:bg-zinc-900/30">
@@ -441,7 +445,7 @@ export function PropertiesPanel() {
                 Delete Group
               </button>
             </div>
-          </div>
+          </InspectorFields>
         </aside>
       );
     }
@@ -492,7 +496,7 @@ export function PropertiesPanel() {
           onChange={chooseInspectorTab}
         />
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
+        <InspectorFields className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
           {/* Fields */}
           <div className="space-y-4">
             <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
@@ -799,6 +803,7 @@ export function PropertiesPanel() {
                       format={activeContract?.format || "json"}
                       placeholder={DATA_FORMATS[activeContract?.format || "json"].placeholder}
                       height="180px"
+                      readOnly={editBlocked}
                     />
                     <span className="text-[9px] text-muted-foreground">
                       {DATA_FORMATS[activeContract?.format || "json"].description}
@@ -860,7 +865,7 @@ export function PropertiesPanel() {
               Delete Connection
             </button>
           </div>
-        </div>
+        </InspectorFields>
       </aside>
     );
   }

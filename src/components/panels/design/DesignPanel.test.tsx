@@ -152,7 +152,7 @@ describe("DesignPanel", () => {
     (designTab) => {
       useDiagramStore.setState({ brief: freshBrief(), nodes: [service], edges: [] });
       useUIStore.setState({ designTab });
-      render(<DesignPanel />);
+      render(<DesignPanel />, { wrapper: ReactFlowProvider });
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
       act(() => {
@@ -368,8 +368,9 @@ describe("EditorRightPanel", () => {
     expect(screen.getByRole("complementary", { name: "Properties" })).toBeInTheDocument();
   });
 
+  // A hidden slot stays hidden (the toolbar's run indicator covers it); a closed design panel does not.
   it("shows the run status even when the design panel was closed", () => {
-    useUIStore.setState({ rightPanelVisible: false, designPanelOpen: false });
+    useUIStore.setState({ rightPanelVisible: true, designPanelOpen: false });
     useDiagramStore.setState({ brief: base });
     render(<EditorRightPanel />);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -380,14 +381,35 @@ describe("EditorRightPanel", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Clarifying requirements");
   });
 
-  it("keeps the design panel and its Cancel on screen during a run", async () => {
+  it("shows the design panel and its Cancel during a run, even if it was closed", async () => {
     const user = userEvent.setup();
-    useUIStore.setState({ rightPanelVisible: false });
-    useDiagramStore.setState({ brief: base, selectedNodeId: "api" });
+    useDiagramStore.setState({ brief: base });
     useAiDesignStore.getState().start("d1");
     render(<EditorRightPanel />);
     const panel = screen.getByRole("complementary", { name: "Design with AI" });
     await user.click(within(panel).getByRole("button", { name: "Cancel" }));
     expect(pipeline.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the slot to the inspector for a selection made during a run", () => {
+    useUIStore.getState().openDesignPanel();
+    useDiagramStore.setState({ brief: base });
+    useAiDesignStore.getState().start("d1");
+    render(<EditorRightPanel />);
+    expect(screen.getByRole("complementary", { name: "Design with AI" })).toBeVisible();
+
+    act(() => useDiagramStore.getState().setSelectedNode("api"));
+    expect(screen.getByRole("complementary", { name: "Properties" })).toBeInTheDocument();
+
+    // Closing the inspector returns to the run's progress.
+    act(() => useDiagramStore.getState().setSelectedNode(null));
+    expect(screen.getByRole("complementary", { name: "Design with AI" })).toBeVisible();
+  });
+
+  it("lets a compact screen hide the slot during a run to show the canvas", () => {
+    useUIStore.setState({ rightPanelVisible: false });
+    useAiDesignStore.getState().start("d1");
+    render(<EditorRightPanel />);
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 });

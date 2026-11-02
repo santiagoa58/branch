@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { GroupNode as GroupFlowNode } from "@/types";
 import { GROUP_TYPES_CONFIG } from "@/constants";
 import { useDiagramStore } from "@/store/diagramStore";
+import { useEditBlocked } from "@/store/editLock";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 
 export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<GroupFlowNode>) => {
@@ -12,6 +13,8 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   const isCollapsed = nodeData.collapsed ?? false;
 
   const toggleGroupCollapse = useDiagramStore((state) => state.toggleGroupCollapse);
+  // Resizing and collapsing are edits; both are off while edits are blocked (an AI run).
+  const editBlocked = useEditBlocked();
   // Subscribe to a derived primitive (childCount) instead of the whole nodes
   // array, so this component is not re-rendered on every drag tick.
   const childCount = useDiagramStore((state) =>
@@ -74,6 +77,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
           <button
             type="button"
             onClick={() => toggleGroupCollapse(id)}
+            disabled={editBlocked}
             className="mt-1 p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
             title="Expand group"
           >
@@ -115,11 +119,11 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   // Expanded view - container
   return (
     <div data-node-id={id} className="pointer-events-none w-full h-full">
-      {/* Resizer - only when selected */}
+      {/* Resizer - only when selected and editable */}
       <NodeResizer
         minWidth={200}
         minHeight={150}
-        isVisible={selected}
+        isVisible={selected && !editBlocked}
         lineClassName="!border-zinc-500 pointer-events-auto"
         handleClassName="!w-2.5 !h-2.5 !bg-zinc-300 !border-zinc-950 pointer-events-auto"
       />
@@ -143,6 +147,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
           <button
             type="button"
             onClick={() => toggleGroupCollapse(id)}
+            disabled={editBlocked}
             className="ml-1 p-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
             title="Collapse group"
           >

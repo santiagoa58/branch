@@ -202,6 +202,90 @@ describe("diagramStore brief", () => {
     expect(useDiagramStore.getState().nodes).toHaveLength(1);
   });
 
+  it("lets the viewer select nodes and edges during a run, but not resize or remove them", () => {
+    hydrate();
+    const group: Node = {
+      id: "g",
+      type: "group",
+      position: { x: 0, y: 0 },
+      style: { width: 300, height: 250 },
+      data: { label: "VPC", groupType: "vpc" },
+    };
+    useDiagramStore.setState({
+      nodes: [node("x"), group],
+      edges: [{ id: "e", source: "x", target: "g" }],
+    });
+    useAiDesignStore.getState().start("d1");
+    schedule.mockClear();
+    const { onNodesChange, onEdgesChange, setSelectedNode, setSelectedEdge } =
+      useDiagramStore.getState();
+
+    onNodesChange([
+      { id: "x", type: "select", selected: true },
+      // A group resizer reports dimension changes too; only measurements may pass.
+      {
+        id: "g",
+        type: "dimensions",
+        dimensions: { width: 900, height: 900 },
+        resizing: true,
+        setAttributes: true,
+      },
+      { id: "g", type: "dimensions", dimensions: { width: 900, height: 900 }, resizing: false },
+    ]);
+    setSelectedNode("x");
+    expect(useDiagramStore.getState().nodes.map((entry) => entry.selected)).toEqual([
+      true,
+      undefined,
+    ]);
+    expect(useDiagramStore.getState().nodes[1]).toEqual(group);
+    expect(useDiagramStore.getState().selectedNodeId).toBe("x");
+
+    onEdgesChange([
+      { id: "e", type: "select", selected: true },
+      { id: "e", type: "remove" },
+    ]);
+    setSelectedEdge("e");
+    expect(useDiagramStore.getState().edges).toEqual([
+      { id: "e", source: "x", target: "g", selected: true },
+    ]);
+    expect(useDiagramStore.getState()).toMatchObject({
+      selectedEdgeId: "e",
+      selectedNodeId: null,
+    });
+    // Selection is not a document edit: no history entry and no save.
+    expect(useDiagramStore.getState().history).toHaveLength(1);
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("clears a selection that an AI result removes", () => {
+    hydrate({ brief: briefA });
+    useDiagramStore.setState({ nodes: [node("x"), node("y")] });
+    useAiDesignStore.getState().start("d1");
+    useDiagramStore.getState().setSelectedNode("x");
+
+    useDiagramStore.getState().applyAiResult({ nodes: [node("x")], edges: [], brief: briefB });
+    expect(useDiagramStore.getState().selectedNodeId).toBe("x");
+    useDiagramStore.getState().applyAiResult({ nodes: [node("y")], edges: [], brief: briefB });
+    expect(useDiagramStore.getState().selectedNodeId).toBeNull();
+  });
+
+  it("still blocks selection while the cloud workspace is locked", () => {
+    useDiagramStore.setState({ nodes: [node("x")] });
+    useAiDesignStore.getState().start("d1");
+    const lock = vi.spyOn(cloudWorkspace, "getState").mockReturnValue({
+      ...cloudWorkspace.getState(),
+      locked: true,
+    });
+    try {
+      useDiagramStore.getState().onNodesChange([{ id: "x", type: "select", selected: true }]);
+      useDiagramStore.getState().setSelectedNode("x");
+    } finally {
+      lock.mockRestore();
+    }
+    expect(useDiagramStore.getState().nodes[0]?.selected).toBeUndefined();
+    expect(useDiagramStore.getState().selectedNodeId).toBeNull();
+  });
+
   it("still blocks dimension changes while the cloud workspace is locked", () => {
     useDiagramStore.setState({ nodes: [node("x")] });
     useAiDesignStore.getState().start("d1");

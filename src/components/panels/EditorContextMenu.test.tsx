@@ -22,7 +22,8 @@ const ITEM_NAMES = [
 function renderMenu({
   nodes = [] as Node[],
   hasClipboardContent = false,
-}: { nodes?: Node[]; hasClipboardContent?: boolean } = {}) {
+  editable = true,
+}: { nodes?: Node[]; hasClipboardContent?: boolean; editable?: boolean } = {}) {
   const handlers = {
     onClose: vi.fn<() => void>(),
     onCopy: vi.fn<() => void>(),
@@ -38,6 +39,7 @@ function renderMenu({
       y={80}
       nodes={nodes}
       hasClipboardContent={hasClipboardContent}
+      editable={editable}
       {...handlers}
     />,
   );
@@ -61,6 +63,16 @@ describe("EditorContextMenu", () => {
     for (const name of ITEM_NAMES) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
+  });
+
+  it("offers only the exports while the document cannot be edited", () => {
+    renderMenu({
+      nodes: [node("g", { type: "group", selected: true })],
+      hasClipboardContent: true,
+      editable: false,
+    });
+
+    expect(visibleItems()).toEqual(["Export Selection as SVG", "Export Selection as PNG"]);
   });
 
   it("opens at the given screen position", () => {

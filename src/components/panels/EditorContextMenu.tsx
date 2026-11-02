@@ -18,6 +18,8 @@ interface EditorContextMenuProps {
   y: number;
   nodes: Node[];
   hasClipboardContent: boolean;
+  /** False while edits are blocked (an AI run): only export, which changes nothing, is offered. */
+  editable: boolean;
   onClose: () => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -33,6 +35,7 @@ export function EditorContextMenu({
   y,
   nodes,
   hasClipboardContent,
+  editable,
   onClose,
   onCopy,
   onPaste,
@@ -45,7 +48,7 @@ export function EditorContextMenu({
   const hasSelection = selectedNodes.length > 0;
   const selectedGroups = selectedNodes.filter((n) => n.type === "group");
   // Layer order applies only to a single selected group.
-  const groupNode = selectedGroups.length === 1 ? selectedGroups[0] : undefined;
+  const groupNode = editable && selectedGroups.length === 1 ? selectedGroups[0] : undefined;
 
   return (
     <>
@@ -65,14 +68,14 @@ export function EditorContextMenu({
       >
         <div className="p-1">
           {/* Copy/Paste Section */}
-          {hasSelection && (
+          {editable && hasSelection && (
             <button type="button" onClick={onCopy} className={menuItemClass}>
               <DocumentDuplicateIcon className="w-3.5 h-3.5" />
               Copy
               <span className="ml-auto text-zinc-400 dark:text-zinc-500">Ctrl+C</span>
             </button>
           )}
-          {hasClipboardContent && (
+          {editable && hasClipboardContent && (
             <button type="button" onClick={onPaste} className={menuItemClass}>
               <ClipboardDocumentIcon className="w-3.5 h-3.5" />
               Paste
@@ -80,7 +83,7 @@ export function EditorContextMenu({
             </button>
           )}
           {/* Divider */}
-          {hasSelection && <div className={dividerClass} />}
+          {editable && hasSelection && <div className={dividerClass} />}
           {/* Layer Order Section - only for single selected group */}
           {groupNode && (
             <>

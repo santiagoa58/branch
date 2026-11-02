@@ -21,6 +21,7 @@ import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
 import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
+import { InspectorFields } from "./InspectorFields";
 
 const fieldClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -81,7 +82,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
         value={activeTab}
         onChange={onTabChange}
       />
-      <div className="flex-1 space-y-6 overflow-y-auto p-4">
+      <InspectorFields className="flex-1 space-y-6 overflow-y-auto p-4">
         {activeTab === "design" && (
           <>
             <DesignDecisionEditor
@@ -208,7 +209,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
             </button>
           </div>
         )}
-      </div>
+      </InspectorFields>
       <IconPickerDialog
         key={node.id}
         isOpen={iconPickerOpen}

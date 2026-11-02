@@ -1,4 +1,4 @@
-// oxlint-disable max-lines -- debt: 685 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 705 lines (limit 450); split the module
 import { useCallback, useRef, useEffect, useMemo, type DragEvent, useState } from "react";
 import { ReactFlow, MiniMap, useReactFlow, useStoreApi, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -7,6 +7,7 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useUIStore } from "@/store/uiStore";
+import { editBlockReason, useEditBlocked } from "@/store/editLock";
 
 import { nodeTypes } from "@/components/nodes";
 import { edgeTypes } from "@/components/edges";
@@ -29,6 +30,7 @@ import { NodeDetailPopup } from "@/components/panels/NodeDetailPopup";
 import { CanvasStatusBar } from "@/components/panels/CanvasStatusBar";
 import { SpotlightSearch } from "@/components/panels/SpotlightSearch";
 import { FlowsPanel } from "@/components/panels/FlowsPanel";
+import { AiRunCanvasHint } from "@/components/panels/AiRunCanvasHint";
 import { ImportDialog } from "@/components/ui/ImportDialog";
 import { TemplateGalleryDialog } from "@/components/ui/TemplateGalleryDialog";
 import { LaserPointer } from "@/components/ui/LaserPointer";
@@ -102,7 +104,7 @@ function createPaletteNode(type: PaletteNodeType, position: { x: number; y: numb
   return node;
 }
 
-// oxlint-disable-next-line max-lines-per-function -- debt: 595 lines (limit 200); split into smaller units
+// oxlint-disable-next-line max-lines-per-function -- debt: 613 lines (limit 200); split into smaller units
 export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
   const { screenToFlowPosition, zoomIn, zoomOut, getZoom, getIntersectingNodes } = useReactFlow();
@@ -157,10 +159,16 @@ export function DiagramEditor() {
     sendNodeToBack,
   } = useDiagramStore();
   const aiRunning = useAiDesignStore((state) => state.running);
+  // While edits are blocked (an AI run, a load, pending deletions) the canvas stays viewable:
+  // pan, zoom and selection work, but nothing can be moved, connected, added or removed.
+  const editBlocked = useEditBlocked();
 
   // "Design with AI" shows the design panel in the right-hand slot. Selection gives the slot to the
-  // inspector, so opening the panel clears it.
-  const designPanelShown = useUIStore((state) => state.designPanelOpen && state.rightPanelVisible);
+  // inspector, so opening the panel clears it. During a run the slot shows the panel (its progress
+  // and Cancel) whenever nothing is selected, and the button cannot close it, like its header.
+  const designPanelShown = useUIStore(
+    (state) => state.rightPanelVisible && (state.designPanelOpen || aiRunning),
+  );
   const hasSelection = useDiagramStore(
     (state) => state.selectedNodeId !== null || state.selectedEdgeId !== null,
   );
@@ -169,7 +177,7 @@ export function DiagramEditor() {
     useUIStore.getState().openDesignPanel();
   }, [setSelectedNode]);
   const toggleDesignPanel = () => {
-    if (designPanelShown && !hasSelection) {
+    if (designPanelShown && !hasSelection && !aiRunning) {
       useUIStore.getState().closeDesignPanel();
     } else {
       openDesignPanel();
@@ -199,10 +207,11 @@ export function DiagramEditor() {
         const { nodes: currentNodes, hasClipboardContent: hasClipboardFn } =
           useDiagramStore.getState();
         const hasSelected = currentNodes.some((n) => n.selected);
-        const hasClipboard = hasClipboardFn();
+        // Pasting is an edit, so a blocked document offers it no menu.
+        const canPaste = hasClipboardFn() && editBlockReason() === null;
 
         // Show context menu if there are selected nodes or clipboard has content
-        if (hasSelected || hasClipboard) {
+        if (hasSelected || canPaste) {
           setContextMenu({
             x: e.clientX,
             y: e.clientY,
@@ -244,13 +253,16 @@ export function DiagramEditor() {
   // Handle drag over
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+    event.dataTransfer.dropEffect = editBlockReason() === null ? "move" : "none";
   }, []);
 
   // Handle drop from palette
   const onDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault();
+      if (editBlockReason() !== null) {
+        return;
+      }
 
       const parsedType = paletteNodeTypeSchema.safeParse(
         event.dataTransfer.getData("application/reactflow"),
@@ -495,9 +507,7 @@ export function DiagramEditor() {
       className="flex-1 relative bg-white dark:bg-zinc-950 overflow-hidden"
       data-onboarding-pulse={onboardingActiveStep === "connect-nodes" ? "connect-nodes" : undefined}
     >
-      {/* The canvas is inert while an AI run edits the diagram. */}
-      {/* Panels that must stay usable during a run render as siblings of this wrapper. */}
-      <div className="absolute inset-0 overflow-hidden" inert={aiRunning}>
+      <div className="absolute inset-0 overflow-hidden">
         {/* Grid Background */}
         <div className="absolute inset-0 bg-grid-pattern opacity-50 dark:opacity-60 pointer-events-none z-0" />
 
@@ -508,6 +518,7 @@ export function DiagramEditor() {
             y={contextMenu.y}
             nodes={nodes}
             hasClipboardContent={hasClipboardContent()}
+            editable={!editBlocked}
             onClose={closeContextMenu}
             onCopy={handleCopy}
             onPaste={handlePaste}
@@ -592,11 +603,16 @@ export function DiagramEditor() {
             <ToolbarButton
               className={PHONE_HIDDEN}
               label="Import diagram"
+              disabled={editBlocked}
               onClick={() => setShowImportDialog(true)}
             >
               <FileUp className="size-4" aria-hidden="true" />
             </ToolbarButton>
-            <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
+            <ToolbarButton
+              label="Starter templates"
+              disabled={editBlocked}
+              onClick={() => setShowTemplateGallery(true)}
+            >
               <LayoutTemplate className="size-4" aria-hidden="true" />
             </ToolbarButton>
             <ToolbarButton
@@ -610,6 +626,8 @@ export function DiagramEditor() {
             <ToolbarDivider />
             <ToolbarButton
               label="Simulate requests and failures"
+              // An open panel can still be closed.
+              disabled={editBlocked && !showSimulationPanel}
               showLabel="Simulate"
               shortcut="⇧S"
               active={showSimulationPanel}
@@ -626,6 +644,7 @@ export function DiagramEditor() {
             </ToolbarButton>
             <ToolbarButton
               label="Saved request flows"
+              disabled={editBlocked && !showFlowsPanel}
               active={showFlowsPanel}
               onClick={() => setShowFlowsPanel((v) => !v)}
             >
@@ -643,6 +662,7 @@ export function DiagramEditor() {
           <div className="flex flex-1 basis-0 justify-end">
             <ProtocolLegend />
           </div>
+          <AiRunCanvasHint />
         </div>
 
         {/* Import Dialog */}
@@ -705,6 +725,10 @@ export function DiagramEditor() {
             zoomOnPinch
             multiSelectionKeyCode="Shift"
             deleteKeyCode={null}
+            elementsSelectable
+            nodesDraggable={!editBlocked}
+            nodesConnectable={!editBlocked}
+            edgesReconnectable={!editBlocked}
           >
             <MiniMap
               pannable
@@ -766,8 +790,9 @@ export function DiagramEditor() {
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
+                  disabled={editBlocked}
                   onClick={() => setShowTemplateGallery(true)}
-                  className="text-xs font-medium px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+                  className="text-xs font-medium px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                 >
                   Browse starter templates
                 </button>

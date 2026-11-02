@@ -9,17 +9,20 @@ import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
+import { useEditBlocked } from "@/store/editLock";
 import { getNodeAttributes, formatArchitectureAttribute } from "@/utils/architectureAttributes";
 import { getDocumentedDecision, hasDesignDecision } from "@/utils/designDecision";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 
 export const ArchitectureNode = memo(
-  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 29, 239 lines; extract branches and split into smaller units
+  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 32, 248 lines; extract branches and split into smaller units
   ({ data: nodeData, selected, id }: NodeProps<ArchitectureFlowNode>) => {
     const config = NODE_TYPES_CONFIG[nodeData.type];
     const Icon = config.icon;
 
     const updateNodeData = useDiagramStore((state) => state.updateNodeData);
+    // Double-click editing is off while edits are blocked, such as during an AI run.
+    const editBlocked = useEditBlocked();
 
     // Inline editing state
     const [isEditing, setIsEditing] = useState(false);
@@ -154,7 +157,9 @@ export const ArchitectureNode = memo(
 
           onDoubleClick={(e) => {
             e.stopPropagation();
-            setIsIconPickerOpen(true);
+            if (!editBlocked) {
+              setIsIconPickerOpen(true);
+            }
           }}
           title="Double-click to change icon"
         >
@@ -172,7 +177,7 @@ export const ArchitectureNode = memo(
         {/* Label & Type */}
         <div className="flex flex-col items-center text-center">
           <div className="flex items-center gap-1.5">
-            {isEditing ? (
+            {isEditing && !editBlocked ? (
               <input
                 ref={inputRef}
                 type="text"
@@ -197,10 +202,15 @@ export const ArchitectureNode = memo(
               />
             ) : (
               <span
-                className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 cursor-text"
+                className={cn(
+                  "text-xs font-semibold text-zinc-900 dark:text-zinc-200",
+                  !editBlocked && "cursor-text",
+                )}
                 onDoubleClick={() => {
-                  setEditValue(nodeData.label);
-                  setIsEditing(true);
+                  if (!editBlocked) {
+                    setEditValue(nodeData.label);
+                    setIsEditing(true);
+                  }
                 }}
               >
                 {nodeData.label}
@@ -271,6 +281,7 @@ export const ArchitectureNode = memo(
 
         {/* Icon Picker Dialog (via Portal) */}
         {isIconPickerOpen &&
+          !editBlocked &&
           createPortal(
             <IconPickerDialog
               isOpen={isIconPickerOpen}
