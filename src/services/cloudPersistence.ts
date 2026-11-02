@@ -71,7 +71,6 @@ interface CloudApi {
   createVersion(id: string, expectedRevision: number, label?: string): Promise<ApiDiagramVersion>;
   restoreVersion(id: string, versionId: string, expectedRevision: number): Promise<ApiDiagram>;
 }
-
 /** One active document, one save in flight, no browser document persistence. */
 export class CloudPersistence {
   onDocument?: (diagram: ApiDiagram) => void;

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigation } from "react-router-dom";
 import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, FolderIcon } from "@heroicons/react/24/solid";
-import { projectsApi, type ApiProject } from "@/services/api";
+import { projectsApi, type ApiProject, type ApiWorkspaceProject } from "@/services/api";
 import { deleteDiagramFromWorkspace, deleteProjectFromWorkspace } from "@/services/workspaceDeletion";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
@@ -16,6 +16,14 @@ import {
 } from "@/components/workspace/WorkspaceDeleteDialog";
 import { preloadEditor } from "@/lib/editorRoute";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+function diagramParentId(projects: ApiWorkspaceProject[], diagramId: string): string {
+  const project = projects.find((item) => item.diagrams.some((diagram) => diagram.id === diagramId));
+  if (!project) {
+    throw new Error("The diagram is not in the current workspace.");
+  }
+  return project.id;
+}
 
 function WorkspaceSkeleton() {
   return (
@@ -76,15 +84,8 @@ export function ProjectsPage() {
     onSuccess: () => setDeleteTarget(null),
   });
   const deleteDiagramMutation = useMutation({
-    mutationFn: (id: string) => {
-      const parent = projects.find((project) =>
-        project.diagrams.some((diagram) => diagram.id === id),
-      );
-      if (!parent) {
-        throw new Error("The diagram is not in the current workspace.");
-      }
-      return deleteDiagramFromWorkspace(queryClient, parent.id, id);
-    },
+    mutationFn: (id: string) =>
+      deleteDiagramFromWorkspace(queryClient, diagramParentId(projects, id), id),
     onSuccess: () => setDeleteTarget(null),
   });
   const updateMutation = useMutation({

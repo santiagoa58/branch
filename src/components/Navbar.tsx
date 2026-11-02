@@ -60,21 +60,17 @@ const SAVE_VERSION_BLOCKED = {
   "ai-running": "Wait for the AI design run to finish before saving a version.",
   "deletions-pending": "Wait for deletions to finish before saving a version.",
 } satisfies Record<(typeof VERSION_EDIT_CHECKS)[number], string>;
-
 // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 22, 394 lines; extract branches and split into smaller units
 export function Navbar() {
   const cloud = useCloudWorkspace();
   const diagram = cloud.diagram;
   const { projectId, diagramId } = useParams<{ projectId: string; diagramId: string }>();
   const navigate = useNavigate();
-
   const { data: project } = useQuery({
     ...workspaceQuery.project(projectId ?? ""),
     enabled: Boolean(projectId),
   });
-
   const { undo, redo, canUndo, canRedo } = useDiagramStore();
-
   const { leftPanelVisible, rightPanelVisible, toggleLeftPanel, toggleRightPanel } = useUIStore();
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [isExporting] = useState(false);

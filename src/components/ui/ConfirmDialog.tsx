@@ -38,9 +38,9 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {errorMessage && (
-          <p role="status" className="text-sm text-destructive">
+          <output className="block text-sm text-destructive">
             {errorMessage}
-          </p>
+          </output>
         )}
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
