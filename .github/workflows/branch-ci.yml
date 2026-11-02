@@ -22,7 +22,7 @@ jobs:
       - run: pnpm audit
       - name: Browser ELK worker smoke
         run: |
-          pnpm exec vite --host 127.0.0.1 --port 5173 >/tmp/branch-vite.log 2>&1 &
+          pnpm exec vp dev --host 127.0.0.1 --port 5173 >/tmp/branch-vite.log 2>&1 &
           server=$!
           trap 'kill "$server" || true' EXIT
           for i in $(seq 1 30); do
