@@ -176,6 +176,44 @@ describe("node properties", () => {
     expect(screen.queryByRole("button", { name: "Why" })).not.toBeInTheDocument();
   });
 
+  it("reads decisions and attributes without a form until Edit is requested", () => {
+    useDiagramStore.setState((state) => ({
+      nodes: state.nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          decision,
+          attributes: [{ name: "Cache TTL", value: "60", unit: "s" }],
+        },
+      })),
+    }));
+    render(<PropertiesPanel />);
+
+    const summary = screen.getByRole("region", { name: "Decision" });
+    expect(within(summary).getByText(decision.choice)).toBeVisible();
+    expect(within(summary).getByText(decision.reason)).toBeVisible();
+    expect(within(summary).getByRole("region", { name: "Gains" })).toBeVisible();
+    expect(within(summary).getByRole("region", { name: "Costs" })).toBeVisible();
+    expect(screen.getByText("60 s")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit decision" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Chosen approach" }), {
+      target: { value: "Write-through cache" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Done editing decision" }));
+
+    expect(screen.getByRole("region", { name: "Decision" })).toHaveTextContent(
+      "Write-through cache",
+    );
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
+    expect(useDiagramStore.getState().nodes[0]?.data["decision"]).toMatchObject({
+      ...decision,
+      choice: "Write-through cache",
+    });
+    expect(cloudWorkspace.schedule).toHaveBeenCalled();
+  });
+
   it("keeps valid state when the DOM supplies an unsupported component type", () => {
     render(<PropertiesPanel />);
     chooseSection("Component");
