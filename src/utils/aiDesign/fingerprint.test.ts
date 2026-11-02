@@ -134,7 +134,10 @@ describe("inputsFingerprint", () => {
   it("returns a normalized canonical input signature", () => {
     const parsed = JSON.parse(inputsFingerprint(inputs()));
     expect(parsed.scope).toBe("fullstack");
-    expect(parsed.requirements).toEqual([["functional", "offline"], ["functional", "sync"]]);
+    expect(parsed.requirements).toEqual([
+      ["functional", "offline"],
+      ["functional", "sync"],
+    ]);
   });
 });
 
@@ -298,8 +301,8 @@ describe("resultFingerprint", () => {
     ));
 });
 
-// Saved diagrams store these strings in `brief.ranFrom`. A change here marks every saved stage as
-// outdated, so these values must never change.
+// Saved diagrams may have legacy hashed fingerprints. On this version transition they are
+// conservatively marked outdated and regenerated rather than reusing potentially stale outputs.
 describe("golden fingerprints", () => {
   const goldenInputs: Inputs = {
     prompt: "  A Notes App\twith  Sync  ",
@@ -336,9 +339,35 @@ describe("golden fingerprints", () => {
     { id: "e3", source: "api", target: "db" },
   ];
 
-  it("pins the inputs fingerprint", () =>
-    expect(inputsFingerprint(goldenInputs)).toBe("e20bf09b96329"));
+  it("normalizes the stored input values", () => {
+    expect(JSON.parse(inputsFingerprint(goldenInputs))).toEqual({
+      prompt: "a notes app with sync",
+      scope: "fullstack",
+      requirements: [
+        ["constraint", "postgres only"],
+        ["functional", "sync across devices"],
+        ["nonFunctional", "works offline"],
+      ],
+      outOfScope: ["admin ui", "billing"],
+      answers: [
+        ["how many users?", "1m", false],
+        ["which region?", "eu", true],
+      ],
+    });
+  });
 
-  it("pins the graph fingerprint", () =>
-    expect(graphFingerprint(goldenNodes, goldenEdges)).toBe("1df01456eb3c3b"));
+  it("canonicalizes graph structure without node or edge positions", () => {
+    expect(JSON.parse(graphFingerprint(goldenNodes, goldenEdges))).toEqual({
+      nodes: [
+        ["api", "api-gateway", "vpc"],
+        ["db", "database", ""],
+        ["vpc", "vpc", ""],
+      ],
+      edges: [
+        ["api", "db", "", false],
+        ["api", "db", "tcp", false],
+        ["db", "api", "kafka", true],
+      ],
+    });
+  });
 });

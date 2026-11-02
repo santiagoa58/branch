@@ -146,4 +146,3 @@ describe("stage prompts", () => {
   it("every stage has a prompt builder", () =>
     expect(Object.keys(stagePrompts).sort()).toEqual([...aiStageSchema.options].sort()));
 });
-

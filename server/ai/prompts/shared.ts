@@ -14,7 +14,7 @@ const SCOPE_DEFINITIONS: Record<Scope, string> = {
 
 export const SYSTEM_PREAMBLE = [
   "You are a senior engineer answering a system design interview.",
-  "Return only the structured JSON object specified by the output schema supplied with the request, without commentary or extra fields.",
+  "Return JSON matching the supplied structured output schema. No commentary or extra fields.",
   "Design only for the given requirements. Do not add features nobody asked for, and never design anything listed as out of scope.",
   "Respect the scope:",
   ...Object.entries(SCOPE_DEFINITIONS).map(([scope, definition]) => `- ${scope}: ${definition}.`),
@@ -69,4 +69,3 @@ export function formatGraph(graph: ApiInput["graph"]): string {
     ),
   );
 }
-

@@ -9,7 +9,7 @@ const PIPELINE: readonly PipelineStage[] = ["requirements", "components", "decis
 // Canonical JSON avoids maintaining a custom hash and cannot collide.
 const signature = (value: unknown): string => JSON.stringify(value);
 
-/** Sorts rows by their serialized form so list order never changes the hash. */
+/** Sorts rows by their serialized form so list order never changes the signature. */
 function sortRows<T>(rows: T[]): T[] {
   return rows
     .map((row) => ({ key: JSON.stringify(row), row }))
@@ -19,14 +19,14 @@ function sortRows<T>(rows: T[]): T[] {
 
 export function inputsFingerprint(inputs: DesignBrief["inputs"]): string {
   return signature({
-      prompt: normalizeText(inputs.prompt),
-      scope: inputs.scope,
-      requirements: sortRows(inputs.requirements.map((r) => [r.kind, normalizeText(r.text)])),
-      outOfScope: inputs.outOfScope.map((o) => normalizeText(o.text)).sort(),
-      answers: sortRows(
-        inputs.answers.map((a) => [normalizeText(a.question), normalizeText(a.answer), a.assumed]),
-      ),
-    });
+    prompt: normalizeText(inputs.prompt),
+    scope: inputs.scope,
+    requirements: sortRows(inputs.requirements.map((r) => [r.kind, normalizeText(r.text)])),
+    outOfScope: inputs.outOfScope.map((o) => normalizeText(o.text)).sort(),
+    answers: sortRows(
+      inputs.answers.map((a) => [normalizeText(a.question), normalizeText(a.answer), a.assumed]),
+    ),
+  });
 }
 
 function nodeRow(node: Node): [string, string, string] | undefined {

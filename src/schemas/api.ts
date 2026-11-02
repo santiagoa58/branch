@@ -10,9 +10,6 @@ export const apiProjectSchema = z.strictObject({
   updatedAt: z.string(),
 });
 
-/** Project list and detail share the same contract. */
-export const apiProjectSummarySchema = apiProjectSchema;
-
 export const apiDiagramSchema = z.strictObject({
   id: z.string(),
   projectId: z.string(),
@@ -81,7 +78,7 @@ export const apiErrorBodySchema = z.strictObject({
   message: z.string(),
 });
 
-export const apiProjectListSchema = z.array(apiProjectSummarySchema);
+export const apiProjectListSchema = z.array(apiProjectSchema);
 export const apiDiagramSummaryListSchema = z.array(apiDiagramSummarySchema);
 const apiWorkspaceProjectSchema = apiProjectSchema.extend({
   diagrams: apiDiagramSummaryListSchema,

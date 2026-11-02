@@ -1,11 +1,5 @@
 import type { DecisionsInput } from "../../../src/schemas/aiDesign";
-import {
-  formatContext,
-  joinSections,
-  section,
-  DESIGN_PREAMBLE,
-  type StagePrompt,
-} from "./shared";
+import { formatContext, joinSections, section, DESIGN_PREAMBLE, type StagePrompt } from "./shared";
 
 type Neighbours = DecisionsInput["neighbours"];
 

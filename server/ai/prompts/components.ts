@@ -4,13 +4,7 @@ import {
   edgeProtocolSchema,
   groupNodeTypeSchema,
 } from "../../../src/schemas/catalogEnums";
-import {
-  formatContext,
-  joinSections,
-  section,
-  DESIGN_PREAMBLE,
-  type StagePrompt,
-} from "./shared";
+import { formatContext, joinSections, section, DESIGN_PREAMBLE, type StagePrompt } from "./shared";
 
 function previousKeysSection(previousKeys: string[]): string {
   return section("Previous component keys:", previousKeys);
