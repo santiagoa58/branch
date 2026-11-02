@@ -80,18 +80,16 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
       />
       <InspectorFields className="flex-1 space-y-6 overflow-y-auto p-4">
         {activeTab === "design" && (
-          <>
-            <DecisionInspector
-              key={node.id}
-              value={data.decision}
-              onChange={(decision) => updateNodeData(node.id, { decision })}
-              nodeId={node.id}
-              attributes={getNodeAttributes(data)}
-              onAttributesChange={(attributes) =>
-                updateNodeData(node.id, { attributes, metadata: {} })
-              }
-            />
-          </>
+          <DecisionInspector
+            key={node.id}
+            value={data.decision}
+            onChange={(decision) => updateNodeData(node.id, { decision })}
+            nodeId={node.id}
+            attributes={getNodeAttributes(data)}
+            onAttributesChange={(attributes) =>
+              updateNodeData(node.id, { attributes, metadata: {} })
+            }
+          />
         )}
         {activeTab === "basics" && (
           <div className="space-y-4">
