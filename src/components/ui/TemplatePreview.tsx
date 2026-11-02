@@ -4,6 +4,7 @@ import type { ArchitectureNodeType, DiagramData } from "@/types";
 import type { DiagramTemplate } from "@/templates";
 import { useTemplateLayout } from "@/hooks/useTemplateLayout";
 import { cn } from "@/lib/utils";
+import { absoluteRects } from "@/utils/layout/geometry";
 import { NODE_TYPES_CONFIG } from "@/constants";
 
 /**
@@ -11,10 +12,6 @@ import { NODE_TYPES_CONFIG } from "@/constants";
  * node blocks and edge lines. Generated from the data itself, so previews
  * never go stale when a template changes.
  */
-
-// Approximate rendered footprint of an architecture node on the canvas.
-const NODE_W = 150;
-const NODE_H = 90;
 
 interface TemplatePreviewProps {
   template: DiagramTemplate;
@@ -27,26 +24,10 @@ function buildPreview(data: DiagramData) {
   const nodes = data.nodes as Node[];
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
-  const absPos = (node: Node): { x: number; y: number } => {
-    let { x, y } = node.position;
-    let current = node;
-    while (current.parentId) {
-      const parent = nodeById.get(current.parentId);
-      if (!parent) {
-        break;
-      }
-      x += parent.position.x;
-      y += parent.position.y;
-      current = parent;
-    }
-    return { x, y };
-  };
-
+  const rects = absoluteRects(nodes);
   const bounds = (node: Node) => {
-    const pos = absPos(node);
-    const w = node.type === "group" ? (node.style?.width as number) || 300 : NODE_W;
-    const h = node.type === "group" ? (node.style?.height as number) || 250 : NODE_H;
-    return { ...pos, w, h };
+    const rect = rects.get(node.id)!;
+    return { x: rect.x, y: rect.y, w: rect.width, h: rect.height };
   };
 
   const groups = nodes.filter((n) => n.type === "group").map((n) => ({ id: n.id, ...bounds(n) }));

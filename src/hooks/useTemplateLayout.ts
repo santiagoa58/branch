@@ -4,7 +4,9 @@ import type { DiagramData } from "@/types";
 
 /** A template's laid-out data once auto-layout has run for it, else null (also on failure). */
 export function useTemplateLayout(template: DiagramTemplate, enabled = true): DiagramData | null {
-  const [laidOut, setLaidOut] = useState<DiagramTemplate | null>(null);
+  const [laidOut, setLaidOut] = useState<{ source: DiagramTemplate; result: DiagramTemplate } | null>(
+    null,
+  );
   useEffect(() => {
     if (!enabled) {
       return;
@@ -13,7 +15,7 @@ export function useTemplateLayout(template: DiagramTemplate, enabled = true): Di
     layoutTemplate(template)
       .then((result) => {
         if (active) {
-          setLaidOut(result);
+          setLaidOut({ source: template, result });
         }
       })
       .catch(() => {
@@ -23,5 +25,5 @@ export function useTemplateLayout(template: DiagramTemplate, enabled = true): Di
       active = false;
     };
   }, [template, enabled]);
-  return enabled && laidOut?.id === template.id ? laidOut.data : null;
+  return enabled && laidOut?.source === template ? laidOut.result.data : null;
 }
