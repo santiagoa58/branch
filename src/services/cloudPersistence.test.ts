@@ -297,7 +297,7 @@ describe("cloud document lifecycle", () => {
     expect(hydrate).toHaveBeenLastCalledWith(diagramDataSchema.parse(edited));
     expect(cloud.getState()).toMatchObject({ status: "saved", diagram: { revision: 3 } });
   });
-  it("holds a transition lock through flush and the asynchronous action, even across reset", async () => {
+  it("holds a transition lock through flush, async action and reset", async () => {
     await cloud.load("a");
     cloud.schedule(edited);
     const save = deferred<ApiDiagram>();
