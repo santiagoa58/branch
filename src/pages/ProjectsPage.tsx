@@ -9,6 +9,7 @@ import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
+import { WorkspaceDeleteDialog, type WorkspaceDeleteTarget } from "@/components/workspace/WorkspaceDeleteDialog";
 import { preloadEditor } from "@/lib/editorRoute";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -44,6 +45,7 @@ export function ProjectsPage() {
   const [diagramProject, setDiagramProject] = useState<ApiProject | null>(null);
   const [editingProject, setEditingProject] = useState<ApiProject | null>(null);
   const [projectName, setProjectName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceDeleteTarget | null>(null);
   const [search, setSearch] = useState("");
 
   const { data, isLoading, isError, refetch, dataUpdatedAt } = useQuery(workspaceQuery.root());
@@ -282,12 +284,14 @@ export function ProjectsPage() {
                     <button
                       type="button"
                       disabled={deleteMutation.isPending}
-                      onClick={() => {
-                        // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
-                        if (confirm(`Delete project "${project.name}" and all its diagrams?`)) {
-                          deleteMutation.mutate(project.id);
-                        }
-                      }}
+                      onClick={() =>
+                        setDeleteTarget({
+                          kind: "project",
+                          id: project.id,
+                          name: project.name,
+                          diagramCount: project.diagrams.length,
+                        })
+                      }
                       aria-label={`Delete ${project.name}`}
                       className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
                     >
@@ -352,12 +356,13 @@ export function ProjectsPage() {
                         <button
                           type="button"
                           disabled={deleteDiagramMutation.isPending}
-                          onClick={() => {
-                            // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
-                            if (confirm(`Delete diagram "${diagram.name}"?`)) {
-                              deleteDiagramMutation.mutate(diagram.id);
-                            }
-                          }}
+                          onClick={() =>
+                            setDeleteTarget({
+                              kind: "diagram",
+                              id: diagram.id,
+                              name: diagram.name,
+                            })
+                          }
                           aria-label={`Delete diagram ${diagram.name}`}
                           className="mr-3 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
                         >
@@ -372,6 +377,17 @@ export function ProjectsPage() {
           </div>
         )}
       </main>
+      <WorkspaceDeleteDialog
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onDelete={(item) => {
+          if (item.kind === "project") {
+            deleteMutation.mutate(item.id);
+          } else {
+            deleteDiagramMutation.mutate(item.id);
+          }
+        }}
+      />
       {createOpen && <CreateProjectDialog onClose={() => setCreateOpen(false)} />}
       {diagramProject && (
         <CreateDiagramDialog

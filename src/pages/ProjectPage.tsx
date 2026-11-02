@@ -9,6 +9,7 @@ import { DocumentIcon } from "@heroicons/react/24/solid";
 import { diagramsApi, type ApiDiagramSummary } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
+import { WorkspaceDeleteDialog, type WorkspaceDeleteTarget } from "@/components/workspace/WorkspaceDeleteDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function ProjectPage() {
@@ -17,6 +18,7 @@ export function ProjectPage() {
   const queryClient = useQueryClient();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceDeleteTarget | null>(null);
 
   const { data: project, isError: projectError } = useQuery({
     ...workspaceQuery.project(projectId ?? ""),
@@ -162,11 +164,10 @@ export function ProjectPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
-                      if (confirm(`Delete diagram "${diagram.name}"?`)) {
-                        deleteMutation.mutate(diagram.id);
-                      }
+                      setDeleteTarget({ kind: "diagram", id: diagram.id, name: diagram.name });
                     }}
+                    aria-label={`Delete diagram ${diagram.name}`}
+                    disabled={deleteMutation.isPending}
                     className="p-1.5 rounded-md bg-white/80 dark:bg-zinc-900/80 hover:bg-red-50 dark:hover:bg-red-950 text-zinc-400 hover:text-red-500"
                   >
                     <TrashIcon className="w-3.5 h-3.5" />
@@ -181,6 +182,11 @@ export function ProjectPage() {
       {createOpen && projectId && (
         <CreateDiagramDialog projectId={projectId} onClose={() => setCreateOpen(false)} />
       )}
+      <WorkspaceDeleteDialog
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onDelete={(item) => deleteMutation.mutate(item.id)}
+      />
     </div>
   );
 }
