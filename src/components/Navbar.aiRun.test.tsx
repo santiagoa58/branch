@@ -48,6 +48,22 @@ describe("version controls during an AI run", () => {
     expect(save).toBeEnabled();
   });
 
+  it("shows the run's stage and progress in the toolbar until the run ends", () => {
+    mount();
+    expect(screen.queryByRole("button", { name: "Cancel AI design run" })).not.toBeInTheDocument();
+
+    act(() => {
+      useAiDesignStore.getState().start("d1");
+      useAiDesignStore.getState().setStage("decisions");
+      useAiDesignStore.getState().setDecisionProgress(3, 9);
+    });
+    expect(screen.getByText("Explaining decisions 3/9")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel AI design run" }));
+    expect(useAiDesignStore.getState().running).toBe(false);
+    expect(screen.queryByText("Explaining decisions 3/9")).not.toBeInTheDocument();
+  });
+
   it("disables the Save version item in the More menu during a run", () => {
     act(() => {
       useAiDesignStore.getState().start("d1");

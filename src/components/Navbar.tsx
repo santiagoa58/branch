@@ -33,6 +33,7 @@ import { AccountControls } from "@/components/CloudAuth";
 import { Brand } from "@/components/Brand";
 import { notify } from "@/services/notify";
 import { VersionsPanel } from "@/components/panels/VersionsPanel";
+import { AiRunIndicator } from "@/components/panels/design/RunStatus";
 import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -178,6 +179,9 @@ export function Navbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-4">
+        {/* AI design run: stage, elapsed time and Cancel, whether or not the panel is open */}
+        <AiRunIndicator />
+
         {/* Panel Toggles */}
         <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Components panel">

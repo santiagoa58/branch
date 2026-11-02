@@ -1,8 +1,8 @@
-// oxlint-disable max-lines -- debt: 456 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 484 lines (limit 450); split the module
 import type { Edge, Node } from "@xyflow/react";
 import type { AiStage, DesignBrief, StageInput, StageOutput } from "@/schemas/aiDesign";
 import { aiStageSchema } from "@/schemas/aiDesign";
-import { aiApi, ApiError } from "@/services/api";
+import { AI_TIMEOUT_MESSAGE, aiApi, AiTimeoutError, ApiError } from "@/services/api";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { notify } from "@/services/notify";
 import { useAiDesignStore, type AiDesignState } from "@/store/aiDesignStore";
@@ -55,7 +55,7 @@ export interface PipelineDeps {
   undo: () => void;
 }
 
-type Outcome<T> = { ok: true; value: T } | { ok: false; message: string | null };
+type Outcome<T> = { ok: true; value: T } | { ok: false; message: string | null; timedOut: boolean };
 
 /** The reason a request failed (`ApiError.detail`), else the error's whole message. */
 function errorMessage(error: unknown): string {
@@ -127,7 +127,13 @@ function beginRun(deps: PipelineDeps, stages: readonly AiStage[]): Session | nul
       try {
         return { ok: true, value: await deps.api.run(stage, input, signal) };
       } catch (error) {
-        return { ok: false, message: current() ? errorMessage(error) : null };
+        // A cancel, a newer run or leaving the diagram ends the run (`current()` is null), so its
+        // failures are not errors. A request timeout leaves the run's own signal live: it is one.
+        return {
+          ok: false,
+          message: current() ? errorMessage(error) : null,
+          timedOut: error instanceof AiTimeoutError,
+        };
       }
     },
     fail: (stage, message) => {
@@ -186,6 +192,7 @@ async function runDecisions(
   });
   let done = 0;
   let failed = 0;
+  let timedOut = false;
   deps.run.setDecisionProgress(0, inputs.length);
   await forEachLimited(inputs, concurrency, async (input) => {
     if (!session.current()) {
@@ -198,6 +205,7 @@ async function runDecisions(
     }
     if (!result.ok) {
       failed += 1;
+      timedOut ||= result.timedOut;
       return;
     }
     deps.apply({
@@ -212,7 +220,8 @@ async function runDecisions(
     return;
   }
   if (failed > 0) {
-    deps.run.setError("decisions", `Reasoning failed for ${failed} components`);
+    const reason = timedOut ? `. ${AI_TIMEOUT_MESSAGE}` : "";
+    deps.run.setError("decisions", `Reasoning failed for ${failed} components${reason}`);
     return;
   }
   deps.apply({
@@ -239,6 +248,32 @@ async function runApi(
   if (latest) {
     deps.apply({ brief: applyApi(latest.brief, result.value, ranFrom) });
   }
+}
+
+/**
+ * Stages 3 and 4, concurrently; both record the graph they ran against. The run shows reasoning
+ * while it runs, then the API if that is still going.
+ */
+async function runResultStages(
+  deps: PipelineDeps,
+  session: Session,
+  base: LiveDiagram,
+  plan: { decisions: boolean; api: boolean; concurrency: number },
+): Promise<void> {
+  const ranFrom = resultFingerprint(base.brief, base.nodes, base.edges);
+  deps.run.setStage(plan.decisions ? "decisions" : "api");
+  let apiPending = plan.api;
+  const decisions = async () => {
+    await runDecisions(deps, session, base, ranFrom, plan.concurrency);
+    if (apiPending && session.current()) {
+      deps.run.setStage("api");
+    }
+  };
+  const api = async () => {
+    await runApi(deps, session, base, ranFrom);
+    apiPending = false;
+  };
+  await Promise.all([plan.decisions ? decisions() : undefined, plan.api ? api() : undefined]);
 }
 
 /** Highlights `ids`, then clears them unless something else has taken over the highlight. */
@@ -398,21 +433,11 @@ export async function runPipeline(
       return;
     }
     if (runDecisionsStage || runApiStage) {
-      // Both stages record the graph they ran against.
-      const ranFrom = resultFingerprint(base.brief, base.nodes, base.edges);
-      deps.run.setStage(runDecisionsStage ? "decisions" : "api");
-      await Promise.all([
-        runDecisionsStage
-          ? runDecisions(
-              deps,
-              session,
-              base,
-              ranFrom,
-              options.decisionConcurrency ?? DEFAULT_DECISION_CONCURRENCY,
-            )
-          : undefined,
-        runApiStage ? runApi(deps, session, base, ranFrom) : undefined,
-      ]);
+      await runResultStages(deps, session, base, {
+        decisions: runDecisionsStage,
+        api: runApiStage,
+        concurrency: options.decisionConcurrency ?? DEFAULT_DECISION_CONCURRENCY,
+      });
     }
     if (designed.change && session.current()) {
       summarizeChange(deps, designed.change.before, designed.change.after);
@@ -515,18 +540,32 @@ function storeDeps(): PipelineDeps {
   };
 }
 
+/** The latest run started, which `restart` starts again. Ephemeral, like the run state. */
+let lastRun: (() => Promise<void>) | null = null;
+const launch = (run: () => Promise<void>) => {
+  lastRun = run;
+  return run();
+};
+
 const pipeline = {
-  update: () => runPipeline(storeDeps()),
-  regenerateDecision: (nodeId: string) => runDecision(storeDeps(), nodeId),
-  generateDataModel: () => runDataModel(storeDeps()),
+  update: () => launch(() => runPipeline(storeDeps())),
+  regenerateDecision: (nodeId: string) => launch(() => runDecision(storeDeps(), nodeId)),
+  generateDataModel: () => launch(() => runDataModel(storeDeps())),
   /**
    * Clears the stage's error and runs again. `nextStages` already starts at the first out-of-date
    * stage; the data model is never part of an update, so its retry runs it directly.
    */
   retry: (stage: AiStage) => {
     useAiDesignStore.getState().setError(stage, null);
-    return stage === "data-model" ? runDataModel(storeDeps()) : runPipeline(storeDeps());
+    return launch(() =>
+      stage === "data-model" ? runDataModel(storeDeps()) : runPipeline(storeDeps()),
+    );
   },
+  /**
+   * Starts the latest run again, replacing it if it is still in flight: the Retry of a stalled
+   * stage. A new run aborts the old one's requests, so none of its late results apply.
+   */
+  restart: () => lastRun?.() ?? Promise.resolve(),
   cancel: () => useAiDesignStore.getState().cancel(),
 };
 
@@ -535,6 +574,7 @@ export function useDesignPipeline(): {
   regenerateDecision(nodeId: string): Promise<void>;
   generateDataModel(): Promise<void>;
   retry(stage: AiStage): Promise<void>;
+  restart(): Promise<void>;
   cancel(): void;
 } {
   // Leaving the diagram cancels the run from always-mounted code: the diagram store's

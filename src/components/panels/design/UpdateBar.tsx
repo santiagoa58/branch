@@ -8,6 +8,7 @@ import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { PipelineStage } from "@/utils/aiDesign/fingerprint";
 import { keyedByText } from "@/lib/keyedByText";
+import { RunStatus } from "./RunStatus";
 import { useOutdatedStages } from "./useOutdatedStages";
 
 /** How each stage is named in the panel. */
@@ -64,9 +65,8 @@ export function UpdateBar() {
   );
 }
 
-/** The stepper shown while a run is in progress, with Cancel. */
+/** Shown while a run is in progress: its status (with Cancel) above the stepper. */
 export function RunProgress() {
-  const pipeline = useDesignPipeline();
   const stage = useAiDesignStore((state) => state.stage);
   const planned = useAiDesignStore((state) => state.plannedStages);
   const decisions = useAiDesignStore((state) => state.decisions);
@@ -82,6 +82,7 @@ export function RunProgress() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <RunStatus />
       <ol aria-label="Design progress" className="flex flex-col gap-2.5">
         {steps.map((step, index) => {
           const done = index < current;
@@ -119,9 +120,6 @@ export function RunProgress() {
           );
         })}
       </ol>
-      <Button variant="outline" className="self-start" onClick={() => pipeline.cancel()}>
-        Cancel
-      </Button>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import type { AiStage, DesignBrief } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
-import { useUIStore } from "@/store/uiStore";
+import { useUIStore, type DesignTabId } from "@/store/uiStore";
 import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import { EditorRightPanel } from "../EditorRightPanel";
 import { DesignPanel } from "./DesignPanel";
@@ -145,6 +145,30 @@ describe("DesignPanel", () => {
     expect(screen.queryByRole("navigation", { name: "Design sections" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close design panel" })).toBeDisabled();
   });
+
+  it.each<DesignTabId>(["brief", "design", "api", "dataModel"])(
+    "shows the run status during a run started from the %s tab, until it ends",
+    (designTab) => {
+      useDiagramStore.setState({ brief: freshBrief(), nodes: [service], edges: [] });
+      useUIStore.setState({ designTab });
+      render(<DesignPanel />);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      act(() => {
+        useAiDesignStore.getState().start("d1");
+        useAiDesignStore.getState().setStage("decisions");
+        useAiDesignStore.getState().setDecisionProgress(12, 40);
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Explaining decisions 12/40");
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+      act(() => {
+        useAiDesignStore.getState().finish();
+      });
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(useUIStore.getState().designTab).toBe(designTab);
+    },
+  );
 
   it("closes from its header", async () => {
     const user = userEvent.setup();
@@ -341,6 +365,18 @@ describe("EditorRightPanel", () => {
   it("shows the inspector when the design panel is closed", () => {
     render(<EditorRightPanel />);
     expect(screen.getByRole("complementary", { name: "Properties" })).toBeInTheDocument();
+  });
+
+  it("shows the run status even when the design panel was closed", () => {
+    useUIStore.setState({ rightPanelVisible: false, designPanelOpen: false });
+    useDiagramStore.setState({ brief: base });
+    render(<EditorRightPanel />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    act(() => {
+      useAiDesignStore.getState().start("d1");
+      useAiDesignStore.getState().setStage("requirements");
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Clarifying requirements");
   });
 
   it("keeps the design panel and its Cancel on screen during a run", async () => {

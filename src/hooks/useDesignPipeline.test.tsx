@@ -11,7 +11,7 @@ import type {
   StageOutput,
 } from "@/schemas/aiDesign";
 import { MAX_HISTORY_LENGTH } from "@/constants";
-import { aiApi } from "@/services/api/ai";
+import { AI_TIMEOUT_MESSAGE, aiApi } from "@/services/api/ai";
 import { setApiTokenProvider } from "@/services/api/auth";
 import { ApiError } from "@/services/api/errors";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
@@ -588,6 +588,83 @@ describe("runPipeline", () => {
     expect(notify.success).not.toHaveBeenCalled();
   });
 
+  describe("request timeout", () => {
+    /** A request through the real client, whose fetch hangs until its signal aborts. */
+    const hangingRequest =
+      <S extends AiStage>(stage: S) =>
+      (input: StageInput<S>, signal: AbortSignal) =>
+        aiApi.run(stage, input, signal, 5);
+
+    beforeEach(() => {
+      setApiTokenProvider(async () => "token");
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn<typeof fetch>()
+          .mockImplementation((_input, init) =>
+            untilAborted(init?.signal ?? new AbortController().signal),
+          ),
+      );
+    });
+
+    it("records a timed-out stage as an error the user can retry", async () => {
+      handlers.requirements = hangingRequest("requirements");
+      await runPipeline(deps);
+      expect(runState().errors.requirements).toBe(AI_TIMEOUT_MESSAGE);
+      expect(runState().running).toBe(false);
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("says so when reasoning requests timed out", async () => {
+      current.nodes = existingNodes();
+      current.edges = existingEdges();
+      current.brief = graphOnlyBrief();
+      handlers.decisions = hangingRequest("decisions");
+      await runPipeline(deps);
+      expect(runState().errors.decisions).toBe(
+        `Reasoning failed for 3 components. ${AI_TIMEOUT_MESSAGE}`,
+      );
+    });
+
+    it("records no error when the user cancels a request in flight", async () => {
+      handlers.requirements = (input, signal) => aiApi.run("requirements", input, signal);
+      const pipeline = runPipeline(deps);
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+      useAiDesignStore.getState().cancel();
+      await pipeline;
+      expect(runState().errors).toEqual({});
+      expect(runState().running).toBe(false);
+    });
+  });
+
+  it("moves on to the API stage once reasoning finishes while the API is still running", async () => {
+    current.nodes = existingNodes();
+    current.edges = existingEdges();
+    current.brief = graphOnlyBrief();
+    let releaseApi = () => {};
+    const apiGate = new Promise<void>((resolve) => {
+      releaseApi = resolve;
+    });
+    handlers.api = async () => {
+      await apiGate;
+      return apiOutput;
+    };
+    const seen: (AiStage | null)[] = [];
+    const unsubscribe = useAiDesignStore.subscribe(({ stage }) => {
+      if (seen.at(-1) !== stage) {
+        seen.push(stage);
+      }
+    });
+    const pipeline = runPipeline(deps);
+    await vi.waitFor(() => expect(runState().decisions).toEqual({ done: 3, total: 3 }));
+    await vi.waitFor(() => expect(runState().stage).toBe("api"));
+    expect(runState().running).toBe(true);
+    releaseApi();
+    await pipeline;
+    unsubscribe();
+    expect(seen).toEqual([null, "decisions", "api", null]);
+  });
+
   it("does not end a newer run that replaced it", async () => {
     handlers.requirements = async (_input, signal) => untilAborted(signal);
     const first = runPipeline(deps);
@@ -987,6 +1064,50 @@ describe("useDesignPipeline", () => {
     const { result } = renderHook(() => useDesignPipeline());
     // No diagram is open, so nothing runs; only the error is cleared.
     await result.current.retry("api");
+    expect(runState().errors).toEqual({});
+  });
+
+  it("restart runs the same kind of run again, replacing the one in flight", async () => {
+    vi.spyOn(cloudWorkspace, "getState").mockReturnValue({
+      ...cloudWorkspace.getState(),
+      diagram: {
+        id: "d1",
+        projectId: "p1",
+        name: "D1",
+        description: null,
+        thumbnail: null,
+        data: { nodes: [], edges: [] },
+        revision: 1,
+        version: 0,
+        createdAt: "today",
+        updatedAt: "today",
+      },
+    });
+    useDiagramStore.setState(useDiagramStore.getInitialState());
+    useDiagramStore.getState().hydrateDiagram({
+      nodes: existingNodes(),
+      edges: existingEdges(),
+      flows: [],
+      brief: graphOnlyBrief(),
+    });
+    const signals: AbortSignal[] = [];
+    const stages: AiStage[] = [];
+    vi.spyOn(aiApi, "run").mockImplementation(async (stage, _input, signal) => {
+      stages.push(stage);
+      signals.push(signal);
+      return untilAborted(signal);
+    });
+    const { result } = renderHook(() => useDesignPipeline());
+
+    const first = result.current.generateDataModel();
+    await vi.waitFor(() => expect(stages).toEqual(["data-model"]));
+    const second = result.current.restart();
+    await vi.waitFor(() => expect(stages).toEqual(["data-model", "data-model"]));
+    expect(signals[0]?.aborted).toBe(true);
+    expect(runState().running).toBe(true);
+
+    result.current.cancel();
+    await Promise.all([first, second]);
     expect(runState().errors).toEqual({});
   });
 });

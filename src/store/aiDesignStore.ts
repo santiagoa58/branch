@@ -11,6 +11,10 @@ export interface AiDesignState {
   /** The stages this run will go through, in order; set by the pipeline as the run starts. */
   plannedStages: AiStage[];
   decisions: { done: number; total: number };
+  /** `Date.now()` when the current stage (or the run, before its first stage) began. */
+  stageStartedAt: number | null;
+  /** `Date.now()` of the run's latest progress: a stage change or a finished decision. */
+  progressAt: number | null;
   warnings: string[];
   errors: Partial<Record<AiStage, string>>;
   controller: AbortController | null;
@@ -31,7 +35,7 @@ export interface AiDesignState {
   setLastChange: (change: AiDesignState["lastChange"]) => void;
   /** Replaces the highlighted node ids; an empty list clears them. */
   setHighlight: (ids: readonly string[]) => void;
-  /** running=false, controller=null, stage=null. */
+  /** running=false, controller=null, stage=null; clears the run's timestamps. */
   finish: () => void;
   /** Abort the controller, then finish. */
   cancel: () => void;
@@ -42,6 +46,8 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
   stage: null,
   plannedStages: [],
   decisions: { done: 0, total: 0 },
+  stageStartedAt: null,
+  progressAt: null,
   warnings: [],
   errors: {},
   controller: null,
@@ -54,11 +60,14 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
     // A new run replaces any run still in flight.
     get().controller?.abort();
     const controller = new AbortController();
+    const now = Date.now();
     set((state) => ({
       running: true,
       stage: null,
       plannedStages: [],
       decisions: { done: 0, total: 0 },
+      stageStartedAt: now,
+      progressAt: now,
       warnings: [],
       errors: {},
       controller,
@@ -70,11 +79,16 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
     return controller.signal;
   },
 
-  setStage: (stage) => set({ stage }),
+  setStage: (stage) => {
+    if (stage !== get().stage) {
+      const now = Date.now();
+      set({ stage, stageStartedAt: now, progressAt: now });
+    }
+  },
 
   setPlannedStages: (stages) => set({ plannedStages: [...stages] }),
 
-  setDecisionProgress: (done, total) => set({ decisions: { done, total } }),
+  setDecisionProgress: (done, total) => set({ decisions: { done, total }, progressAt: Date.now() }),
 
   addWarnings: (warnings) => {
     if (warnings.length > 0) {
@@ -92,7 +106,8 @@ export const useAiDesignStore = create<AiDesignState>((set, get) => ({
 
   setHighlight: (ids) => set({ highlight: new Set(ids) }),
 
-  finish: () => set({ running: false, controller: null, stage: null }),
+  finish: () =>
+    set({ running: false, controller: null, stage: null, stageStartedAt: null, progressAt: null }),
 
   cancel: () => {
     get().controller?.abort();

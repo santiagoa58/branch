@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import type { DecisionsInput, RequirementsInput } from "@/schemas/aiDesign";
-import { aiApi } from "./ai";
+import { AI_REQUEST_TIMEOUT_MS, AI_TIMEOUT_MESSAGE, AiTimeoutError, aiApi } from "./ai";
 import { ApiError, ApiResponseValidationError } from "./errors";
 import { setApiTokenProvider } from "./auth";
 
@@ -45,6 +45,14 @@ const validDecisionsOutput = {
   revisitWhen: [],
 };
 
+/** Settles only when the request's signal aborts, the way fetch does. */
+const untilAborted = (_input: RequestInfo | URL, init?: RequestInit) =>
+  new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () =>
+      reject(new DOMException("Aborted", "AbortError")),
+    );
+  });
+
 describe("aiApi.run", () => {
   it("posts to /api/ai/<stage> and returns the validated output", async () => {
     setApiTokenProvider(async () => "token");
@@ -63,7 +71,9 @@ describe("aiApi.run", () => {
     expect(path).toBe("/api/ai/requirements");
     expect(options?.method).toBe("POST");
     expect(options?.body).toBe(JSON.stringify(requirementsInput));
-    expect(options?.signal).toBe(controller.signal);
+    // The request gets its own signal, which the run's signal and the timeout both abort.
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+    expect(options?.signal?.aborted).toBe(false);
     expect(new Headers(options?.headers).get("authorization")).toBe("Bearer token");
     expect(new Headers(options?.headers).get("content-type")).toBe("application/json");
   });
@@ -128,5 +138,68 @@ describe("aiApi.run", () => {
       aiApi.run("requirements", requirementsInput, controller.signal),
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("aborts the request when the run is cancelled mid-flight, without a timeout error", async () => {
+    setApiTokenProvider(async () => "token");
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(untilAborted);
+    vi.stubGlobal("fetch", fetcher);
+    const controller = new AbortController();
+
+    const request = aiApi.run("requirements", requirementsInput, controller.signal);
+    const settled = request.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+    controller.abort();
+
+    const error = await settled;
+    expect(error).toMatchObject({ name: "AbortError" });
+    expect(error).not.toBeInstanceOf(AiTimeoutError);
+  });
+
+  describe("timeout", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("gives up after the request timeout with a timeout error, not a cancel", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      setApiTokenProvider(async () => "token");
+      const fetcher = vi.fn<typeof fetch>().mockImplementation(untilAborted);
+      vi.stubGlobal("fetch", fetcher);
+      const controller = new AbortController();
+
+      const request = aiApi.run("requirements", requirementsInput, controller.signal);
+      const settled = request.catch((error: unknown) => error);
+      // Settles the token lookup without moving the clock (`vi.waitFor` would advance it).
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetcher).toHaveBeenCalledOnce();
+      const requestSignal = fetcher.mock.calls[0]?.[1]?.signal;
+      await vi.advanceTimersByTimeAsync(AI_REQUEST_TIMEOUT_MS - 1);
+      expect(requestSignal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+
+      const error = await settled;
+      expect(error).toBeInstanceOf(AiTimeoutError);
+      expect(error).toHaveProperty("message", AI_TIMEOUT_MESSAGE);
+      expect(requestSignal?.aborted).toBe(true);
+      // The run was not cancelled: the pipeline reports the timeout as a stage error.
+      expect(controller.signal.aborted).toBe(false);
+    });
+
+    it("clears its timer once the request settles", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      setApiTokenProvider(async () => "token");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(requirementsOutput))),
+      );
+
+      await aiApi.run("requirements", requirementsInput, new AbortController().signal);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("sits comfortably above the 300 s platform function limit", () => {
+      expect(AI_REQUEST_TIMEOUT_MS).toBeGreaterThanOrEqual(330_000);
+    });
   });
 });
