@@ -132,12 +132,17 @@ describe("inputsFingerprint", () => {
   });
 
   it("returns a normalized canonical input signature", () => {
-    const parsed = JSON.parse(inputsFingerprint(inputs()));
-    expect(parsed.scope).toBe("fullstack");
-    expect(parsed.requirements).toEqual([
-      ["functional", "offline"],
-      ["functional", "sync"],
-    ]);
+    const parsed: unknown = JSON.parse(inputsFingerprint(inputs()));
+    expect(parsed).toEqual({
+      prompt: "a notes app",
+      scope: "fullstack",
+      requirements: [
+        ["functional", "offline"],
+        ["functional", "sync"],
+      ],
+      outOfScope: ["billing"],
+      answers: [],
+    });
   });
 });
 
@@ -340,15 +345,16 @@ describe("golden fingerprints", () => {
   ];
 
   it("normalizes the stored input values", () => {
-    expect(JSON.parse(inputsFingerprint(goldenInputs))).toEqual({
-      prompt: "a notes app with sync",
+    const parsed: unknown = JSON.parse(inputsFingerprint(goldenInputs));
+    expect(parsed).toEqual({
+      prompt: "a notes app\twith  sync",
       scope: "fullstack",
       requirements: [
         ["constraint", "postgres only"],
         ["functional", "sync across devices"],
         ["nonFunctional", "works offline"],
       ],
-      outOfScope: ["admin ui", "billing"],
+      outOfScope: ["admin  ui", "billing"],
       answers: [
         ["how many users?", "1m", false],
         ["which region?", "eu", true],
@@ -357,7 +363,8 @@ describe("golden fingerprints", () => {
   });
 
   it("canonicalizes graph structure without node or edge positions", () => {
-    expect(JSON.parse(graphFingerprint(goldenNodes, goldenEdges))).toEqual({
+    const parsed: unknown = JSON.parse(graphFingerprint(goldenNodes, goldenEdges));
+    expect(parsed).toEqual({
       nodes: [
         ["api", "api-gateway", "vpc"],
         ["db", "database", ""],

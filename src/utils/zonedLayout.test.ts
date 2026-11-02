@@ -306,9 +306,7 @@ describe("zoned auto layout", () => {
     const result = await autoLayoutDiagram(nodes, edges);
     const elapsed = performance.now() - started;
     // Shared CI runners with coverage instrumentation are not reliable benchmarks.
-    if (!process.env["CI"]) {
-      expect(elapsed).toBeLessThan(1000);
-    }
+    expect(Boolean(process.env["CI"]) || elapsed < 1000).toBe(true);
     expect(result.nodes).toHaveLength(60);
     expectZonesInOrder(result.nodes);
     expectWellFormed(result.nodes);
