@@ -80,5 +80,6 @@ coverage/
 
 .neon
 
-# Prompts written by pnpm eval:prompts
+# Local planning and evaluation scratch files
+/docs/superpowers/plans/
 .superpowers/eval-prompts/

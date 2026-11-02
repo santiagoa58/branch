@@ -88,7 +88,7 @@ needs no edit.
 - `hooks/` — `useSimulationAnimation`, `useChaosSimulation`, `useEdgeAnimation`,
   `useDestroyAnimation`.
 - `services/api.ts` + `services/api/` — backend client, including the AI stage calls (`services/api/ai.ts`).
-- `server/ai/` — AI design stage prompts, model selection, examples and prompt evaluation.
+- `server/ai/` — AI design stage prompts, model selection, test fixtures and prompt evaluation.
 
 ## Cloud persistence and deployment
 

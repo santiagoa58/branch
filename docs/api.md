@@ -64,4 +64,4 @@ Spend and request rate are controlled in Vercel, not in application code.
 
 ### Prompt evaluation
 
-`pnpm eval:ai` runs the stage prompts against the live gateway; it needs `.env.local` with the AI variables above. `pnpm eval:prompts` writes the built prompts to `.superpowers/eval-prompts/` without calling a model. Results are recorded in `server/ai/eval/RESULTS.md`.
+`pnpm eval:ai` runs the evaluation fixtures against a live AI Gateway model. Configure the AI variables in `.env.local`; the command prints each stage’s latency and input/output byte counts. Only live gateway runs establish actual model quality or latency.

@@ -78,7 +78,7 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 
 - **Staged pipeline** — A design is generated in stages: requirements, then components, then decisions and API, with a data model on demand. Each stage regenerates its whole output from its inputs.
 - **Server-side AI** — Calls go through `POST /api/ai/:stage` to the Vercel AI Gateway. The gateway key lives only in server environment variables; spend is controlled by AI Gateway budgets. See [docs/api.md](docs/api.md) for setup.
-- **Prompt evaluation** — `pnpm eval:ai` runs the prompts against the gateway and `pnpm eval:prompts` dumps the built prompts; see `server/ai/eval/RESULTS.md`.
+- **Prompt evaluation** — `pnpm eval:ai` runs the prompt evaluation cases against the configured live AI Gateway model and reports results.
 
 ### Cloud Workspace
 
