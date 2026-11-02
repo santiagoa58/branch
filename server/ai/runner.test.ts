@@ -276,12 +276,12 @@ describe("createGatewayRunner with the AI SDK", () => {
   }
 
   it.each(aiStageSchema.options)(
-    "sends the %s output JSON Schema in the system prompt and accepts output that matches it",
+    "sends the %s structured output schema to the SDK without embedding it in the system prompt",
     async (stage) => {
       const { model, expectedSystem } = await runCase(stage, cases[stage]);
       const system = systemOf(model.doGenerateCalls[0]);
       expect(system).toBe(expectedSystem);
-      expect(system).toMatch(/structured JSON object/);
+      expect(system).toMatch(/structured output schema/);
       expect(system).not.toContain('"additionalProperties":false');
     },
   );
@@ -332,7 +332,7 @@ describe("createGatewayRunner with the AI SDK", () => {
       ).resolves.toEqual(stage1Output);
       expect(model.doGenerateCalls).toHaveLength(2);
       const [first, retry] = model.doGenerateCalls;
-      expect(systemOf(first)).toMatch(/structured JSON object/);
+      expect(systemOf(first)).toMatch(/structured output schema/);
       expect(systemOf(retry)).toBe(systemOf(first));
       const retryText = userTextOf(retry);
       expect(retryText).toMatch(/Your previous output was invalid: .*questions\[0\]\.why/);
