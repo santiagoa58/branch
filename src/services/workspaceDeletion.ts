@@ -52,9 +52,17 @@ export async function deleteProjectFromWorkspace(
   await projectsApi.delete(projectId);
   const rootKey = workspaceQuery.root().queryKey;
   await client.cancelQueries({ queryKey: rootKey });
+  const removed = client
+    .getQueryData<ApiWorkspaceProject[]>(rootKey)
+    ?.find((project) => project.id === projectId);
   client.setQueryData<ApiWorkspaceProject[]>(rootKey, (projects) =>
     projects?.filter((project) => project.id !== projectId),
   );
+  for (const diagram of removed?.diagrams ?? []) {
+    client.removeQueries({ queryKey: ["diagrams", diagram.id], exact: true });
+    client.removeQueries({ queryKey: ["versions", diagram.id] });
+    client.removeQueries({ queryKey: ["version-full", diagram.id] });
+  }
   client.removeQueries({ queryKey: workspaceQuery.project(projectId).queryKey });
   client.removeQueries({ queryKey: workspaceQuery.diagrams(projectId).queryKey });
   await client.invalidateQueries({ queryKey: ["projects"], refetchType: "none" });
