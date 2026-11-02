@@ -60,14 +60,14 @@ describe("browser ELK worker", () => {
   it("rejects a stalled worker and terminates it rather than loading forever", async () => {
     worker.layout.mockImplementation(() => new Promise<ElkNode>(() => {}));
     const { layoutSiblings } = await import("./elk");
+    vi.useFakeTimers();
     const pending = layoutSiblings(boxes, [], true);
-    await vi.waitFor(() => expect(worker.layout).toHaveBeenCalledOnce());
     const settled = pending.then(
       () => "resolved",
       (error: unknown) => error,
     );
-    vi.useFakeTimers();
     await vi.advanceTimersByTimeAsync(12_001);
+    expect(worker.layout).toHaveBeenCalledOnce();
     expect(await settled).toMatchObject({ message: expect.stringMatching(/layout timed out/i) });
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
