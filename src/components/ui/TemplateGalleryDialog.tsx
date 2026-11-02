@@ -70,10 +70,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     const instance = instantiateTemplate(template);
     let finalData = instance;
     if (mode === "add") {
-      const current = exportDiagram();
-      finalData = appendDiagramData(current, instance, { x: 120, y: 120 });
-      // appendDiagramData only merges nodes/edges — carry the flows over too.
-      finalData.flows = [...(current.flows ?? []), ...(instance.flows ?? [])];
+      finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
     }
     importDiagram(finalData);
     notify.success({

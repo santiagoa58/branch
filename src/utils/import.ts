@@ -1,6 +1,8 @@
-// oxlint-disable max-lines -- debt: 503 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: 538 lines (limit 450); split the module
 import type { ArchitectureEdge, ArchitectureNodeType, DiagramData, DiagramNode } from "@/types";
+import type { NamedFlow } from "@/types/simulation";
 import { NODE_TYPES_CONFIG } from "@/constants";
+import { orderParentsFirst } from "@/lib/nodeHierarchy";
 import { parseDecisionRows } from "@/utils/designDecision";
 import {
   architectureAttributeSchema,
@@ -100,70 +102,104 @@ export function parseJSON(jsonString: string): ImportResult {
   }
 }
 
-// Merge diagrams (append nodes/edges with new IDs to avoid conflicts)
+interface Offset {
+  x: number;
+  y: number;
+}
+
+/** Top-level nodes move by the offset; a child keeps its position relative to its parent. */
+function offsetTopLevel(node: DiagramNode, offset: Offset): DiagramNode {
+  if (node.parentId !== undefined) {
+    return node;
+  }
+  return { ...node, position: { x: node.position.x + offset.x, y: node.position.y + offset.y } };
+}
+
+/** The current flows followed by the imported ones; no `flows` key when neither diagram has any. */
+function combinedFlows(
+  current: DiagramData,
+  importedFlows: NamedFlow[] | undefined,
+): Pick<DiagramData, "flows"> {
+  if (current.flows === undefined && importedFlows === undefined) {
+    return {};
+  }
+  return { flows: [...(current.flows ?? []), ...(importedFlows ?? [])] };
+}
+
+// Merge diagrams: imported nodes, edges and flows join the current document under fresh ids.
 export function mergeDiagramData(
   current: DiagramData,
   imported: DiagramData,
-  offset = { x: 100, y: 100 },
+  offset: Offset = { x: 100, y: 100 },
 ): DiagramData {
-  // Generate ID mapping for imported nodes
-  const idMapping = new Map<string, string>();
-  imported.nodes.forEach((node) => {
-    idMapping.set(node.id, `imported-${Date.now()}-${node.id}`);
-  });
+  const stamp = Date.now();
+  const fresh = (id: string) => `imported-${stamp}-${id}`;
+  const nodeIds = new Map(imported.nodes.map((node) => [node.id, fresh(node.id)]));
+  const edgeIds = new Map(imported.edges.map((edge) => [edge.id, fresh(edge.id)]));
+  const nodeId = (id: string) => nodeIds.get(id) ?? id;
+  const edgeId = (id: string) => edgeIds.get(id) ?? id;
 
-  // Transform imported nodes
   const transformedNodes: DiagramNode[] = imported.nodes.map((node) => {
     const dataParentId = node.data["parentId"];
-    const mappedParentId =
-      typeof dataParentId === "string" ? idMapping.get(dataParentId) : undefined;
-
-    return {
-      ...node,
-      id: idMapping.get(node.id) ?? node.id,
-      position: {
-        x: node.position.x + offset.x,
-        y: node.position.y + offset.y,
+    return offsetTopLevel(
+      {
+        ...node,
+        id: nodeId(node.id),
+        ...(node.parentId === undefined ? {} : { parentId: nodeId(node.parentId) }),
+        ...(typeof dataParentId === "string"
+          ? { data: { ...node.data, parentId: nodeId(dataParentId) } }
+          : {}),
       },
-      ...(mappedParentId ? { data: { ...node.data, parentId: mappedParentId } } : {}),
+      offset,
+    );
+  });
+
+  const transformedEdges: ArchitectureEdge[] = imported.edges.map((edge) => ({
+    ...edge,
+    id: edgeId(edge.id),
+    source: nodeId(edge.source),
+    target: nodeId(edge.target),
+  }));
+
+  // Flows follow their nodes and edges; an id the current document already uses is freshened.
+  const flowIds = new Set(current.flows?.map((flow) => flow.id));
+  const transformedFlows = imported.flows?.map((flow): NamedFlow => {
+    let id = flow.id;
+    for (let attempt = 1; flowIds.has(id); attempt++) {
+      id = attempt === 1 ? fresh(flow.id) : `${fresh(flow.id)}-${attempt}`;
+    }
+    flowIds.add(id);
+    return {
+      ...flow,
+      id,
+      sourceNodeId: nodeId(flow.sourceNodeId),
+      ...(flow.edgeIds ? { edgeIds: flow.edgeIds.map(edgeId) } : {}),
     };
   });
 
-  // Transform imported edges
-  const transformedEdges: ArchitectureEdge[] = imported.edges.map((edge) => ({
-    ...edge,
-    id: `imported-${Date.now()}-${edge.id}`,
-    source: idMapping.get(edge.source) || edge.source,
-    target: idMapping.get(edge.target) || edge.target,
-  }));
-
   return {
-    nodes: [...current.nodes, ...transformedNodes],
+    nodes: orderParentsFirst([...current.nodes, ...transformedNodes]),
     edges: [...current.edges, ...transformedEdges],
+    ...combinedFlows(current, transformedFlows),
     ...(current.viewport ? { viewport: current.viewport } : {}),
     // Merging adds content to the current document, so it keeps the current brief.
     ...(current.brief ? { brief: current.brief } : {}),
   };
 }
 
-// Append diagram data (similar to merge but simpler - just adds new content)
+// Append diagram data: like merge, but the imported ids (and so its flows) are kept as they are.
 export function appendDiagramData(
   current: DiagramData,
   imported: DiagramData,
-  offset = { x: 100, y: 100 },
+  offset: Offset = { x: 100, y: 100 },
 ): DiagramData {
-  // Offset all imported nodes
-  const offsetNodes: DiagramNode[] = imported.nodes.map((node) => ({
-    ...node,
-    position: {
-      x: node.position.x + offset.x,
-      y: node.position.y + offset.y,
-    },
-  }));
-
   return {
-    nodes: [...current.nodes, ...offsetNodes],
+    nodes: orderParentsFirst([
+      ...current.nodes,
+      ...imported.nodes.map((node) => offsetTopLevel(node, offset)),
+    ]),
     edges: [...current.edges, ...imported.edges],
+    ...combinedFlows(current, imported.flows),
     ...(current.viewport ? { viewport: current.viewport } : {}),
     // Appending adds content to the current document, so it keeps the current brief.
     ...(current.brief ? { brief: current.brief } : {}),
