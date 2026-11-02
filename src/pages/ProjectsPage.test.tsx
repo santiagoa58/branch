@@ -530,7 +530,7 @@ describe("unified workspace home", () => {
     expect(screen.queryByRole("region", { name: checkout.name })).not.toBeInTheDocument();
   });
 
-  it("deletes the selected project and refreshes the workspace", async () => {
+  it("deletes the selected project and updates workspace cache immediately", async () => {
     vi.mocked(projectsApi.delete).mockResolvedValue(undefined);
     vi.mocked(projectsApi.workspace)
       .mockResolvedValueOnce(workspace)
@@ -550,7 +550,8 @@ describe("unified workspace home", () => {
     );
     expect(vi.mocked(projectsApi.delete).mock.calls[0]?.[0]).toBe(platform.id);
     expect(projectsApi.delete).toHaveBeenCalledTimes(1);
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["projects"] });
+    expect(client.getQueryData(workspaceQuery.root().queryKey)).toEqual([checkout, emptyProject]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["projects"], refetchType: "none" });
     expect(screen.getByRole("region", { name: checkout.name })).toBeVisible();
     expect(router.state.location.pathname).toBe("/");
   });
@@ -576,11 +577,39 @@ describe("unified workspace home", () => {
     expect(vi.mocked(diagramsApi.delete).mock.calls[0]?.[0]).toBe("events");
     expect(diagramsApi.delete).toHaveBeenCalledTimes(1);
     expect(projectsApi.delete).not.toHaveBeenCalled();
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["projects"] });
+    expect(client.getQueryData(workspaceQuery.root().queryKey)).toEqual([
+      checkout,
+      { ...platform, diagrams: [] },
+      emptyProject,
+    ]);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["projects"], refetchType: "none" });
     expect(
       within(screen.getByRole("region", { name: platform.name })).getByText(/No diagrams yet/),
     ).toBeVisible();
     expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("keeps the confirmation and item visible until deletion completes", async () => {
+    let finish!: () => void;
+    vi.mocked(diagramsApi.delete).mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { user } = renderWorkspace();
+    await screen.findByRole("link", { name: "Open Event pipeline" });
+    await user.click(screen.getByRole("button", { name: "Delete diagram Event pipeline" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete diagram?" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete diagram" }));
+    expect(within(dialog).getByRole("button", { name: "Deleting…" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Open Event pipeline" })).toBeVisible();
+
+    await act(async () => {
+      finish();
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("link", { name: "Open Event pipeline" })).not.toBeInTheDocument();
   });
 
   it.each(["Delete Platform", "Delete diagram Event pipeline"])(
