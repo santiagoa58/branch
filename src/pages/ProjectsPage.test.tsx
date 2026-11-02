@@ -604,7 +604,9 @@ describe("unified workspace home", () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete diagram" }));
     expect(within(dialog).getByRole("button", { name: "Deleting…" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Open Event pipeline" })).toBeVisible();
+    // Modal dialogs make the page inert and hide its links from the accessibility tree.
+    // Assert the card is still rendered while the request is pending.
+    expect(document.querySelector('a[aria-label="Open Event pipeline"]')).toBeInTheDocument();
 
     await act(async () => {
       finish();
