@@ -105,12 +105,68 @@ describe("development runtime runner", () => {
     expect(process.listenerCount("SIGTERM")).toBe(terminateListeners);
   });
 
+  it.each([undefined, ""])(
+    "starts without AI settings (%j) and forwards none of them",
+    async (value) => {
+      for (const name of [
+        "AI_GATEWAY_API_KEY",
+        "AI_MODEL",
+        "AI_MODEL_REQUIREMENTS",
+        "AI_MODEL_COMPONENTS",
+        "AI_MODEL_DECISIONS",
+        "AI_MODEL_API",
+        "AI_MODEL_DATA_MODEL",
+      ]) {
+        vi.stubEnv(name, value);
+      }
+
+      await runDev();
+
+      expect(writeFile).toHaveBeenCalledWith(
+        configPath,
+        JSON.stringify({
+          ...vercelConfig,
+          env: {
+            DATABASE_URL: "postgresql://db.example/branch-test",
+            CLERK_SECRET_KEY: "test-secret",
+            VITE_CLERK_PUBLISHABLE_KEY: "test-public",
+            CLERK_AUTHORIZED_PARTIES: "http://localhost:3000,https://branch.test",
+          },
+        }),
+        { mode: 0o600 },
+      );
+      expect(spawn).toHaveBeenCalledOnce();
+      expect(process.exitCode).toBe(0);
+    },
+  );
+
+  it("forwards a stage override without a default model", async () => {
+    vi.stubEnv("AI_MODEL", undefined);
+
+    await runDev();
+
+    expect(writeFile).toHaveBeenCalledWith(
+      configPath,
+      JSON.stringify({
+        ...vercelConfig,
+        env: {
+          DATABASE_URL: "postgresql://db.example/branch-test",
+          CLERK_SECRET_KEY: "test-secret",
+          VITE_CLERK_PUBLISHABLE_KEY: "test-public",
+          CLERK_AUTHORIZED_PARTIES: "http://localhost:3000,https://branch.test",
+          AI_GATEWAY_API_KEY: "test-gateway-key",
+          AI_MODEL_API: "provider/api",
+        },
+      }),
+      { mode: 0o600 },
+    );
+  });
+
   it.each([
     ["DATABASE_URL", "not-a-url"],
     ["CLERK_SECRET_KEY", undefined],
     ["VITE_CLERK_PUBLISHABLE_KEY", undefined],
     ["CLERK_AUTHORIZED_PARTIES", "not-an-origin"],
-    ["AI_MODEL", undefined],
   ])("rejects invalid %s before writing settings or spawning Vercel", async (name, value) => {
     vi.stubEnv(name, value);
 

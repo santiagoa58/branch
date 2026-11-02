@@ -28,6 +28,11 @@ export const aiEnvSchema = z.object({
   AI_MODEL_DATA_MODEL: optionalSetting,
 });
 export type AiEnv = z.infer<typeof aiEnvSchema>;
+/**
+ * The AI settings `pnpm dev` forwards: only those that are set, so the dev server starts without
+ * them. The runtime still requires `AI_MODEL` (aiEnvSchema), so without it the AI routes return 502.
+ */
+export const devAiEnvSchema = aiEnvSchema.extend({ AI_MODEL: optionalSetting });
 const routeIdSchema = z.uuid();
 
 export const projectRouteParamsSchema = z.strictObject({ projectId: routeIdSchema });

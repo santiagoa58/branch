@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test";
 import { APICallError } from "ai";
 import { GatewayInternalServerError } from "@ai-sdk/gateway";
 import { apiErrorBodySchema } from "../src/schemas/api";
@@ -7,7 +7,7 @@ import { createHandler } from "./handler";
 import { WorkspaceRepository, type Database } from "./repository";
 import { MAX_BODY_BYTES } from "./http/body";
 import type { AiStage } from "../src/schemas/aiDesign";
-import { StageOutputTooLargeError, type AiStageRunner } from "./ai/runner";
+import { createGatewayRunner, StageOutputTooLargeError, type AiStageRunner } from "./ai/runner";
 
 const run =
   vi.fn<(stage: AiStage, input: unknown, owner: string, signal: AbortSignal) => Promise<unknown>>();
@@ -152,5 +152,40 @@ describe("POST /api/ai/:stage", () => {
       expect(response.status).toBe(405);
     }
     expect(run).not.toHaveBeenCalled();
+  });
+});
+
+describe("without an AI model configured", () => {
+  const unconfigured = createHandler({
+    authenticate: async () => "alice",
+    repository: new WorkspaceRepository({
+      query: vi.fn<Database["query"]>().mockResolvedValue({ rows: [], rowCount: 0 }),
+      transaction: async () => {
+        throw new Error("unused");
+      },
+    }),
+    ai: createGatewayRunner(),
+  });
+  const request = (path: string, init?: RequestInit) =>
+    unconfigured(new Request(`https://branch.test/api${path}`, init));
+
+  beforeEach(() => vi.stubEnv("AI_MODEL", undefined));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("answers an AI stage with 502", async () => {
+    const response = await request("/ai/requirements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(valid),
+    });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      message: "The AI service is unavailable. Please retry.",
+    });
+  });
+  it("leaves the rest of the API working", async () => {
+    const response = await request("/workspace");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([]);
   });
 });
