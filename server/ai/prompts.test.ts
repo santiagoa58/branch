@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { describe, it, expect } from "vite-plus/test";
+import { z } from "zod";
 import {
   aiStageSchema,
+  stageContracts,
+  type AiStage,
   type ApiInput,
   type ComponentsInput,
   type DataModelInput,
@@ -122,4 +125,75 @@ describe("stage prompts", () => {
   });
   it("every stage has a prompt builder", () =>
     expect(Object.keys(stagePrompts).sort()).toEqual([...aiStageSchema.options].sort()));
+});
+
+// Every key path of a JSON Schema, marked optional or required, with its enum values. Comparing
+// these catches a prompt that shows a stale, partial or missing output shape.
+function shapeOf(schema: unknown, path = "$"): string[] {
+  const node = z
+    .looseObject({
+      properties: z.record(z.string(), z.unknown()).optional(),
+      required: z.array(z.string()).optional(),
+      items: z.unknown().optional(),
+      additionalProperties: z.unknown().optional(),
+      enum: z.array(z.unknown()).optional(),
+    })
+    .parse(schema);
+  const required = new Set(node.required);
+  return [
+    ...(node.enum ? [`${path} in ${JSON.stringify(node.enum)}`] : []),
+    ...(node.additionalProperties === false ? [`${path} closed`] : []),
+    ...Object.entries(node.properties ?? {}).flatMap(([key, value]) => [
+      `${path}.${key}${required.has(key) ? "" : "?"}`,
+      ...shapeOf(value, `${path}.${key}`),
+    ]),
+    ...(node.items === undefined ? [] : shapeOf(node.items, `${path}[]`)),
+    ...(typeof node.additionalProperties === "object"
+      ? shapeOf(node.additionalProperties, `${path}{}`)
+      : []),
+  ];
+}
+
+// The JSON Schema shown in a system prompt: the first line that parses as a JSON object with
+// "properties".
+function schemaIn(system: string): unknown {
+  for (const line of system.split("\n")) {
+    const parsed = z
+      .looseObject({ type: z.literal("object"), properties: z.record(z.string(), z.unknown()) })
+      .safeParse(line.startsWith("{") ? JSON.parse(line) : undefined);
+    if (parsed.success) {
+      return parsed.data;
+    }
+  }
+  return undefined;
+}
+
+describe("stage output schema in the system prompt", () => {
+  const systems: Record<AiStage, string> = {
+    requirements: stagePrompts.requirements(stage1Input).system,
+    components: stagePrompts.components(stage2Input).system,
+    decisions: stagePrompts.decisions(decisionsInput).system,
+    api: stagePrompts.api(apiInput).system,
+    "data-model": stagePrompts["data-model"](dataModelInput).system,
+  };
+  const systemFor = (stage: AiStage) => systems[stage];
+
+  it.each(aiStageSchema.options)("the %s prompt shows its whole output schema", (stage) => {
+    const shown = schemaIn(systemFor(stage));
+    expect(shown, "the system prompt has no output JSON Schema").toBeDefined();
+    expect(shapeOf(shown)).toEqual(shapeOf(z.toJSONSchema(stageContracts[stage].output)));
+  });
+
+  it.each(aiStageSchema.options)("the %s prompt asks for that schema exactly", (stage) => {
+    const system = systemFor(stage);
+    expect(system).toMatch(/JSON Schema/);
+    expect(system).toMatch(/no extra keys/i);
+    expect(system).not.toContain("$schema");
+  });
+
+  it("explains recommended as an option label or the free-text answer", () => {
+    const system = systemFor("requirements");
+    expect(system).toMatch(/"recommended".*label of one of the options/);
+    expect(system).toMatch(/kind/);
+  });
 });

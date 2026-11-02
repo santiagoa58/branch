@@ -38,6 +38,11 @@ class InvalidOutputError extends Error {
   }
 }
 
+// Repeating the issues alone lets a model that guessed the shape guess again; point it back at the
+// output JSON Schema that every stage's system prompt ends with.
+const RETRY_INSTRUCTION =
+  "Reply again with one JSON object that matches the output JSON Schema in your instructions exactly: use only its keys, with no extra keys and none renamed, include every required key, and give every value the type the schema lists.";
+
 function zodErrorIn(error: unknown): z.ZodError | undefined {
   let current = error;
   while (typeof current === "object" && current !== null) {
@@ -125,7 +130,7 @@ export function createGatewayRunner(
         if (!(error instanceof InvalidOutputError)) {
           throw error;
         }
-        const retryPrompt = `${prompt}\n\nYour previous output was invalid: ${error.message}. Return output that matches the schema.`;
+        const retryPrompt = `${prompt}\n\nYour previous output was invalid: ${error.message}\n\n${RETRY_INSTRUCTION}`;
         try {
           return await attempt(stage, system, retryPrompt, owner, signal);
         } catch (retryError) {

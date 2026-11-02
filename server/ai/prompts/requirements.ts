@@ -1,21 +1,14 @@
 import type { RequirementsInput } from "../../../src/schemas/aiDesign";
-import {
-  joinSections,
-  kindLabel,
-  scopeLine,
-  section,
-  SYSTEM_PREAMBLE,
-  type StagePrompt,
-} from "./shared";
+import { joinSections, scopeLine, section, SYSTEM_PREAMBLE, type StagePrompt } from "./shared";
 
 const SYSTEM = joinSections(
   SYSTEM_PREAMBLE,
   `Your task: clarify the requirements before anything is designed.
 The user's requirement and out-of-scope lines are fixed. Never restate or reword them; add only derived items around them.
 - questions: what you still need to know.
-- requirements: requirements derived from the prompt and the answers. Give non-functional ones a category.
-- assumptions: decisions you made for the user instead of asking.
-- outOfScope: things you are deliberately leaving out.`,
+- requirements: requirements derived from the prompt and the answers. Each has a "kind" (functional, nonFunctional or constraint) and its "text"; give nonFunctional ones a "category" too.
+- assumptions: decisions you made for the user instead of asking, each with a "kind" and its "text".
+- outOfScope: things you are deliberately leaving out, one string each.`,
   `Rules:
 - When to ask: ask only when the answer changes which components exist or a major technology choice. Assume anything smaller and list it as an assumption.
 - Answered questions: never re-ask them. Turn each answer into derived requirements. An answer marked (assumed) becomes an assumption instead.
@@ -23,8 +16,9 @@ The user's requirement and out-of-scope lines are fixed. Never restate or reword
 - Ambiguous inputs: when two user lines conflict with each other, ask a question about it.`,
   `Questions:
 - Keep them few and short; "why" says what the answer changes in the design.
-- Give two to four options, each with its impact, or no options for a free-text answer. Never give exactly one option.
-- "recommended" is the answer you would assume if the user asks you to; it must be filled in.`,
+- Give two to four options, each a short "label" with its "impact", or no options for a free-text answer. Never give exactly one option.
+- "recommended" is the answer you would assume if the user asks you to, as a string: the label of one of the options, copied exactly, or the answer itself for a free-text question. It must be filled in.
+- "allowsCustom" is true when the user may write their own answer instead of picking an option.`,
 );
 
 export function buildRequirementsPrompt(input: RequirementsInput): StagePrompt {
@@ -35,7 +29,7 @@ export function buildRequirementsPrompt(input: RequirementsInput): StagePrompt {
       scopeLine(input.scope),
       section(
         "Requirements (user lines):",
-        input.requirements.map((line) => `[${kindLabel(line.kind)}] ${line.text}`),
+        input.requirements.map((line) => `[${line.kind}] ${line.text}`),
       ),
       section("Out of scope (user lines):", input.outOfScope),
       section(

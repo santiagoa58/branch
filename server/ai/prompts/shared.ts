@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ApiInput, DesignContext, Scope } from "../../../src/schemas/aiDesign";
 
 export interface StagePrompt {
@@ -14,7 +15,7 @@ const SCOPE_DEFINITIONS: Record<Scope, string> = {
 
 export const SYSTEM_PREAMBLE = [
   "You are a senior engineer answering a system design interview.",
-  "Output only what the schema asks for: no commentary, no extra fields.",
+  "Reply with one JSON object that matches the output JSON Schema at the end of these instructions: no commentary, no extra fields.",
   "Design only for the given requirements. Do not add features nobody asked for, and never design anything listed as out of scope.",
   "Respect the scope:",
   ...Object.entries(SCOPE_DEFINITIONS).map(([scope, definition]) => `- ${scope}: ${definition}.`),
@@ -38,16 +39,6 @@ export function scopeLine(scope: Scope): string {
   return `Scope: ${scope} (${SCOPE_DEFINITIONS[scope]})`;
 }
 
-const KIND_LABELS = {
-  functional: "functional",
-  nonFunctional: "non-functional",
-  constraint: "constraint",
-} as const;
-
-export function kindLabel(kind: keyof typeof KIND_LABELS): string {
-  return KIND_LABELS[kind];
-}
-
 /** The problem statement shared by stages 2 to 5. */
 export function formatContext(context: DesignContext): string {
   return joinSections(
@@ -57,7 +48,7 @@ export function formatContext(context: DesignContext): string {
       "Requirements:",
       context.requirements.map(
         (requirement) =>
-          `[${kindLabel(requirement.kind)}${requirement.category ? `, ${requirement.category}` : ""}] ${requirement.text}${requirement.assumed ? " (assumed)" : ""}`,
+          `[${requirement.kind}${requirement.category ? `, ${requirement.category}` : ""}] ${requirement.text}${requirement.assumed ? " (assumed)" : ""}`,
       ),
     ),
     section("Out of scope:", context.outOfScope),
@@ -83,4 +74,33 @@ export function formatGraph(graph: ApiInput["graph"]): string {
 /** A few-shot example: the input it answers, then the expected output as compact JSON. */
 export function example(input: string, output: unknown): string {
   return joinSections("Example input:", input, "Example output:", JSON.stringify(output));
+}
+
+// z.number().int() adds the safe-integer range, which tells a model nothing.
+function dropSafeIntegerRange(schema: z.core.JSONSchema.BaseSchema) {
+  if (schema.minimum === Number.MIN_SAFE_INTEGER && schema.maximum === Number.MAX_SAFE_INTEGER) {
+    delete schema.minimum;
+    delete schema.maximum;
+  }
+}
+
+/**
+ * The stage's output contract for the system prompt: its JSON Schema, generated from the stage's
+ * Zod output schema so the prompt can never drift from what the runner validates. The AI SDK also
+ * sends that schema as `responseFormat`, but some models and providers ignore it or support only
+ * plain JSON mode, so the prompt has to show the exact shape itself. Refinements such as "never
+ * exactly one option" have no JSON Schema form; the stage prose states them.
+ */
+export function outputSchemaSection(schema: z.ZodType): string {
+  const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(schema, {
+    target: "draft-07",
+    io: "input",
+    override: ({ jsonSchema: node }) => dropSafeIntegerRange(node),
+  });
+  return joinSections(
+    `Output JSON Schema. Reply with one JSON object that matches it exactly, and nothing else: no Markdown, no code fences, no commentary.
+- Use exactly the keys it lists: no extra keys, and no renamed ones. Include every required key.
+- Give every value the type it lists. Strings are JSON strings, booleans are true or false, and enum values are copied exactly.`,
+    JSON.stringify(jsonSchema),
+  );
 }

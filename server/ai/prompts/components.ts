@@ -23,7 +23,7 @@ const SYSTEM = joinSections(
   `Your task: choose the components of the system and how they connect.
 - summary: two or three sentences on how the design works.
 - components: one per box on the diagram, each with a one-line responsibility. Put a component in a group only when the boundary matters.
-- groups: optional boundaries such as a VPC or region. A group's parent is another group key.
+- groups: boundaries such as a VPC or region, only where they matter; an empty list when none do. A group's parent is another group key.
 - connections: who calls whom, with the protocol, a short purpose, and async true for fire-and-forget messaging.
 - mainFlow: the most important request path, starting at the component key in "entry".`,
   `Rules:

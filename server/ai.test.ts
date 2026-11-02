@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test";
-import { APICallError } from "ai";
+import { APICallError, generateText } from "ai";
+import { MockLanguageModelV4 } from "ai/test";
 import { GatewayInternalServerError } from "@ai-sdk/gateway";
 import { apiErrorBodySchema } from "../src/schemas/api";
 import { createHandler } from "./handler";
@@ -187,5 +188,56 @@ describe("without an AI model configured", () => {
     const response = await request("/workspace");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual([]);
+  });
+});
+
+describe("with a model whose output never matches the stage schema", () => {
+  // Well-formed JSON in an invented shape, as a production run returned for stage 1.
+  const invented = JSON.stringify({
+    questions: [{ id: "q1", question: "Which algorithm?", recommended: true, options: [] }],
+    requirements: [{ text: "Live collaboration", category: "functional" }],
+    assumptions: [{ id: "a1", text: "Single box" }],
+    outOfScope: [],
+  });
+  const reply = {
+    content: [{ type: "text" as const, text: invented }],
+    finishReason: { unified: "stop" as const, raw: "stop" },
+    usage: {
+      inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+      outputTokens: { total: 1, text: 1, reasoning: 0 },
+    },
+    warnings: [],
+  };
+
+  it("retries once, then answers 502 and logs the stage", async () => {
+    const model = new MockLanguageModelV4({ doGenerate: [reply, reply] });
+    const viaMock: typeof generateText = (options) => generateText({ ...options, model });
+    const realRunner = createHandler({
+      authenticate: async () => "alice",
+      repository: new WorkspaceRepository({
+        query: vi.fn<Database["query"]>(),
+        transaction: async () => {
+          throw new Error("unused");
+        },
+      }),
+      ai: createGatewayRunner({ generate: viaMock, env: { AI_MODEL: "test/default" } }),
+    });
+    const response = await realRunner(
+      new Request("https://branch.test/api/ai/requirements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(valid),
+      }),
+    );
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      message: "The AI service is unavailable. Please retry.",
+    });
+    expect(model.doGenerateCalls).toHaveLength(2);
+    expect(console.error).toHaveBeenCalledWith(
+      "AI stage failed",
+      "requirements",
+      expect.objectContaining({ name: "AI_NoObjectGeneratedError" }),
+    );
   });
 });

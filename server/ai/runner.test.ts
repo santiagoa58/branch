@@ -2,7 +2,17 @@
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
-import type { DecisionsInput, DecisionsOutput } from "../../src/schemas/aiDesign";
+import {
+  aiStageSchema,
+  type AiStage,
+  type DecisionsInput,
+  type DecisionsOutput,
+  type StageInput,
+  type StageOutput,
+} from "../../src/schemas/aiDesign";
+import { toAiHttpError } from "./errors";
+import { urlShortenerExample } from "./examples/urlShortener";
+import { stagePrompts } from "./prompts";
 import { createGatewayRunner, StageOutputTooLargeError } from "./runner";
 
 interface GenerateCall {
@@ -98,7 +108,7 @@ describe("createGatewayRunner", () => {
     await expect(runner.run("decisions", input, "alice", signal)).resolves.toEqual(valid);
     expect(generate).toHaveBeenCalledTimes(2);
     expect(generate.mock.calls[1]?.[0].prompt).toContain("bad");
-    expect(generate.mock.calls[1]?.[0].prompt).toContain("Return output that matches the schema.");
+    expect(generate.mock.calls[1]?.[0].prompt).toMatch(/matches the output JSON Schema .* exactly/);
   });
 
   it("fails after the second schema failure", async () => {
@@ -183,5 +193,160 @@ describe("createGatewayRunner with the AI SDK", () => {
     const retry = model.doGenerateCalls[1]?.prompt.find((message) => message.role === "user");
     const text = JSON.stringify(retry?.content);
     expect(text).toMatch(/Your previous output was invalid: .*considered/);
+  });
+
+  function systemOf(call: { prompt: { role: string; content: unknown }[] } | undefined): string {
+    const system = call?.prompt.find((message) => message.role === "system")?.content;
+    return typeof system === "string" ? system : "";
+  }
+
+  function userTextOf(call: { prompt: { role: string; content: unknown }[] } | undefined): string {
+    return JSON.stringify(call?.prompt.find((message) => message.role === "user")?.content);
+  }
+
+  const context = urlShortenerExample.context;
+  const emptyGraph = { nodes: [], edges: [] };
+  // One input and one schema-valid output per stage.
+  const cases: { [S in AiStage]: { input: StageInput<S>; output: StageOutput<S> } } = {
+    requirements: {
+      input: {
+        prompt: "A shared editor",
+        scope: "fullstack",
+        requirements: [],
+        outOfScope: [],
+        answers: [],
+      },
+      output: {
+        questions: [
+          {
+            id: "q1",
+            topic: "sync",
+            question: "How do edits merge?",
+            why: "Decides whether a sync server is needed.",
+            options: [
+              { label: "CRDT", impact: "Offline edits merge without a server" },
+              { label: "Operational transformation", impact: "Needs a coordinating server" },
+            ],
+            recommended: "CRDT",
+            allowsCustom: true,
+          },
+        ],
+        requirements: [
+          { kind: "nonFunctional", text: "Edits appear within 200 ms", category: "latency" },
+        ],
+        assumptions: [{ kind: "constraint", text: "The backend is a single box" }],
+        outOfScope: ["Authentication"],
+      },
+    },
+    components: {
+      input: { context, previousKeys: [] },
+      output: urlShortenerExample.components,
+    },
+    decisions: { input, output: valid },
+    api: {
+      input: { context, summary: "", graph: emptyGraph },
+      output: urlShortenerExample.api,
+    },
+    "data-model": {
+      input: { context, graph: emptyGraph, endpoints: [] },
+      output: {
+        entities: [
+          {
+            name: "Link",
+            store: "db",
+            fields: [{ name: "code", type: "string", key: "primary" }],
+            relations: [],
+          },
+        ],
+      },
+    },
+  };
+
+  async function runCase<S extends AiStage>(
+    stage: S,
+    { input: stageInput, output }: { input: StageInput<S>; output: StageOutput<S> },
+  ) {
+    const model = new MockLanguageModelV4({ doGenerate: reply(output) });
+    await expect(sdkRunner(model).run(stage, stageInput, "alice", signal)).resolves.toEqual(output);
+    return { model, expectedSystem: stagePrompts[stage](stageInput).system };
+  }
+
+  it.each(aiStageSchema.options)(
+    "sends the %s output JSON Schema in the system prompt and accepts output that matches it",
+    async (stage) => {
+      const { model, expectedSystem } = await runCase(stage, cases[stage]);
+      const system = systemOf(model.doGenerateCalls[0]);
+      expect(system).toBe(expectedSystem);
+      expect(system).toMatch(/JSON Schema/);
+      expect(system).toContain('"additionalProperties":false');
+    },
+  );
+
+  describe("the real-run requirements failure", () => {
+    // Stage 1 output from a production run: well-formed JSON in an invented shape.
+    const invented = {
+      questions: [
+        {
+          id: "q1",
+          topic: "real-time-collaboration",
+          question: "Which algorithm supports live collaboration for 500 users with offline mode?",
+          recommended: true,
+          allowsCustom: false,
+          options: [
+            {
+              id: "opt1a",
+              text: "CRDT with automatic conflict resolution",
+              impact: "Enables offline editing without central coordination",
+            },
+            {
+              id: "opt1b",
+              text: "Operational Transformation with server coordination",
+              impact: "Requires server for transformation, higher latency",
+            },
+            {
+              id: "opt1c",
+              text: "Custom hybrid approach combining both",
+              impact: "Increased complexity, flexible trade-offs",
+            },
+          ],
+        },
+      ],
+      requirements: [
+        { text: "Live Collaboration", category: "functional" },
+        { text: "Real-time performance", category: "non-functional" },
+        { text: "Offline support", category: "constraint" },
+      ],
+      assumptions: [{ id: "a1", text: "Backend runs on a single box as per scope constraint" }],
+      outOfScope: ["Authentication"],
+    };
+    const { input: stage1Input, output: stage1Output } = cases.requirements;
+
+    it("retries with the issues and the schema guidance, then accepts a valid shape", async () => {
+      const model = new MockLanguageModelV4({ doGenerate: [reply(invented), reply(stage1Output)] });
+      await expect(
+        sdkRunner(model).run("requirements", stage1Input, "alice", signal),
+      ).resolves.toEqual(stage1Output);
+      expect(model.doGenerateCalls).toHaveLength(2);
+      const [first, retry] = model.doGenerateCalls;
+      expect(systemOf(first)).toMatch(/JSON Schema/);
+      expect(systemOf(retry)).toBe(systemOf(first));
+      const retryText = userTextOf(retry);
+      expect(retryText).toMatch(/Your previous output was invalid: .*questions\[0\]\.why/);
+      expect(retryText).toMatch(/matches the output JSON Schema .* exactly/);
+      expect(retryText).toMatch(/no extra keys/);
+    });
+
+    it("fails when both attempts have the invented shape, as a 502", async () => {
+      const model = new MockLanguageModelV4({ doGenerate: [reply(invented), reply(invented)] });
+      const error = await sdkRunner(model)
+        .run("requirements", stage1Input, "alice", signal)
+        .catch((failure: unknown) => failure);
+      expect(NoObjectGeneratedError.isInstance(error)).toBe(true);
+      expect(model.doGenerateCalls).toHaveLength(2);
+      expect(toAiHttpError(error)).toEqual({
+        status: 502,
+        message: "The AI service is unavailable. Please retry.",
+      });
+    });
   });
 });
