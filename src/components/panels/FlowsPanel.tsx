@@ -10,6 +10,7 @@ import {
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { SaveFlowDialog } from "@/components/ui/SaveFlowDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { ArchitectureNodeData } from "@/types";
 import type { NamedFlow } from "@/types/simulation";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function FlowsPanel() {
 
   // 'new' = create with the current sim source; or { id } for edit.
   const [dialog, setDialog] = useState<{ kind: "new" } | { kind: "edit"; id: string } | null>(null);
+  const [flowToDelete, setFlowToDelete] = useState<Pick<NamedFlow, "id" | "name"> | null>(null);
 
   const labelFor = (nodeId: string): string | null => {
     const n = nodes.find((x) => x.id === nodeId);
@@ -178,12 +180,8 @@ export function FlowsPanel() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
-                      if (confirm(`Delete flow "${flow.name}"?`)) {
-                        deleteFlow(flow.id);
-                      }
-                    }}
+                    onClick={() => setFlowToDelete({ id: flow.id, name: flow.name })}
+                    aria-label={`Delete flow: ${flow.name}`}
                     className="p-1.5 rounded text-zinc-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                     title="Delete flow"
                   >
@@ -221,6 +219,24 @@ export function FlowsPanel() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={flowToDelete !== null}
+        title="Delete saved flow?"
+        description={`Delete "${flowToDelete?.name ?? ""}"? This removes the saved replay scenario and cannot be undone.`}
+        confirmLabel="Delete flow"
+        onOpenChange={(open) => {
+          if (!open) {
+            setFlowToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (flowToDelete) {
+            deleteFlow(flowToDelete.id);
+            setFlowToDelete(null);
+          }
+        }}
+      />
 
       {dialog !== null && (
         <SaveFlowDialog
