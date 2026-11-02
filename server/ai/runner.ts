@@ -106,7 +106,12 @@ export function createGatewayRunner(
         output: Output.object({ schema }),
         temperature: 0,
         abortSignal: signal,
-        providerOptions: { gateway: { user: owner } },
+        providerOptions: {
+          gateway: { user: owner },
+          // OpenAI strict mode (the default since AI SDK 6) rejects optional fields and open
+          // records, which the stage schemas use; the schema in the prompt plus Zod keep it exact.
+          openai: { strictJsonSchema: false },
+        },
       });
     } catch (error) {
       return invalidOutput(

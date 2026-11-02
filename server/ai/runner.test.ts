@@ -71,7 +71,7 @@ function noObjectError(message: string, finishReason: "stop" | "length" = "stop"
 beforeEach(() => generate.mockReset());
 
 describe("createGatewayRunner", () => {
-  it("calls the gateway with the stage model, schema and owner", async () => {
+  it("calls the gateway with the stage model, schema, owner and non-strict OpenAI schemas", async () => {
     generate.mockResolvedValueOnce({ output: valid, finishReason: "stop" });
     await runner.run("decisions", input, "alice", signal);
     expect(generate).toHaveBeenCalledWith(
@@ -79,7 +79,7 @@ describe("createGatewayRunner", () => {
         model: "test/decisions-model",
         temperature: 0,
         abortSignal: signal,
-        providerOptions: { gateway: { user: "alice" } },
+        providerOptions: { gateway: { user: "alice" }, openai: { strictJsonSchema: false } },
       }),
     );
     const call = generate.mock.calls[0]?.[0];
