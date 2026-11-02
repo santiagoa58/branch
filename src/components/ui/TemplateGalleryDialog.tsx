@@ -18,6 +18,8 @@ import {
   type TemplateCategory,
 } from "@/templates";
 import { appendDiagramData } from "@/utils/import";
+import { absoluteRects } from "@/utils/layout/geometry";
+import type { DiagramData } from "@/types";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
 import { notify } from "@/services/notify";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
@@ -43,6 +45,20 @@ function countFor(category: CategoryFilter) {
     : DIAGRAM_TEMPLATES.filter((template) => template.category === category).length;
 }
 
+/** Place an added template after the current diagram, not on top of existing components. */
+function appendTemplateBeside(current: DiagramData, instance: DiagramData): DiagramData {
+  const existing = [...absoluteRects(current.nodes).values()];
+  const incoming = [...absoluteRects(instance.nodes).values()];
+  const right = Math.max(...existing.map((rect) => rect.x + rect.width));
+  const left = Math.min(...incoming.map((rect) => rect.x));
+  const top = Math.min(...existing.map((rect) => rect.y));
+  const incomingTop = Math.min(...incoming.map((rect) => rect.y));
+  return appendDiagramData(current, instance, {
+    x: right + 160 - left,
+    y: top - incomingTop,
+  });
+}
+
 function applyTemplate(
   template: DiagramTemplate,
   mode: LoadMode,
@@ -60,7 +76,7 @@ function applyTemplate(
   const instance = instantiateTemplate(template);
   let finalData = instance;
   if (mode === "add") {
-    finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
+    finalData = appendTemplateBeside(exportDiagram(), instance);
   }
   importDiagram(finalData);
   notify.success({

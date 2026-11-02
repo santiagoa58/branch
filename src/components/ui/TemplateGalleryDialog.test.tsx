@@ -115,6 +115,8 @@ describe("TemplateGalleryDialog", () => {
     await waitFor(() => expect(useDiagramStore.getState().nodes.length).toBeGreaterThan(1), {
       timeout: 10_000,
     });
+    const roots = useDiagramStore.getState().nodes.filter((node) => node.id !== "existing" && !node.parentId);
+    expect(Math.min(...roots.map((node) => node.position.x))).toBeGreaterThan(300);
     expect(useDiagramStore.getState().brief).toEqual(brief);
   });
 
