@@ -10,7 +10,7 @@ import {
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { SaveFlowDialog } from "@/components/ui/SaveFlowDialog";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FlowDeleteDialog } from "./FlowDeleteDialog";
 import type { ArchitectureNodeData } from "@/types";
 import type { NamedFlow } from "@/types/simulation";
 import { cn } from "@/lib/utils";
@@ -220,18 +220,10 @@ export function FlowsPanel() {
         </div>
       </div>
 
-      <ConfirmDialog
-        open={flowToDelete !== null}
-        title="Delete saved flow?"
-        description={`Delete "${flowToDelete?.name ?? ""}"? This removes the saved replay scenario and cannot be undone.`}
-        confirmLabel="Delete flow"
-        onOpenChange={() => setFlowToDelete(null)}
-        onConfirm={() => {
-          if (flowToDelete) {
-            deleteFlow(flowToDelete.id);
-            setFlowToDelete(null);
-          }
-        }}
+      <FlowDeleteDialog
+        target={flowToDelete}
+        onCancel={() => setFlowToDelete(null)}
+        onDelete={deleteFlow}
       />
 
       {dialog !== null && (

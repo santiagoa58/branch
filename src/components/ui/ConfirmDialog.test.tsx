@@ -26,7 +26,8 @@ describe("ConfirmDialog", () => {
       "text-destructive",
     );
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(onOpenChange).toHaveBeenCalledOnce();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onConfirm).not.toHaveBeenCalled();
   });
 

@@ -68,10 +68,7 @@ const quickLayouts = new WeakMap<DiagramTemplate, Promise<DiagramTemplate>>();
  * The template with positions, group sizes and ports from the shared auto formatter. Layout is
  * asynchronous, so it runs when a template is first shown or loaded, once per template.
  */
-export function layoutTemplate(
-  template: DiagramTemplate,
-  quick = false,
-): Promise<DiagramTemplate> {
+export function layoutTemplate(template: DiagramTemplate, quick = false): Promise<DiagramTemplate> {
   const cache = quick ? quickLayouts : laidOut;
   let layout = cache.get(template);
   if (!layout) {

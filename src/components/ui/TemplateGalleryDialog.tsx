@@ -362,7 +362,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               <div className="border-t border-border p-4">
-                {loadingId !== null ? (
+                {loadingId ? (
                   <button
                     type="button"
                     disabled

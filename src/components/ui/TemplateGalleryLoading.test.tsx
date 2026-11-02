@@ -8,7 +8,7 @@ import { cloudWorkspace } from "@/services/cloudWorkspace";
 
 vi.mock("@/templates", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/templates")>();
-  return { ...actual, layoutTemplate: vi.fn(actual.layoutTemplate) };
+  return { ...actual, layoutTemplate: vi.fn<typeof actual.layoutTemplate>(actual.layoutTemplate) };
 });
 
 beforeEach(() => {
@@ -63,7 +63,12 @@ describe("starter template loading state", () => {
     vi.mocked(layoutTemplate).mockImplementation(() => new Promise(() => {}));
     useDiagramStore.setState({
       nodes: [
-        { id: "existing", type: "architecture", position: { x: 0, y: 0 }, data: { label: "Existing", type: "service" } },
+        {
+          id: "existing",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { label: "Existing", type: "service" },
+        },
       ],
     });
     render(
@@ -75,6 +80,8 @@ describe("starter template loading state", () => {
     fireEvent.click(within(details).getByRole("button", { name: "Add to canvas" }));
     expect(within(details).getByRole("button", { name: "Loading template…" })).toBeDisabled();
     expect(within(details).queryByRole("button", { name: "Replace" })).not.toBeInTheDocument();
-    expect(within(details).queryByRole("button", { name: "Add to canvas" })).not.toBeInTheDocument();
+    expect(
+      within(details).queryByRole("button", { name: "Add to canvas" }),
+    ).not.toBeInTheDocument();
   });
 });

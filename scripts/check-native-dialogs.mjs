@@ -36,7 +36,9 @@ function inspect(path) {
         nativeDialogNames.has(callee.argumentExpression.text);
       if (isGlobalCall || isPropertyCall || isIndexedCall) {
         const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
-        errors.push(`${path}:${line + 1}: browser-native dialogs are forbidden; use an in-app dialog`);
+        errors.push(
+          `${path}:${line + 1}: browser-native dialogs are forbidden; use an in-app dialog`,
+        );
       }
     }
     ts.forEachChild(node, visit);
