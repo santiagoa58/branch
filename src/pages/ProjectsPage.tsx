@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigation } from "react-router-dom";
 import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, FolderIcon } from "@heroicons/react/24/solid";
-import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
+import { projectsApi, type ApiProject } from "@/services/api";
+import { deleteDiagramFromWorkspace, deleteProjectFromWorkspace } from "@/services/workspaceDeletion";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
@@ -71,12 +72,20 @@ export function ProjectsPage() {
   }, [data, dataUpdatedAt, queryClient]);
 
   const deleteMutation = useMutation({
-    mutationFn: projectsApi.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    mutationFn: (id: string) => deleteProjectFromWorkspace(queryClient, id),
+    onSuccess: () => setDeleteTarget(null),
   });
   const deleteDiagramMutation = useMutation({
-    mutationFn: diagramsApi.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    mutationFn: (id: string) => {
+      const parent = projects.find((project) =>
+        project.diagrams.some((diagram) => diagram.id === id),
+      );
+      if (!parent) {
+        throw new Error("The diagram is not in the current workspace.");
+      }
+      return deleteDiagramFromWorkspace(queryClient, parent.id, id);
+    },
+    onSuccess: () => setDeleteTarget(null),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => projectsApi.update(id, { name }),
@@ -383,6 +392,12 @@ export function ProjectsPage() {
       <WorkspaceDeleteDialog
         target={deleteTarget}
         onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending || deleteDiagramMutation.isPending}
+        errorMessage={
+          deleteMutation.isError || deleteDiagramMutation.isError
+            ? "Could not delete this item. Please retry."
+            : undefined
+        }
         onDelete={(item) => {
           if (item.kind === "project") {
             deleteMutation.mutate(item.id);
