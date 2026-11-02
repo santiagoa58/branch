@@ -11,7 +11,10 @@ function sidePreference(value: unknown): ConnectionSide | undefined {
 }
 
 /** Select the facing pair with the shortest directional approach, in either direction. */
-export function nearestSides(source: Rect, target: Rect): {
+export function nearestSides(
+  source: Rect,
+  target: Rect,
+): {
   source: ConnectionSide;
   target: ConnectionSide;
 } {
