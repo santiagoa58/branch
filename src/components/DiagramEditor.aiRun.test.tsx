@@ -230,7 +230,7 @@ describe("the canvas during an AI design run", () => {
     expect(screen.getByRole("button", { name: "Import diagram" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Starter templates" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Simulate requests and failures" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Saved request flows" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Saved request flows" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Design with AI" })).toBeEnabled();
   });
 

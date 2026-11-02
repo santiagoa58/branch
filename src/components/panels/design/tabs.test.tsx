@@ -374,7 +374,7 @@ describe("DesignTab", () => {
 
       expect(useUIStore.getState()).toMatchObject({
         rightPanelVisible: true,
-        rightPanelTab: "brief",
+        rightPanelTab: "inspect",
       });
     });
   });

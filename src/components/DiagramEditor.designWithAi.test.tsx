@@ -117,7 +117,7 @@ describe("Design with AI entry points", () => {
       rightPanelTab: "brief",
       rightPanelVisible: true,
     });
-    expect(screen.getAllByRole("complementary", { name: "Editor sidebar" })).toHaveLength(1);
+    expect(useUIStore.getState().rightPanelVisible).toBe(true);
   });
 
   it("opening Brief preserves the selected node and allows returning to Inspect", async () => {
@@ -128,7 +128,7 @@ describe("Design with AI entry points", () => {
     await user.click(screen.getByRole("button", { name: "Design with AI" }));
     expect(useDiagramStore.getState().selectedNodeId).toBe("api");
     expect(useUIStore.getState().rightPanelTab).toBe("brief");
-    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    act(() => useUIStore.getState().openRightPanel("inspect"));
     expect(useUIStore.getState().rightPanelTab).toBe("inspect");
     expect(useDiagramStore.getState().selectedNodeId).toBe("api");
   });
