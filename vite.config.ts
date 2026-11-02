@@ -247,11 +247,12 @@ export default defineConfig({
         "src/vite-env.d.ts",
         "server/ai/eval/**",
       ],
+      // Ratchet: just under measured coverage (69.4 / 63.5 / 72.1 / 69.3). Raise, never lower.
       thresholds: {
-        statements: 14,
-        branches: 12,
-        functions: 13,
-        lines: 15,
+        statements: 69,
+        branches: 63,
+        functions: 72,
+        lines: 69,
       },
     },
   },
