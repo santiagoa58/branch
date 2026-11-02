@@ -73,16 +73,55 @@ const LAYOUT_VARIANTS: LayoutOptions[] = [
 
 let engine: Promise<ELK> | undefined;
 
-/** ELK is large, so it loads on first use; the bundled build runs in browsers and Node alike. */
+/**
+ * Browsers must run ELK in a dedicated worker, never on the rendering thread. The old
+ * bundled build executes synchronously inside its layout promise, so expensive layered
+ * graphs can freeze both React and the loading indicator indefinitely.
+ * Node tests have no browser Worker and use the bundled engine for deterministic fixtures.
+ */
+async function createEngine(): Promise<ELK> {
+  if (typeof Worker === "undefined") {
+    const { default: Elk } = await import("elkjs/lib/elk.bundled.js");
+    return new Elk();
+  }
+  const [{ default: Elk }, { default: workerUrl }] = await Promise.all([
+    import("elkjs/lib/elk-api.js"),
+    import("elkjs/lib/elk-worker.min.js?url"),
+  ]);
+  // Vite emits the worker script as a same-origin asset. ELK handles worker messaging.
+  return new Elk({ workerUrl });
+}
+
 function loadEngine(): Promise<ELK> {
-  engine ??= import("elkjs/lib/elk.bundled.js").then(
-    ({ default: Elk }) => new Elk(),
-    (error: unknown) => {
-      engine = undefined;
-      throw error;
-    },
-  );
+  engine ??= createEngine().catch((error: unknown) => {
+    engine = undefined;
+    throw error;
+  });
   return engine;
+}
+
+/** Bound a broken worker or an unexpectedly expensive layout instead of spinning forever. */
+const ELK_TIMEOUT_MS = 12_000;
+
+async function layoutWithDeadline(elk: ELK, graph: ElkNode): Promise<ElkNode> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      elk.layout(graph),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          // Termination frees the worker even when the algorithm itself cannot be interrupted.
+          elk.terminateWorker();
+          engine = undefined;
+          reject(new Error("Diagram layout timed out. Please retry with a smaller diagram."));
+        }, ELK_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 /**
@@ -170,7 +209,8 @@ async function layoutGraph(
   const small = !quick && boxes.length + edges.length <= SMALL_GRAPH;
   for (const variant of small ? LAYOUT_VARIANTS : LAYOUT_VARIANTS.slice(0, 1)) {
     // oxlint-disable-next-line no-await-in-loop -- one ELK engine runs one layout at a time
-    const result = await elk.layout(
+    const result = await layoutWithDeadline(
+      elk,
       elkGraph(boxes, edges, { ...(small ? THOROUGH : QUICK), ...variant }),
     );
     const layout = siblingLayout(boxes, result.children ?? []);
