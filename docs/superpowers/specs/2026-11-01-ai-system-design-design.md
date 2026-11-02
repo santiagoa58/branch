@@ -426,12 +426,12 @@ It is mounted in `server/handler.ts` behind the existing `requireOwner`.
 
 ### Modules
 
-| Module                  | Responsibility                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `server/routes/ai.ts`   | Route, validation, error mapping                                                      |
-| `server/ai/models.ts`   | Model id per stage: `AI_MODEL`, optionally overridden per stage by `AI_MODEL_<STAGE>` |
-| `server/ai/prompts/`   | One prompt builder per pipeline stage                                                  |
-| `server/ai/eval/`      | Live evaluation cases and test-only fixtures                                           |
+| Module                | Responsibility                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `server/routes/ai.ts` | Route, validation, error mapping                                                      |
+| `server/ai/models.ts` | Model id per stage: `AI_MODEL`, optionally overridden per stage by `AI_MODEL_<STAGE>` |
+| `server/ai/prompts/`  | One prompt builder per pipeline stage                                                 |
+| `server/ai/eval/`     | Live evaluation cases and test-only fixtures                                          |
 
 Each stage module:
 
