@@ -33,11 +33,7 @@ export function EditorDiagramMenu({ projectId, diagramId, diagramName }: Props) 
     enabled: Boolean(projectId),
   });
 
-  const blocked =
-    cloud.locked ||
-    cloud.status === "loading" ||
-    aiRunning ||
-    pendingDeletions;
+  const blocked = cloud.locked || cloud.status === "loading" || aiRunning || pendingDeletions;
 
   const deleteMutation = useMutation({
     mutationFn: () => cloudWorkspace.runTransition(() => diagramsApi.delete(diagramId)),
@@ -51,9 +47,7 @@ export function EditorDiagramMenu({ projectId, diagramId, diagramName }: Props) 
       void queryClient.invalidateQueries({ queryKey: workspaceQuery.root().queryKey });
       const next = diagrams.find((item) => item.id !== diagramId);
       void navigate(
-        next
-          ? `/projects/${projectId}/diagrams/${next.id}`
-          : `/projects/${projectId}`,
+        next ? `/projects/${projectId}/diagrams/${next.id}` : `/projects/${projectId}`,
         { replace: true },
       );
       notify.success({ title: "Diagram deleted", message: `"${diagramName}" was deleted.` });
