@@ -49,6 +49,26 @@ function filterWorkspaceProjects(
   });
 }
 
+/** Seed detailed caches without replacing a more recently fetched project or list. */
+function seedProjectQueries(
+  client: ReturnType<typeof useQueryClient>,
+  projects: ApiWorkspaceProject[] | undefined,
+  updatedAt: number,
+) {
+  for (const { diagrams, ...project } of projects ?? []) {
+    const projectKey = workspaceQuery.project(project.id).queryKey;
+    const diagramsKey = workspaceQuery.diagrams(project.id).queryKey;
+    const projectState = client.getQueryState(projectKey);
+    const diagramsState = client.getQueryState(diagramsKey);
+    if (!projectState || projectState.dataUpdatedAt < updatedAt) {
+      client.setQueryData(projectKey, project, { updatedAt });
+    }
+    if (!diagramsState || diagramsState.dataUpdatedAt < updatedAt) {
+      client.setQueryData(diagramsKey, diagrams, { updatedAt });
+    }
+  }
+}
+
 function WorkspaceSkeleton() {
   return (
     <output
@@ -88,19 +108,7 @@ export function ProjectsPage() {
   const projects = data ?? [];
 
   useEffect(() => {
-    for (const { diagrams, ...project } of data ?? []) {
-      const projectKey = workspaceQuery.project(project.id).queryKey;
-      const diagramsKey = workspaceQuery.diagrams(project.id).queryKey;
-      const projectState = queryClient.getQueryState(projectKey);
-      const diagramsState = queryClient.getQueryState(diagramsKey);
-      // Seeding must not mark old summaries as freshly fetched or overwrite newer queries.
-      if (!projectState || projectState.dataUpdatedAt < dataUpdatedAt) {
-        queryClient.setQueryData(projectKey, project, { updatedAt: dataUpdatedAt });
-      }
-      if (!diagramsState || diagramsState.dataUpdatedAt < dataUpdatedAt) {
-        queryClient.setQueryData(diagramsKey, diagrams, { updatedAt: dataUpdatedAt });
-      }
-    }
+    seedProjectQueries(queryClient, data, dataUpdatedAt);
   }, [data, dataUpdatedAt, queryClient]);
 
   const deleteMutation = useMutation({
