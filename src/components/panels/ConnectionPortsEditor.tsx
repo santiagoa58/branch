@@ -30,7 +30,7 @@ export function ConnectionPortsEditor({
             <select
               aria-label={key === "sourceSide" ? "Source side" : "Target side"}
               value={data[key] ?? "auto"}
-              onChange={(event) => onChange({ [key]: event.target.value as PortPreference })}
+              onChange={(event) => onChange({ [key]: event.target.value })}
               onKeyDown={(event) => event.stopPropagation()}
               className="min-w-0 rounded-md border border-input bg-background px-2 py-2 text-sm text-foreground"
             >

@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { type NodeProps } from "@xyflow/react";
+import type { NodeProps } from "@xyflow/react";
 import { ConnectionHandles } from "./ConnectionHandles";
 import { Icon as IconifyIcon } from "@iconify/react";
 import { cn } from "@/lib/utils";
