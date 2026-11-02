@@ -215,32 +215,22 @@ describe("zoned auto layout", () => {
     expect(again.edges).toBe(first.edges);
   });
 
-  it("routes connections out of the right side and into the left, bottom to top only when stacked", async () => {
+  it("uses matching attachment handles after automatic layout", async () => {
     const { nodes, edges } = collaborativeDocsDesign();
-    const withPorts = edges.map((edge) => ({
-      ...edge,
-      sourceHandle: "bottom",
-      targetHandle: "top",
-    }));
-    const result = await autoLayoutDiagram(nodes, withPorts);
-    const rects = absoluteRects(result.nodes);
-    const sides = result.edges.map((edge) => {
-      const source = rects.get(edge.source)!;
-      const target = rects.get(edge.target)!;
-      return {
-        id: edge.id,
-        forward: target.x >= source.x + source.width,
-        stacked: target.y >= source.y + source.height,
-        ports: [edge.sourceHandle, edge.targetHandle],
-      };
-    });
-    // Every connection of this design runs left to right, so all use the default side ports.
-    expect(sides.filter((side) => !side.forward)).toEqual([]);
-    expect(sides.filter((side) => side.ports.some((port) => port !== undefined))).toEqual([]);
-    expect(withPorts.every((edge) => edge.sourceHandle === "bottom")).toBe(true);
+    const result = await autoLayoutDiagram(
+      nodes,
+      edges.map((edge) => ({ ...edge, sourceHandle: "bottom", targetHandle: "top" })),
+    );
+    const validSources = new Set([undefined, "left", "top", "bottom"]);
+    const validTargets = new Set([undefined, "right", "top", "bottom"]);
+    for (const edge of result.edges) {
+      expect(validSources.has(edge.sourceHandle), edge.id).toBe(true);
+      expect(validTargets.has(edge.targetHandle), edge.id).toBe(true);
+    }
+    expect(assignPorts(result.nodes, result.edges)).toBe(result.edges);
   });
 
-  it("picks side ports for forward connections and stacked ports only below", () => {
+  it("chooses the nearest sides in either direction and preserves pinned sides", () => {
     const at = (id: string, x: number, y: number): Node => ({
       id,
       position: { x, y },
@@ -249,30 +239,32 @@ describe("zoned auto layout", () => {
     });
     const nodes = [
       at("a", 0, 0),
-      at("right", 300, 400),
-      at("below", -200, 300),
-      at("above", -200, -300),
+      at("right", 300, 0),
+      at("left", -300, 0),
+      at("below", 0, 300),
+      at("above", 0, -300),
     ];
     const edges: Edge[] = [
-      { id: "forward", source: "a", target: "right", sourceHandle: "bottom", targetHandle: "top" },
-      { id: "back-below", source: "a", target: "below" },
-      { id: "back-above", source: "a", target: "above", sourceHandle: null, targetHandle: null },
-      { id: "dangling", source: "a", target: "missing", sourceHandle: "bottom" },
-    ];
-    expect(assignPorts(nodes, edges)).toEqual([
-      { id: "forward", source: "a", target: "right" },
+      { id: "right", source: "a", target: "right" },
+      { id: "left", source: "a", target: "left" },
+      { id: "below", source: "a", target: "below" },
+      { id: "above", source: "a", target: "above" },
       {
-        id: "back-below",
+        id: "pinned",
         source: "a",
-        target: "below",
-        sourceHandle: "bottom",
-        targetHandle: "top",
+        target: "right",
+        data: { sourceSide: "top", targetSide: "bottom" },
       },
-      { id: "back-above", source: "a", target: "above" },
-      edges[3],
+    ];
+    const result = assignPorts(nodes, edges);
+    expect(result.map((edge) => [edge.sourceHandle, edge.targetHandle])).toEqual([
+      [undefined, undefined],
+      ["left", "right"],
+      ["bottom", "top"],
+      ["top", "bottom"],
+      ["top", "bottom"],
     ]);
-    const settled = assignPorts(nodes, edges);
-    expect(assignPorts(nodes, settled)).toBe(settled);
+    expect(assignPorts(nodes, result)).toBe(result);
   });
 
   it("shelves comments under the zoned components of their container", async () => {
