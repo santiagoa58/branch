@@ -19,8 +19,10 @@ import {
 } from "@/templates";
 import { appendDiagramData } from "@/utils/import";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
+import { TemplateThumbnail } from "@/components/ui/TemplateThumbnail";
 import { notify } from "@/services/notify";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
+import { editBlockReason, useEditBlocked } from "@/store/editLock";
 import { cn } from "@/lib/utils";
 
 interface TemplateGalleryDialogProps {
@@ -52,6 +54,8 @@ export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialog
 // oxlint-disable-next-line max-lines-per-function -- debt: 281 lines; split into smaller units
 function TemplateGallery({ onClose }: { onClose: () => void }) {
   const canvasEmpty = useDiagramStore((s) => s.nodes.length === 0);
+  const editBlocked = useEditBlocked();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const { fitView } = useReactFlow();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
@@ -77,6 +81,13 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
   );
 
   const applyTemplate = (template: DiagramTemplate, mode: LoadMode) => {
+    if (editBlockReason() !== null) {
+      notify.error({
+        title: "Cannot load template",
+        message: "The diagram is busy. Try again after the current operation finishes.",
+      });
+      return;
+    }
     const { exportDiagram, importDiagram } = useDiagramStore.getState();
     const instance = instantiateTemplate(template);
     let finalData = instance;
@@ -99,6 +110,10 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
   };
 
   const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
+    if (loadingId !== null || editBlockReason() !== null) {
+      return;
+    }
+    setLoadingId(template.id);
     const diagramId = cloudWorkspace.getState().diagram?.id;
     layoutTemplate(template)
       .then((laidOut) => {
@@ -107,10 +122,17 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
         }
       })
       .catch(() => {
-        notify.error({
-          title: "Could not load the template",
-          message: "Your diagram is unchanged.",
-        });
+        if (open.current) {
+          notify.error({
+            title: "Could not load the template",
+            message: "Your diagram is unchanged. Try again.",
+          });
+        }
+      })
+      .finally(() => {
+        if (open.current) {
+          setLoadingId(null);
+        }
       });
   };
 
@@ -236,6 +258,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                         aria-label={`${template.name}${template.inspiredBy ? `, like ${template.inspiredBy}` : ""}`}
                         onClick={() => select(template)}
                         onDoubleClick={() => primaryAction(template)}
+                        disabled={loadingId !== null || editBlocked}
                         className={cn(
                           "flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]",
                           isSelected
@@ -244,7 +267,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                         )}
                       >
                         <span className="block h-28 border-b border-border bg-background p-2 text-muted-foreground">
-                          <TemplatePreview template={template} />
+                          <TemplateThumbnail template={template} />
                         </span>
                         <span className="flex flex-col gap-1 p-3">
                           <span className="flex items-center gap-2">
@@ -310,9 +333,10 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => loadTemplate(selected, "replace")}
+                    disabled={editBlocked || loadingId !== null}
                     className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]"
                   >
-                    Use template
+                    {loadingId === selected.id ? "Loading template…" : "Use template"}
                   </button>
                 ) : confirmReplace ? (
                   <div role="alert" className="flex flex-col gap-2">
@@ -341,14 +365,16 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       onClick={() => loadTemplate(selected, "add")}
+                      disabled={editBlocked || loadingId !== null}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]"
                     >
                       <PlusIcon aria-hidden="true" className="size-4" />
-                      Add to canvas
+                      {loadingId === selected.id ? "Adding template…" : "Add to canvas"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmReplace(true)}
+                      disabled={loadingId !== null}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold transition-colors duration-300 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.98]"
                     >
                       <ArrowPathIcon aria-hidden="true" className="size-4" />
