@@ -1,10 +1,11 @@
-import type { Node } from "@xyflow/react";
+import type { Edge, InternalNode, Node, SetCenter } from "@xyflow/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DesignBrief } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { COMPACT_LAYOUT_QUERY, useUIStore } from "@/store/uiStore";
 import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import { ApiTab } from "./ApiTab";
 import { DataModelTab } from "./DataModelTab";
@@ -18,6 +19,20 @@ const pipeline = vi.hoisted(() => ({
   cancel: vi.fn<() => void>(),
 }));
 vi.mock("@/hooks/useDesignPipeline", () => ({ useDesignPipeline: () => pipeline }));
+
+// The React Flow instance the design panel reaches through the editor's provider.
+const flow = vi.hoisted(() => ({
+  setCenter: vi.fn<SetCenter>(),
+  getZoom: () => 0.8,
+  nodeLookup: new Map<string, InternalNode>(),
+}));
+vi.mock("@xyflow/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@xyflow/react")>()),
+  useReactFlow: () => flow,
+  useStoreApi: () => ({
+    getState: () => ({ nodeLookup: flow.nodeLookup, width: 1200, height: 800 }),
+  }),
+}));
 
 const nodes: Node[] = [
   {
@@ -175,6 +190,8 @@ beforeEach(() => {
     fn.mockReset();
   }
   pipeline.generateDataModel.mockResolvedValue();
+  flow.setCenter.mockReset().mockResolvedValue(true);
+  flow.nodeLookup.clear();
 });
 
 afterEach(() => {
@@ -214,6 +231,152 @@ describe("DesignTab", () => {
 
     await user.click(within(lists).getByRole("button", { name: /Show on canvas/ }));
     expect(useDiagramStore.getState().selectedNodeId).toBe("lists");
+  });
+
+  describe("Show on canvas", () => {
+    // A selected client and connection, and a service nested two groups deep.
+    const canvas: Node[] = [
+      {
+        id: "region",
+        type: "group",
+        position: { x: 100, y: 200 },
+        data: { label: "EU region", groupType: "region" },
+      },
+      {
+        id: "vpc",
+        type: "group",
+        parentId: "region",
+        extent: "parent",
+        position: { x: 20, y: 30 },
+        data: { label: "Main VPC", groupType: "vpc" },
+      },
+      {
+        id: "lists",
+        type: "architecture",
+        parentId: "vpc",
+        extent: "parent",
+        position: { x: 40, y: 60 },
+        measured: { width: 160, height: 80 },
+        data: { label: "Lists service", type: "service" },
+      },
+      {
+        id: "web",
+        type: "architecture",
+        position: { x: 0, y: 0 },
+        selected: true,
+        data: { label: "Web app", type: "client" },
+      },
+    ];
+    const edge: Edge = {
+      id: "web-lists",
+      source: "web",
+      target: "lists",
+      type: "architecture",
+      selected: true,
+      data: { protocol: "http" },
+    };
+
+    function mockScreen(queries: string[]) {
+      vi.stubGlobal(
+        "matchMedia",
+        vi
+          .fn<(query: string) => MediaQueryList>()
+          .mockImplementation((query) => ({ matches: queries.includes(query) }) as MediaQueryList),
+      );
+    }
+
+    beforeEach(() => {
+      useUIStore.setState(useUIStore.getInitialState());
+      useDiagramStore.setState({
+        brief,
+        nodes: canvas,
+        edges: [edge],
+        selectedEdgeId: "web-lists",
+      });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      useUIStore.setState(useUIStore.getInitialState());
+    });
+
+    async function showOnCanvas(label: string) {
+      const user = userEvent.setup();
+      render(<DesignTab />);
+      await user.click(
+        within(screen.getByRole("article", { name: label })).getByRole("button", {
+          name: /Show on canvas/,
+        }),
+      );
+    }
+
+    it("selects only that node, in the store and on the canvas", async () => {
+      await showOnCanvas("Lists service");
+
+      const state = useDiagramStore.getState();
+      expect(state.selectedNodeId).toBe("lists");
+      expect(state.selectedEdgeId).toBeNull();
+      expect(state.nodes.filter((node) => node.selected).map((node) => node.id)).toEqual(["lists"]);
+      expect(state.edges.find((entry) => entry.id === "web-lists")?.selected).toBe(false);
+    });
+
+    it("centers the view on the node's absolute position inside its groups", async () => {
+      await showOnCanvas("Lists service");
+
+      // region (100, 200) + vpc (20, 30) + lists (40, 60), plus half of 160 × 80.
+      expect(flow.setCenter).toHaveBeenCalledExactlyOnceWith(240, 330, {
+        zoom: 1.1,
+        duration: 400,
+      });
+    });
+
+    it("prefers React Flow's measured absolute position", async () => {
+      const lists = canvas[2]!;
+      flow.nodeLookup.set("lists", {
+        ...lists,
+        measured: { width: 200, height: 100 },
+        internals: { positionAbsolute: { x: 500, y: 600 }, z: 0, userNode: lists },
+      });
+      await showOnCanvas("Lists service");
+
+      expect(flow.setCenter).toHaveBeenCalledExactlyOnceWith(600, 650, {
+        zoom: 1.1,
+        duration: 400,
+      });
+    });
+
+    it("jumps without animating when the viewer prefers reduced motion", async () => {
+      mockScreen(["(prefers-reduced-motion: reduce)"]);
+      await showOnCanvas("Lists service");
+
+      expect(flow.setCenter).toHaveBeenCalledExactlyOnceWith(240, 330, {
+        zoom: 1.1,
+        duration: 0,
+      });
+    });
+
+    it("hides the panels that cover the canvas on a compact screen", async () => {
+      mockScreen([COMPACT_LAYOUT_QUERY]);
+      useUIStore.setState({ leftPanelVisible: false, rightPanelVisible: false });
+      useUIStore.getState().openDesignPanel();
+      await showOnCanvas("Lists service");
+
+      expect(useUIStore.getState()).toMatchObject({
+        leftPanelVisible: false,
+        rightPanelVisible: false,
+      });
+      expect(useDiagramStore.getState().selectedNodeId).toBe("lists");
+    });
+
+    it("keeps the panel beside the canvas on a wide screen", async () => {
+      useUIStore.getState().openDesignPanel();
+      await showOnCanvas("Lists service");
+
+      expect(useUIStore.getState()).toMatchObject({
+        rightPanelVisible: true,
+        designPanelOpen: true,
+      });
+    });
   });
 
   it("explains that nothing is designed yet", () => {

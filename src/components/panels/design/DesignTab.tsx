@@ -4,6 +4,7 @@ import { TradeoffList } from "@/components/ui/TradeoffList";
 import { GROUP_TYPES_CONFIG, NODE_TYPES_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
 import { designDecisionSchema } from "@/schemas/diagram";
+import { useFocusNode } from "@/hooks/useFocusNode";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { DesignDecision } from "@/types";
 import { nodeIdentity, type NodeIdentity } from "@/utils/aiDesign/inputs";
@@ -46,7 +47,7 @@ function componentsOf(nodes: readonly Node[]): Component[] {
 }
 
 function ComponentCard({ component }: { component: Component }) {
-  const setSelectedNode = useDiagramStore((state) => state.setSelectedNode);
+  const focusNode = useFocusNode();
   const { id, label, kind, decision } = component;
   const documented = hasDesignDecision(decision) ? getDocumentedDecision(decision) : undefined;
   return (
@@ -59,7 +60,7 @@ function ComponentCard({ component }: { component: Component }) {
         <span className="min-w-0 truncate text-xs text-muted-foreground">
           {label} · {kind}
         </span>
-        <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setSelectedNode(id)}>
+        <Button variant="ghost" size="sm" className="shrink-0" onClick={() => focusNode(id)}>
           Show on canvas<span className="sr-only">: {label}</span>
         </Button>
       </div>

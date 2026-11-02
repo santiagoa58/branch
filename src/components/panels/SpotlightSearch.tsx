@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useReactFlow, useStoreApi } from "@xyflow/react";
 import { Icon as IconifyIcon } from "@iconify/react";
 import { MagnifyingGlassIcon, CommandLineIcon } from "@heroicons/react/24/outline";
+import { useFocusNode } from "@/hooks/useFocusNode";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useUIStore } from "@/store/uiStore";
 import { NODE_TYPES_CONFIG } from "@/constants";
@@ -62,14 +62,12 @@ function fuzzyScore(query: string, target: string): number | null {
   return qi === q.length ? score : null;
 }
 
-// oxlint-disable-next-line max-lines-per-function -- debt: 222 lines; split into smaller units
+// oxlint-disable-next-line max-lines-per-function -- debt: 207 lines; split into smaller units
 export function SpotlightSearch() {
   const open = useUIStore((s) => s.spotlightOpen);
   const setOpen = useUIStore((s) => s.setSpotlightOpen);
   const nodes = useDiagramStore((s) => s.nodes);
-  const setSelectedNode = useDiagramStore((s) => s.setSelectedNode);
-  const { setCenter, getZoom } = useReactFlow();
-  const rfStore = useStoreApi();
+  const focusNode = useFocusNode();
 
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
@@ -150,25 +148,7 @@ export function SpotlightSearch() {
   const visibleActiveIdx = activeIdx < results.length ? activeIdx : 0;
 
   const handleSelect = (id: string) => {
-    const node = nodes.find((n) => n.id === id);
-    if (!node) {
-      return;
-    }
-
-    // node.position is relative to the parent group, so we need the React
-    // Flow store's positionAbsolute for nested nodes. Fall back to the raw
-    // position for ungrouped nodes (or when nodeLookup hasn't measured yet).
-    const { nodeLookup } = rfStore.getState();
-    const internalNode = nodeLookup.get(id);
-    const abs = internalNode?.internals.positionAbsolute ?? node.position;
-
-    const w = node.measured?.width ?? node.width ?? 160;
-    const h = node.measured?.height ?? node.height ?? 80;
-    const cx = abs.x + w / 2;
-    const cy = abs.y + h / 2;
-    const zoom = Math.max(getZoom(), 1.1);
-    void setCenter(cx, cy, { zoom, duration: 400 });
-    setSelectedNode(id);
+    focusNode(id);
     setOpen(false);
   };
 

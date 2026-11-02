@@ -64,6 +64,11 @@ interface UIState {
   requestPaletteAdd: (type: PaletteNodeType) => void;
   /** Clears the request; on a compact screen it also closes the palette to reveal the result. */
   completePaletteAdd: () => void;
+  /**
+   * On a compact screen, hides the side panels, which slide over the canvas, so a node just
+   * brought into view is visible. Wide screens keep them beside the canvas.
+   */
+  revealCanvas: () => void;
 
   // Legend filtering — protocols whose edges should render dimmed.
   hiddenProtocols: ReadonlySet<EdgeProtocol>;
@@ -132,6 +137,11 @@ export const useUIStore = create<UIState>((set) => ({
         ? { pendingPaletteAdd: null, leftPanelVisible: false }
         : { pendingPaletteAdd: null },
     ),
+  revealCanvas: () => {
+    if (isCompactLayout()) {
+      set({ leftPanelVisible: false, rightPanelVisible: false });
+    }
+  },
 
   // Legend filtering
   hiddenProtocols: new Set<EdgeProtocol>(),

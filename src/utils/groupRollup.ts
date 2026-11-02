@@ -54,7 +54,10 @@ export function getVisibleRepresentative(nodeId: string, nodeById: Map<string, N
 }
 
 /** Absolute canvas position (child positions are parent-relative). */
-function absolutePosition(node: Node, nodeById: Map<string, Node>): { x: number; y: number } {
+export function absolutePosition(
+  node: Node,
+  nodeById: Map<string, Node>,
+): { x: number; y: number } {
   let x = node.position.x;
   let y = node.position.y;
   let current = node;

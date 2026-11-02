@@ -1,4 +1,4 @@
-import type { Node } from "@xyflow/react";
+import { ReactFlowProvider, type Node } from "@xyflow/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -128,7 +128,8 @@ describe("DesignPanel", () => {
       nodes: [service],
       edges: [],
     });
-    render(<DesignPanel />);
+    // "Show on canvas" reaches the editor's React Flow instance.
+    render(<DesignPanel />, { wrapper: ReactFlowProvider });
     await user.click(tab("Design"));
     expect(screen.getByText("A short design.")).toBeVisible();
     expect(screen.getByRole("article", { name: "API" })).toBeVisible();
