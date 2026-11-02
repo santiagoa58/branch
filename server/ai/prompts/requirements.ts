@@ -27,7 +27,9 @@ export function buildRequirementsPrompt(input: RequirementsInput): StagePrompt {
       scopeLine(input.scope),
       section(
         "Requirements (user lines):",
-        input.requirements.map((line) => `[${line.kind}] ${line.text}`),
+        input.requirements.map(
+          (line) => `[${line.kind}${line.category ? `, ${line.category}` : ""}] ${line.text}`,
+        ),
       ),
       section("Out of scope (user lines):", input.outOfScope),
       section(

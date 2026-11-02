@@ -65,13 +65,21 @@ through the Vercel AI SDK and the Vercel AI Gateway, made by our backend.
 
 The user owns a small set of inputs:
 
-- **Prompt:** free text describing the system.
+- **Prompt:** free text describing the system. Required.
 - **Scope:**
   - `frontend` details the client side, and the backend is a single box.
   - `backend` details services, data and infrastructure, and clients are one box per kind.
   - `fullstack` details both.
-- **Requirement lines:** free text, each with a kind: functional, non-functional or constraint.
+- **Requirement lines:** free text, each with a kind: functional, non-functional or constraint. At
+  least one functional line is required to generate or update a design. A non-functional line that
+  starts with a category, as in "Latency: p99 under 200 ms", carries that category (section 4.1)
+  to the stages; nothing extra is stored, so the line text stays the only source.
 - **Out-of-scope lines:** free text.
+
+The user writes each section as a multi-line box, one item per line, so a whole section can be
+pasted or changed at once. Lines are trimmed; blank lines and repeats (by normalized text) are
+dropped.
+
 - **Answers:** kept only for briefs saved by the earlier question round-trip, which asked the user
   questions before designing. Each is stored with its question text; one chosen by "Assume for me"
   is marked `assumed`. New briefs never get answers.
@@ -82,6 +90,7 @@ panel is an edit to the inputs:
 | User action                                     | Edit to inputs                                    |
 | ----------------------------------------------- | ------------------------------------------------- |
 | Type or edit a requirement or out-of-scope line | Edit that line                                    |
+| Edit all, then Update design                    | Replace the prompt, scope and every line at once  |
 | Confirm an assumption                           | Add its text as a requirement line                |
 | Confirm or change a saved assumed answer        | Record it as the user's answer (`assumed: false`) |
 | Change an assumption                            | Add the edited text as a requirement line         |
@@ -91,6 +100,11 @@ panel is an edit to the inputs:
 
 User lines are always displayed verbatim. Stage 1 never restates them; it adds derived items around
 them.
+
+**Line ids in a bulk edit.** A line whose normalized text is unchanged keeps its id; a new or
+edited line gets a new one. Ids only identify rows: the inputs fingerprint ignores them and the
+order of lines, so a bulk edit that changes nothing leaves every stage fresh, and an unchanged form
+adds no history entry.
 
 ### 3.2 Freshness
 
@@ -180,7 +194,7 @@ derived ones.
 ```ts
 input: {
   prompt: string; scope: Scope;
-  requirements: { kind: RequirementKind; text: string }[];          // user lines
+  requirements: { kind: RequirementKind; text: string; category?: NfrCategory }[];  // user lines; category read from a "Latency:" prefix
   outOfScope: string[];                                              // user lines
   answers: { question: string; answer: string; assumed: boolean }[];  // from saved briefs only
   askQuestions: false;   // the design runs in one go; stage 1 never asks
@@ -479,8 +493,16 @@ A docked panel with four tabs in interview order. A tab shows a dot when its con
   - prompt
   - scope control: Frontend / Backend / Full stack, each with a one-line description of what will
     be detailed
-  - an optional "Add requirements" section for requirement and out-of-scope lines
-  - **Generate design**, which runs every stage in one go
+  - one labelled multi-line box per section (functional, non-functional, constraints, out of
+    scope), one item per line, each with help text tied by `aria-describedby` and a placeholder
+    of concrete examples. Functional is required.
+  - non-functional presets: a button per category (scale, latency, availability, consistency,
+    durability, security, cost) that adds "<Category>: <example>" with the example selected
+  - **Generate design**, which runs every stage in one go. It is disabled until there is a
+    prompt and a functional line, with the reason shown and tied to the button.
+- **Edit all:** turns the brief into the composer's form, prefilled from the user's inputs.
+  **Update design** records the change as one edit and runs the stages it outdated; **Cancel**
+  leaves the brief alone. The same prompt and functional-line rule applies.
 - **Requirements:** grouped by kind. User lines are editable and removable. Derived requirements
   have **Remove**.
 - **Assumptions:** stage 1 assumptions (including questions it assumed) and, in saved briefs,
@@ -594,7 +616,8 @@ Then:
 
 **Component**
 
-- Composer.
+- Composer: required-field gating, bulk paste, presets with their category.
+- Edit all: many lines in one edit, ids kept for unchanged lines.
 - A saved brief with open questions shows no question round-trip and offers Update.
 - Each assumption, requirement and out-of-scope action.
 - The update bar's content.

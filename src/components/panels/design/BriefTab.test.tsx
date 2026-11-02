@@ -13,6 +13,7 @@ import {
   confirmAssumption,
   createBrief,
   removeDerivedRequirement,
+  requirementsInput,
 } from "@/utils/aiDesign/inputs";
 import { BriefTab } from "./BriefTab";
 
@@ -115,38 +116,70 @@ function row(text: string, section?: string): HTMLElement {
   return item;
 }
 
+const box = (name: string) => screen.getByRole("textbox", { name });
+
 describe("composer", () => {
-  it("Generate design creates the brief from the composer and runs the update", async () => {
+  it("Generate design waits, with an explanation, for a prompt and a functional line", async () => {
     const user = userEvent.setup();
     mount(null);
-    const start = screen.getByRole("button", { name: "Generate design" });
-    expect(start).toBeDisabled();
-
-    await user.type(
-      screen.getByRole("textbox", { name: "What should we design?" }),
-      "A shared grocery list",
+    const generate = screen.getByRole("button", { name: "Generate design" });
+    expect(generate).toBeDisabled();
+    expect(generate).toHaveAccessibleDescription(
+      "Describe the system and add at least one functional requirement to generate the design.",
     );
+
+    await user.type(box("What should we design?"), "A shared grocery list");
+    expect(generate).toBeDisabled();
+    expect(generate).toHaveAccessibleDescription(
+      "Add at least one functional requirement to generate the design.",
+    );
+    // Blank lines are not a requirement.
+    await user.type(box("Functional requirements"), "   {Enter}{Enter}");
+    expect(generate).toBeDisabled();
+
+    await user.type(box("Functional requirements"), "Members share lists");
+    expect(generate).toBeEnabled();
+    expect(generate).not.toHaveAccessibleDescription();
+
+    await user.clear(box("What should we design?"));
+    expect(generate).toHaveAccessibleDescription("Describe the system to generate the design.");
+    expect(pipeline.update).not.toHaveBeenCalled();
+  });
+
+  it("labels each section and ties its help text to it", () => {
+    mount(null);
+    for (const name of [
+      "Functional requirements",
+      "Non-functional requirements",
+      "Constraints",
+      "Out of scope",
+    ]) {
+      expect(box(name).getAttribute("placeholder")).toMatch(/\n/);
+      expect(box(name)).toHaveAccessibleDescription(/one per line/i);
+    }
+    expect(box("Functional requirements")).toBeRequired();
+    expect(box("What should we design?")).toBeRequired();
+  });
+
+  it("a pasted block becomes one line each, without blanks or repeats, and runs the design", async () => {
+    const user = userEvent.setup();
+    mount(null);
+    await user.type(box("What should we design?"), "A shared grocery list");
     await user.click(screen.getByRole("button", { name: /^Backend/ }));
     expect(screen.getByRole("button", { name: /^Backend/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await user.click(screen.getByRole("button", { name: /Add requirements/ }));
-    await user.click(screen.getByRole("button", { name: "Add line for functional requirements" }));
-    await user.type(
-      screen.getByRole("textbox", { name: "Functional requirement 1" }),
-      "Members share lists",
+    await user.click(box("Functional requirements"));
+    await user.paste(
+      "Members share lists\n\n  Check items off \nmembers share lists\nInvite members",
     );
-    await user.click(screen.getByRole("button", { name: "Add line for constraints" }));
-    await user.type(screen.getByRole("textbox", { name: "Constraint 1" }), "Runs on AWS");
-    await user.click(screen.getByRole("button", { name: "Add line for out of scope" }));
-    await user.type(screen.getByRole("textbox", { name: "Out of scope 1" }), "Payments");
-    // Blank lines are ignored.
-    await user.click(
-      screen.getByRole("button", { name: "Add line for non-functional requirements" }),
-    );
+    await user.click(box("Constraints"));
+    await user.paste("Runs on AWS");
+    await user.click(box("Out of scope"));
+    await user.paste("Payments\nRecipes\n");
 
-    await user.click(start);
+    await user.click(screen.getByRole("button", { name: "Generate design" }));
 
     expect(currentBrief()).toEqual(
       createBrief(
@@ -154,13 +187,61 @@ describe("composer", () => {
         "backend",
         [
           { kind: "functional", text: "Members share lists" },
+          { kind: "functional", text: "Check items off" },
+          { kind: "functional", text: "Invite members" },
           { kind: "constraint", text: "Runs on AWS" },
         ],
-        ["Payments"],
+        ["Payments", "Recipes"],
         newId,
       ),
     );
     expect(pipeline.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("a non-functional preset adds its line with the category, the example selected", async () => {
+    const user = userEvent.setup();
+    mount(null);
+    const nonFunctional = box("Non-functional requirements");
+    await user.type(nonFunctional, "Scale: 1M households");
+    const presets = screen.getByRole("group", { name: "Add a non-functional requirement" });
+    expect(
+      within(presets)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual([
+      "Scale",
+      "Latency",
+      "Availability",
+      "Consistency",
+      "Durability",
+      "Security",
+      "Cost",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Add a latency requirement" }));
+    expect(nonFunctional).toHaveValue("Scale: 1M households\nLatency: p99 under 200 ms for reads");
+    expect(nonFunctional).toHaveFocus();
+    const selected = (nonFunctional as HTMLTextAreaElement).value.slice(
+      (nonFunctional as HTMLTextAreaElement).selectionStart,
+      (nonFunctional as HTMLTextAreaElement).selectionEnd,
+    );
+    expect(selected).toBe("p99 under 200 ms for reads");
+    await user.keyboard("p95 under 100 ms");
+
+    await user.type(box("What should we design?"), "A shared grocery list");
+    await user.type(box("Functional requirements"), "Members share lists");
+    await user.click(screen.getByRole("button", { name: "Generate design" }));
+
+    const brief = currentBrief();
+    expect(brief?.inputs.requirements).toEqual([
+      { id: NEW_ID, kind: "functional", text: "Members share lists" },
+      { id: NEW_ID, kind: "nonFunctional", text: "Scale: 1M households" },
+      { id: NEW_ID, kind: "nonFunctional", text: "Latency: p95 under 100 ms" },
+    ]);
+    expect(brief && requirementsInput(brief).requirements.slice(1)).toEqual([
+      { kind: "nonFunctional", text: "Scale: 1M households", category: "scale" },
+      { kind: "nonFunctional", text: "Latency: p95 under 100 ms", category: "latency" },
+    ]);
   });
 
   it("describes what each scope details", () => {
@@ -170,6 +251,89 @@ describe("composer", () => {
       "true",
     );
     expect(screen.getByText("Client side in detail; the backend is one box.")).toBeVisible();
+  });
+});
+
+describe("edit all", () => {
+  const withLines: DesignBrief = {
+    ...designed,
+    inputs: {
+      ...designed.inputs,
+      requirements: [
+        { id: "r1", kind: "functional", text: "Members of a household share the same lists" },
+        { id: "r2", kind: "functional", text: "Members check items off" },
+        { id: "r3", kind: "nonFunctional", text: "Latency: under a second" },
+      ],
+    },
+  };
+  const historyLength = () => useDiagramStore.getState().history.length;
+
+  it("opens every section as one box, prefilled one line per item", async () => {
+    const user = userEvent.setup();
+    mount(withLines);
+    await user.click(screen.getByRole("button", { name: "Edit all" }));
+    const form = within(screen.getByRole("region", { name: "Edit the brief" }));
+    expect(form.getByRole("textbox", { name: "What should we design?" })).toHaveValue(
+      withLines.inputs.prompt,
+    );
+    expect(form.getByRole("textbox", { name: "Functional requirements" })).toHaveValue(
+      "Members of a household share the same lists\nMembers check items off",
+    );
+    expect(form.getByRole("textbox", { name: "Non-functional requirements" })).toHaveValue(
+      "Latency: under a second",
+    );
+    expect(form.getByRole("textbox", { name: "Out of scope" })).toHaveValue("Paying for groceries");
+  });
+
+  it("Update design changes many lines in one edit, keeping ids of unchanged lines", async () => {
+    const user = userEvent.setup();
+    mount(withLines);
+    const before = historyLength();
+    await user.click(screen.getByRole("button", { name: "Edit all" }));
+    const functional = box("Functional requirements");
+    await user.clear(functional);
+    await user.click(functional);
+    await user.paste(
+      "Members check items off\nInvite members by email\nMembers of a household share the same lists",
+    );
+    await user.clear(box("Out of scope"));
+    await user.click(box("Out of scope"));
+    await user.paste("Paying for groceries\nRecipes");
+    await user.click(screen.getByRole("button", { name: "Update design" }));
+
+    expect(currentBrief()?.inputs.requirements).toEqual([
+      { id: "r2", kind: "functional", text: "Members check items off" },
+      { id: NEW_ID, kind: "functional", text: "Invite members by email" },
+      { id: "r1", kind: "functional", text: "Members of a household share the same lists" },
+      { id: "r3", kind: "nonFunctional", text: "Latency: under a second" },
+    ]);
+    expect(currentBrief()?.inputs.outOfScope).toEqual([
+      { id: "o1", text: "Paying for groceries" },
+      { id: NEW_ID, text: "Recipes" },
+    ]);
+    expect(historyLength()).toBe(before + 1);
+    expect(pipeline.update).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("region", { name: "Edit the brief" })).toBeNull();
+    expect(screen.getByText("Invite members by email")).toBeVisible();
+  });
+
+  it("needs a functional line, and Cancel or an unchanged form leaves the brief alone", async () => {
+    const user = userEvent.setup();
+    mount(withLines);
+    const before = historyLength();
+    await user.click(screen.getByRole("button", { name: "Edit all" }));
+    await user.clear(box("Functional requirements"));
+    expect(screen.getByRole("button", { name: "Update design" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Update design" })).toHaveAccessibleDescription(
+      "Add at least one functional requirement to update the design.",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(currentBrief()).toEqual(withLines);
+
+    await user.click(screen.getByRole("button", { name: "Edit all" }));
+    await user.click(screen.getByRole("button", { name: "Update design" }));
+    expect(currentBrief()).toEqual(withLines);
+    expect(historyLength()).toBe(before);
   });
 });
 

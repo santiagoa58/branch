@@ -5,17 +5,22 @@ import {
   addOutOfScopeLine,
   addRequirementLine,
   answerQuestion,
+  applyBriefDraft,
   bringIntoScope,
   buildDesignContext,
   changeAssumption,
   confirmAssumption,
   createBrief,
   decisionInput,
+  draftMissing,
+  draftOf,
   editOutOfScopeLine,
   editRequirementLine,
   graphSummary,
+  nfrCategoryOf,
   nodeIdentity,
   normalizeText,
+  parseLines,
   removeDerivedRequirement,
   removeOutOfScopeLine,
   removeRequirementLine,
@@ -313,6 +318,147 @@ describe("requirementsInput", () => {
       answers: [{ question: "How fresh?", answer: "Instantly", assumed: true }],
       askQuestions: false,
     });
+  });
+});
+
+describe("parseLines", () => {
+  it("takes one item per line, trimmed, without blank lines", () =>
+    expect(parseLines("  Members share lists \n\n\t\r\nCheck items off\r\n")).toEqual([
+      "Members share lists",
+      "Check items off",
+    ]));
+
+  it("drops repeats by their normalized text, keeping the first", () =>
+    expect(parseLines("Check items off\nCHECK items off  \nInvite members")).toEqual([
+      "Check items off",
+      "Invite members",
+    ]));
+});
+
+describe("brief draft", () => {
+  const draft = (
+    lines: Partial<Record<"functional" | "nonFunctional" | "constraint" | "outOfScope", string>>,
+  ) => ({
+    prompt: "A shared shopping list",
+    scope: "fullstack" as const,
+    lines: { functional: "", nonFunctional: "", constraint: "", outOfScope: "", ...lines },
+  });
+
+  it("draftOf writes each section one line per item", () =>
+    expect(draftOf(brief())).toEqual(
+      draft({
+        functional: "Members share lists",
+        constraint: "Use Postgres",
+        outOfScope: "Billing",
+      }),
+    ));
+
+  it("pasting several lines adds one line each", () => {
+    const next = applyBriefDraft(
+      brief(),
+      draft({
+        functional: "Members share lists\nCheck items off\n\nInvite members\ncheck items off",
+        constraint: "Use Postgres",
+        outOfScope: "Billing",
+      }),
+      ids(),
+    );
+    expect(next.inputs.requirements).toEqual([
+      { id: "r-1", kind: "functional", text: "Members share lists" },
+      { id: "id-1", kind: "functional", text: "Check items off" },
+      { id: "id-2", kind: "functional", text: "Invite members" },
+      { id: "r-2", kind: "constraint", text: "Use Postgres" },
+    ]);
+  });
+
+  it("keeps the id of every unchanged line and replaces edited or removed ones", () => {
+    const base = brief();
+    base.inputs.requirements.push({ id: "r-3", kind: "functional", text: "Invite members" });
+    const next = applyBriefDraft(
+      base,
+      draft({
+        functional: "Invite members\nmembers share lists \nShare a list by link",
+        constraint: "Use MySQL",
+        outOfScope: "Billing\nRecipes",
+      }),
+      ids(),
+    );
+    expect(next.inputs.requirements).toEqual([
+      { id: "r-3", kind: "functional", text: "Invite members" },
+      { id: "r-1", kind: "functional", text: "members share lists" },
+      { id: "id-1", kind: "functional", text: "Share a list by link" },
+      { id: "id-2", kind: "constraint", text: "Use MySQL" },
+    ]);
+    expect(next.inputs.outOfScope).toEqual([
+      { id: "o-1", text: "Billing" },
+      { id: "id-3", text: "Recipes" },
+    ]);
+  });
+
+  it("matches lines within their own section only", () => {
+    const next = applyBriefDraft(brief(), draft({ functional: "Use Postgres" }), ids());
+    expect(next.inputs.requirements).toEqual([
+      { id: "id-1", kind: "functional", text: "Use Postgres" },
+    ]);
+  });
+
+  it("replaces the prompt and scope, and leaves stage output alone", () => {
+    const base = withOutputs();
+    const next = applyBriefDraft(
+      base,
+      { ...draftOf(base), prompt: "  A shared todo list ", scope: "backend" },
+      ids(),
+    );
+    expect(next.inputs.prompt).toBe("A shared todo list");
+    expect(next.inputs.scope).toBe("backend");
+    expect(next.inputs.requirements).toEqual(base.inputs.requirements);
+    expect(outputsOf(next)).toEqual(outputsOf(base));
+  });
+
+  it("draftMissing needs a prompt and at least one functional line", () => {
+    expect(draftMissing(draft({ functional: "Members share lists" }))).toEqual({
+      prompt: false,
+      functional: false,
+    });
+    expect(draftMissing({ ...draft({ functional: " \n " }), prompt: "  " })).toEqual({
+      prompt: true,
+      functional: true,
+    });
+  });
+});
+
+describe("nfrCategoryOf", () => {
+  it.each([
+    ["Scale: 1M daily active users", "scale"],
+    ["  latency : p99 under 200 ms", "latency"],
+    ["AVAILABILITY: 99.9% uptime", "availability"],
+    ["Cost: under $500 a month", "cost"],
+  ])("reads the category of %s", (text, category) => expect(nfrCategoryOf(text)).toBe(category));
+
+  it.each(["p99 under 200 ms", "Other: something", "Throughput: 10k rps", "Scale up later"])(
+    "finds no category in %s",
+    (text) => expect(nfrCategoryOf(text)).toBeUndefined(),
+  );
+
+  it("sends the category of a non-functional user line to stage 1 and the design context", () => {
+    const base = brief();
+    base.inputs.requirements.push(
+      { id: "r-3", kind: "nonFunctional", text: "Latency: p99 under 200 ms" },
+      { id: "r-4", kind: "constraint", text: "Cost: under $500 a month" },
+    );
+    expect(requirementsInput(base).requirements.slice(2)).toEqual([
+      { kind: "nonFunctional", text: "Latency: p99 under 200 ms", category: "latency" },
+      { kind: "constraint", text: "Cost: under $500 a month" },
+    ]);
+    expect(buildDesignContext(base).requirements.slice(2, 4)).toEqual([
+      {
+        kind: "nonFunctional",
+        text: "Latency: p99 under 200 ms",
+        assumed: false,
+        category: "latency",
+      },
+      { kind: "constraint", text: "Cost: under $500 a month", assumed: false },
+    ]);
   });
 });
 

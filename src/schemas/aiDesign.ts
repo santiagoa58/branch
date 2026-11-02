@@ -25,7 +25,7 @@ const keySchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 const scopeSchema = z.enum(["frontend", "backend", "fullstack"]);
 const requirementKindSchema = z.enum(["functional", "nonFunctional", "constraint"]);
-const nfrCategorySchema = z.enum([
+export const nfrCategorySchema = z.enum([
   "scale",
   "latency",
   "availability",
@@ -55,7 +55,14 @@ export const designContextSchema = z.strictObject({
 const requirementsInputSchema = z.strictObject({
   prompt: z.string(),
   scope: scopeSchema,
-  requirements: z.array(z.strictObject({ kind: requirementKindSchema, text: z.string() })),
+  // User lines. A non-functional line that starts with a category ("Latency: ...") carries it.
+  requirements: z.array(
+    z.strictObject({
+      kind: requirementKindSchema,
+      text: z.string(),
+      category: nfrCategorySchema.exactOptional(),
+    }),
+  ),
   outOfScope: z.array(z.string()),
   answers: z.array(
     z.strictObject({ question: z.string(), answer: z.string(), assumed: z.boolean() }),
@@ -316,6 +323,7 @@ export type StageInput<S extends AiStage> = z.infer<(typeof stageSchemas)[S]["in
 export type StageOutput<S extends AiStage> = z.infer<(typeof stageSchemas)[S]["output"]>;
 export type Scope = z.infer<typeof scopeSchema>;
 export type RequirementKind = z.infer<typeof requirementKindSchema>;
+export type NfrCategory = z.infer<typeof nfrCategorySchema>;
 export type DesignContext = z.infer<typeof designContextSchema>;
 export type RequirementsInput = z.infer<typeof requirementsInputSchema>;
 export type RequirementsOutput = z.infer<typeof requirementsOutputSchema>;

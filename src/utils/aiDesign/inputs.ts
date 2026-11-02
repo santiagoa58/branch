@@ -4,10 +4,12 @@ import type {
   DecisionsInput,
   DesignBrief,
   DesignContext,
+  NfrCategory,
   RequirementKind,
   RequirementsInput,
   Scope,
 } from "@/schemas/aiDesign";
+import { nfrCategorySchema } from "@/schemas/aiDesign";
 import {
   architectureNodeTypeSchema,
   edgeProtocolSchema,
@@ -49,6 +51,119 @@ export function createBrief(
     outOfScope: [],
     ranFrom: {},
   };
+}
+
+// --- The brief form: every section is one line per item, edited in bulk ---
+
+/** A section of user lines: a requirement kind, or out of scope. */
+export type LineKind = RequirementKind | "outOfScope";
+
+const REQUIREMENT_KINDS: readonly RequirementKind[] = ["functional", "nonFunctional", "constraint"];
+
+/** The user's inputs as the brief form edits them: each section's text holds one item per line. */
+export interface BriefDraft {
+  prompt: string;
+  scope: Scope;
+  lines: Record<LineKind, string>;
+}
+
+/** One item per line: trimmed, with blank lines and repeats (by `normalizeText`) dropped. */
+export function parseLines(text: string): string[] {
+  const seen = new Set<string>();
+  return text.split(/\r?\n/).flatMap((line) => {
+    const item = line.trim();
+    const key = normalizeText(item);
+    if (!item || seen.has(key)) {
+      return [];
+    }
+    seen.add(key);
+    return [item];
+  });
+}
+
+/**
+ * A section's lines for its new text. A line whose normalized text is unchanged keeps its id, so
+ * rows keep their identity; a new or edited line gets a new id. Ids are not part of the inputs
+ * fingerprint, so only the text decides what is out of date.
+ */
+function linesFor(
+  existing: readonly { id: string; text: string }[],
+  text: string,
+  newId: NewId,
+): { id: string; text: string }[] {
+  const ids = new Map<string, string>();
+  for (const line of existing) {
+    const key = normalizeText(line.text);
+    if (!ids.has(key)) {
+      ids.set(key, line.id);
+    }
+  }
+  return parseLines(text).map((item) => ({
+    id: ids.get(normalizeText(item)) ?? newId(),
+    text: item,
+  }));
+}
+
+/** The brief's inputs as the brief form shows them. */
+export function draftOf(brief: DesignBrief): BriefDraft {
+  const linesOf = (kind: RequirementKind) =>
+    brief.inputs.requirements
+      .filter((line) => line.kind === kind)
+      .map((line) => line.text)
+      .join("\n");
+  return {
+    prompt: brief.inputs.prompt,
+    scope: brief.inputs.scope,
+    lines: {
+      functional: linesOf("functional"),
+      nonFunctional: linesOf("nonFunctional"),
+      constraint: linesOf("constraint"),
+      outOfScope: brief.inputs.outOfScope.map((line) => line.text).join("\n"),
+    },
+  };
+}
+
+/** Replaces the prompt, the scope and every user line at once: one edit for a bulk change. */
+export function applyBriefDraft(brief: DesignBrief, draft: BriefDraft, newId: NewId): DesignBrief {
+  return withInputs(brief, {
+    prompt: draft.prompt.trim(),
+    scope: draft.scope,
+    requirements: REQUIREMENT_KINDS.flatMap((kind) =>
+      linesFor(
+        brief.inputs.requirements.filter((line) => line.kind === kind),
+        draft.lines[kind],
+        newId,
+      ).map(({ id, text }) => ({ id, kind, text })),
+    ),
+    outOfScope: linesFor(brief.inputs.outOfScope, draft.lines.outOfScope, newId),
+  });
+}
+
+/** A new brief from the composer's draft. */
+export function briefFromDraft(draft: BriefDraft, newId: NewId): DesignBrief {
+  return applyBriefDraft(createBrief("", draft.scope, [], [], newId), draft, newId);
+}
+
+/** What the draft still needs before it can be designed: a prompt and a functional line. */
+export function draftMissing(draft: BriefDraft): { prompt: boolean; functional: boolean } {
+  return {
+    prompt: draft.prompt.trim() === "",
+    functional: parseLines(draft.lines.functional).length === 0,
+  };
+}
+
+const presetCategorySchema = nfrCategorySchema.exclude(["other"]);
+
+/** The category a line names first, as in "Latency: p99 under 200 ms"; "other" is never named. */
+export function nfrCategoryOf(text: string): Exclude<NfrCategory, "other"> | undefined {
+  const prefix = /^\s*([a-z]+)\s*:/i.exec(text)?.[1];
+  return presetCategorySchema.safeParse(prefix?.toLowerCase()).data;
+}
+
+/** A user line as the stages see it: a non-functional line with a category prefix carries it. */
+function userRequirement({ kind, text }: { kind: RequirementKind; text: string }) {
+  const category = kind === "nonFunctional" ? nfrCategoryOf(text) : undefined;
+  return category ? { kind, text, category } : { kind, text };
 }
 
 export function addRequirementLine(
@@ -165,7 +280,7 @@ export function buildDesignContext(brief: DesignBrief): DesignContext {
     prompt: brief.inputs.prompt,
     scope: brief.inputs.scope,
     requirements: [
-      ...brief.inputs.requirements.map(({ kind, text }) => ({ kind, text, assumed: false })),
+      ...brief.inputs.requirements.map((line) => ({ ...userRequirement(line), assumed: false })),
       ...brief.requirements.map((requirement) => ({ ...requirement, assumed: false })),
       ...brief.assumptions.map(({ kind, text }) => ({ kind, text, assumed: true })),
     ],
@@ -177,7 +292,7 @@ export function requirementsInput(brief: DesignBrief): RequirementsInput {
   return {
     prompt: brief.inputs.prompt,
     scope: brief.inputs.scope,
-    requirements: brief.inputs.requirements.map(({ kind, text }) => ({ kind, text })),
+    requirements: brief.inputs.requirements.map(userRequirement),
     outOfScope: brief.inputs.outOfScope.map((line) => line.text),
     answers: brief.inputs.answers.map(({ question, answer, assumed }) => ({
       question,

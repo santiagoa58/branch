@@ -9,7 +9,7 @@ import { useUIStore, type DesignTabId } from "@/store/uiStore";
 import type { OutdatedStages } from "@/utils/aiDesign/fingerprint";
 import { ApiTab } from "./ApiTab";
 import { BriefTab } from "./BriefTab";
-import { SCOPES } from "./Composer";
+import { SCOPES } from "./BriefForm";
 import { DataModelTab } from "./DataModelTab";
 import { DesignTab } from "./DesignTab";
 import { RunNotes, RunProgress, UpdateBar } from "./UpdateBar";

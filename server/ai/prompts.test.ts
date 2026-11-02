@@ -88,6 +88,13 @@ describe("stage prompts", () => {
       expect(prompt).toContain(text);
     }
   });
+  it("requirements prompt tags a user line with its category", () =>
+    expect(
+      buildRequirementsPrompt({
+        ...stage1Input,
+        requirements: [{ kind: "nonFunctional", text: "Latency: under 1s", category: "latency" }],
+      }).prompt,
+    ).toContain("- [nonFunctional, latency] Latency: under 1s"));
   it("requirements prompt marks assumed answers", () =>
     expect(buildRequirementsPrompt(withAssumedAnswer).prompt).toMatch(/assumed/i));
   it("requirements system prompt carries the stage 1 rules", () => {

@@ -220,7 +220,7 @@ describe("replacement notice before a run", () => {
     render(<DesignPanel />);
     expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
     expect(screen.getByRole("button", { name: "Generate design" })).toHaveAccessibleDescription(
-      REPLACEMENT_NOTICE,
+      /a version is saved first\.$/,
     );
   });
 
