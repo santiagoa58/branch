@@ -15,12 +15,12 @@ const SYSTEM = joinSections(
   `Your task: choose the components of the system and how they connect.
 - summary: two or three sentences on how the design works.
 - components: one per box on the diagram, each with a one-line responsibility. Put a component in a group only when the boundary matters.
-- groups: boundaries such as a VPC or region, only where they matter; an empty list when none do. A group's parent is another group key.
+- groups: real containment/trust/deployment boundaries such as a region, VPC, subnet or independently deployed cluster. Do NOT group by call sequence, frontend/backend tier, component type or vague logical similarity. Prefer no groups unless the boundary changes the architecture. Avoid deep nested boxes; use at most two group levels unless a requirement explicitly needs deeper isolation. Do not put unrelated tiers in one group just to categorize them. An empty list is correct when no boundary matters. Set parent only when it names a real existing group key; omit parent for top-level groups (never use an empty string).
 - connections: who calls whom, with the protocol, a short purpose, and async true for fire-and-forget messaging.
 - mainFlow: the most important request path, starting at the component key in "entry".`,
   `Rules:
 - Use only the types and protocols listed below.
-- Keys are lowercase slugs (a-z, 0-9, hyphens), unique across groups and components. Connections, groups and mainFlow refer to these keys.
+- Keys are lowercase slugs (a-z, 0-9, hyphens), unique across groups and components. Connections, groups and mainFlow refer to these keys. Omit group on top-level components (never use an empty string).
 - Reuse a previous key for a component that still serves the same role, even if its label or type changes. Use new keys only for new roles.`,
   `Component types: ${architectureNodeTypeSchema.options.join(", ")}`,
   `Group types: ${groupNodeTypeSchema.options.join(", ")}`,

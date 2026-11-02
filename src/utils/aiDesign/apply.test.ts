@@ -472,6 +472,25 @@ describe("applyComponents", () => {
     expect(clash.nodes.filter((n) => n.id === "note-1")).toEqual([comment]);
   });
 
+  it("treats blank parent and group keys as top-level without false warnings", async () => {
+    const result = await ok(
+      applyComponents(
+        current(),
+        {
+          ...baseOutput,
+          groups: [{ key: "region", type: "region", label: "Primary region", parent: "" }],
+          components: baseOutput.components.map((component) => ({ ...component, group: "  " })),
+        },
+        NOW,
+      ),
+    );
+    expect(result.warnings).toEqual([]);
+    expect(result.nodes.find((node) => node.id === "region")?.parentId).toBeUndefined();
+    for (const component of baseOutput.components) {
+      expect(result.nodes.find((node) => node.id === component.key)?.parentId).toBeUndefined();
+    }
+  });
+
   it("detaches a cyclic group parent and an unknown one, keeping both groups", async () => {
     const cyc = await ok(applyComponents(current(), groupCycle, NOW));
     const parents = ["a", "b"].map((id) => cyc.nodes.find((n) => n.id === id)?.parentId);

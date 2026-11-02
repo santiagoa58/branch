@@ -45,18 +45,24 @@ function uniqueKeyed<T extends { key: string }>(
   });
 }
 
+/** Empty strings from a structured model mean no group, not a broken reference. */
+function optionalGroupKey(value: string | undefined): string | undefined {
+  return value?.trim() || undefined;
+}
+
 /** Resolves group parents, detaching unknown parents and breaking cycles. */
 function resolveGroupParents(groups: Group[], warnings: string[]): Map<string, string | undefined> {
   const keys = new Set(groups.map((group) => group.key));
   const parents = new Map<string, string | undefined>();
   for (const group of groups) {
-    if (group.parent !== undefined && !keys.has(group.parent)) {
+    const parent = optionalGroupKey(group.parent);
+    if (parent !== undefined && !keys.has(parent)) {
       warnings.push(
-        `Detached group "${group.key}" from parent "${group.parent}": "${group.parent}" is not a group.`,
+        `Detached group "${group.key}" from parent "${parent}": "${parent}" is not a group.`
       );
       parents.set(group.key, undefined);
     } else {
-      parents.set(group.key, group.parent);
+      parents.set(group.key, parent);
     }
   }
   for (const group of groups) {
@@ -148,7 +154,7 @@ export async function applyComponents(
   });
 
   const componentNodes = components.map((component: Component) => {
-    let group = component.group;
+    let group = optionalGroupKey(component.group);
     if (group !== undefined && !groupKeys.has(group)) {
       warnings.push(
         `Moved component "${component.key}" to the top level: "${group}" is not a group.`,
