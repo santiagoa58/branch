@@ -45,7 +45,13 @@ function expectZonesInOrder(nodes: Node[]) {
   for (const a of nodes) {
     for (const b of nodes) {
       const [za, zb] = [zones.get(a.id), zones.get(b.id)];
-      if (a.parentId !== b.parentId || za === undefined || zb === undefined || za >= zb) {
+      if (
+        a.parentId !== b.parentId ||
+        a.parentId !== undefined ||
+        za === undefined ||
+        zb === undefined ||
+        za >= zb
+      ) {
         continue;
       }
       const left = rects.get(a.id)!;
@@ -171,7 +177,7 @@ describe("zoned auto layout", () => {
     },
   );
 
-  it("orders zones inside a group as well as between groups", async () => {
+  it("keeps outer zones ordered while packing connected group contents by dependencies", async () => {
     const nodes = [
       groupNode("platform", "vpc", "Platform", 0, 0, 400, 300),
       archNode("db", "database", "Orders", 0, 0, { parentId: "platform" }),

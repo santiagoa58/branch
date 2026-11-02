@@ -43,7 +43,9 @@ export async function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Promise<D
       children.map((child) => ({
         id: child.id,
         ...footprints.get(child.id)!,
-        tier: tiers.get(child.id),
+        // Root-level zones retain their order; inside a deployment boundary the dependency
+        // graph decides placement rather than forcing unrelated zone columns.
+        tier: parent === undefined ? tiers.get(child.id) : child.type === "comment" ? undefined : 0,
       })),
       projected.get(parent) ?? [],
     );

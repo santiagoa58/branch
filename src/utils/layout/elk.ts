@@ -25,8 +25,8 @@ const PACK_THRESHOLD = 4;
 
 /**
  * ELK layered, left to right.
- * - Partitions keep the zones in tier order across the whole graph, so connected components are
- *   not laid out apart (that would let one component's data sit left of another's services).
+ * - Root partitions keep the zones in tier order across the graph, so connected components are
+ *   not laid out apart. Group interiors follow connection topology rather than global zone tiers.
  * - Crossing minimization: a layer sweep with a greedy two-sided switch, thorough for diagrams of
  *   ordinary size (see `SMALL_GRAPH`).
  * - One fixed input port on the left and one output port on the right of each node, so ELK
