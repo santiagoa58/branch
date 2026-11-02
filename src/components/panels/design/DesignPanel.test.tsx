@@ -5,10 +5,9 @@ import userEvent from "@testing-library/user-event";
 import type { AiStage, DesignBrief } from "@/schemas/aiDesign";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
-import { useUIStore, type DesignTabId } from "@/store/uiStore";
+import { useUIStore } from "@/store/uiStore";
 import { inputsFingerprint, resultFingerprint } from "@/utils/aiDesign/fingerprint";
 import { EditorRightPanel } from "../EditorRightPanel";
-import { DesignPanel } from "./DesignPanel";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
 const pipeline = vi.hoisted(() => ({
@@ -20,7 +19,7 @@ const pipeline = vi.hoisted(() => ({
 }));
 vi.mock("@/hooks/useDesignPipeline", () => ({ useDesignPipeline: () => pipeline }));
 vi.mock("../PropertiesPanel", () => ({
-  PropertiesPanel: () => <aside aria-label="Properties" />,
+  PropertiesPanel: () => <div aria-label="Element details">Inspector content</div>,
 }));
 
 const service: Node = {
@@ -29,299 +28,152 @@ const service: Node = {
   position: { x: 0, y: 0 },
   data: { label: "API", type: "service" },
 };
-
 const base: DesignBrief = {
-  inputs: {
-    prompt: "A URL shortener",
-    scope: "backend",
-    requirements: [],
-    outOfScope: [],
-    answers: [],
-  },
+  inputs: { prompt: "A URL shortener", scope: "backend", requirements: [], outOfScope: [], answers: [] },
   questions: [],
   requirements: [],
   assumptions: [],
   outOfScope: [],
   ranFrom: {},
 };
-
 function freshBrief(): DesignBrief {
   const inputs = inputsFingerprint(base.inputs);
   const result = resultFingerprint(base, [service], []);
   return {
     ...base,
     dataModel: { entities: [] },
-    ranFrom: {
-      requirements: inputs,
-      components: inputs,
-      decisions: result,
-      api: result,
-      dataModel: result,
-    },
+    ranFrom: { requirements: inputs, components: inputs, decisions: result, api: result, dataModel: result },
   };
 }
-
-const tab = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name}`) });
+const section = (label: string) =>
+  within(screen.getByRole("navigation", { name: "Sidebar sections" })).getByRole("button", {
+    name: new RegExp(`^${label}`),
+  });
 
 beforeEach(() => {
   useAiDesignStore.setState(useAiDesignStore.getInitialState());
   useDiagramStore.getState().resetDiagramState();
   useUIStore.setState(useUIStore.getInitialState());
+  vi.clearAllMocks();
 });
-
 afterEach(() => {
   cleanup();
   useAiDesignStore.getState().cancel();
 });
 
-describe("DesignPanel", () => {
-  it("shows the composer without tabs while the diagram has no brief", () => {
-    render(<DesignPanel />);
-    expect(screen.getByRole("heading", { name: "Design with AI" })).toBeVisible();
+describe("one editor sidebar", () => {
+  it("has one complementary region and six sections even without an AI brief", async () => {
+    const user = userEvent.setup();
+    render(<EditorRightPanel />);
+    expect(screen.getAllByRole("complementary")).toHaveLength(1);
+    expect(screen.getByRole("complementary", { name: "Editor sidebar" })).toBeVisible();
+    for (const label of ["Inspect", "Brief", "Design", "API", "Data", "Flows"]) {
+      expect(section(label)).toBeVisible();
+    }
+    await user.click(section("API"));
+    expect(useUIStore.getState().rightPanelTab).toBe("api");
+    expect(screen.getByText("Endpoints and events appear here after an update.")).toBeVisible();
+    expect(screen.getAllByRole("complementary")).toHaveLength(1);
+    await user.click(section("Brief"));
     expect(screen.getByRole("button", { name: "Generate design" })).toBeVisible();
-    expect(screen.queryByRole("navigation", { name: "Design sections" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("complementary")).toHaveLength(1);
   });
 
-  it("marks each tab whose content is out of date", () => {
-    useDiagramStore.setState({ brief: freshBrief(), nodes: [service], edges: [] });
-    render(<DesignPanel />);
-    expect(screen.getByText("Backend")).toBeVisible();
-    expect(screen.getByText("A URL shortener")).toBeVisible();
-    for (const name of ["Brief", "Design", "API", "Data model"]) {
-      expect(tab(name)).not.toHaveTextContent("out of date");
-    }
+  it("switches between inspect, API and data model without clearing selection", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({ brief: { ...freshBrief(), summary: "A short design." }, nodes: [service], selectedNodeId: "api" });
+    render(<EditorRightPanel />, { wrapper: ReactFlowProvider });
+    expect(screen.getByText("Inspector content")).toBeVisible();
+    await user.click(section("Design"));
+    expect(screen.getByText("A short design.")).toBeVisible();
+    await user.click(section("API"));
+    expect(screen.getByText("Endpoints and events appear here after an update.")).toBeVisible();
+    await user.click(section("Data"));
+    expect(screen.getByText("The data model has no entities.")).toBeVisible();
+    await user.click(section("Inspect"));
+    expect(screen.getByText("Inspector content")).toBeVisible();
+    expect(useDiagramStore.getState().selectedNodeId).toBe("api");
+  });
 
-    // A graph edit leaves reasoning, API and the data model out of date.
+  it("shows out-of-date indicators in the shared navigation", () => {
+    useDiagramStore.setState({ brief: freshBrief(), nodes: [service], edges: [] });
+    render(<EditorRightPanel />);
+    for (const label of ["Brief", "Design", "API", "Data"]) {
+      expect(section(label)).not.toHaveTextContent("out of date");
+    }
     act(() => {
       useDiagramStore.setState({ nodes: [service, { ...service, id: "db" }] });
     });
-    expect(tab("Brief")).not.toHaveTextContent("out of date");
-    expect(tab("Design")).toHaveTextContent("(out of date)");
-    expect(tab("API")).toHaveTextContent("(out of date)");
-    expect(tab("Data model")).toHaveTextContent("(out of date)");
-
-    // An input edit leaves every stage out of date.
+    expect(section("Design")).toHaveTextContent("(out of date)");
+    expect(section("API")).toHaveTextContent("(out of date)");
+    expect(section("Data")).toHaveTextContent("(out of date)");
     act(() => {
       useDiagramStore.setState({
         nodes: [service],
         brief: { ...freshBrief(), inputs: { ...base.inputs, prompt: "A link shortener" } },
       });
     });
-    expect(tab("Brief")).toHaveTextContent("(out of date)");
+    expect(section("Brief")).toHaveTextContent("(out of date)");
   });
 
-  it("switches tabs and keeps the update bar pinned below them", async () => {
+  it("keeps API available independently of Design with AI, and keeps the update footer", async () => {
     const user = userEvent.setup();
-    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
-    render(<DesignPanel />);
-    expect(tab("Brief")).toHaveAttribute("aria-pressed", "true");
-    await user.click(tab("API"));
-    expect(tab("API")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Endpoints and events appear here after an update.")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Update design" })).toBeVisible();
-  });
-
-  it("shows the design, API and data model in their tabs", async () => {
-    const user = userEvent.setup();
-    useDiagramStore.setState({
-      brief: { ...freshBrief(), summary: "A short design." },
-      nodes: [service],
-      edges: [],
-    });
-    // "Show on canvas" reaches the editor's React Flow instance.
-    render(<DesignPanel />, { wrapper: ReactFlowProvider });
-    await user.click(tab("Design"));
-    expect(screen.getByText("A short design.")).toBeVisible();
-    expect(screen.getByRole("article", { name: "API" })).toBeVisible();
-    await user.click(tab("Data model"));
-    expect(screen.getByText("The data model has no entities.")).toBeVisible();
-  });
-
-  it("shows progress instead of the tabs during a run, and cannot be closed", () => {
-    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
-    useAiDesignStore.getState().start("d1");
-    useAiDesignStore.getState().setStage("requirements");
-    render(<DesignPanel />);
-    expect(screen.getByRole("list", { name: "Design progress" })).toBeVisible();
-    expect(screen.queryByRole("navigation", { name: "Design sections" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close design panel" })).toBeDisabled();
-  });
-
-  it.each<DesignTabId>(["brief", "design", "api", "dataModel"])(
-    "shows the run status during a run started from the %s tab, until it ends",
-    (designTab) => {
-      useDiagramStore.setState({ brief: freshBrief(), nodes: [service], edges: [] });
-      useUIStore.setState({ designTab });
-      render(<DesignPanel />, { wrapper: ReactFlowProvider });
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-
-      act(() => {
-        useAiDesignStore.getState().start("d1");
-        useAiDesignStore.getState().setStage("decisions");
-        useAiDesignStore.getState().setDecisionProgress(12, 40);
-      });
-      expect(screen.getByRole("status")).toHaveTextContent("Explaining decisions 12/40");
-      expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
-
-      act(() => {
-        useAiDesignStore.getState().finish();
-      });
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-      expect(useUIStore.getState().designTab).toBe(designTab);
-    },
-  );
-
-  it("closes from its header", async () => {
-    const user = userEvent.setup();
-    useUIStore.getState().openDesignPanel();
-    render(<DesignPanel />);
-    await user.click(screen.getByRole("button", { name: "Close design panel" }));
-    expect(useUIStore.getState().designPanelOpen).toBe(false);
-  });
-});
-
-describe("tab after a run", () => {
-  it("keeps the open tab when a run ends", async () => {
-    const user = userEvent.setup();
-    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
-    render(<DesignPanel />);
-    await user.click(tab("API"));
-    act(() => {
-      useAiDesignStore.getState().start("d1");
-    });
-    act(() => {
-      useAiDesignStore.getState().finish();
-    });
-    expect(tab("API")).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("keeps the tab while the inspector holds the slot", async () => {
-    const user = userEvent.setup();
-    useUIStore.getState().openDesignPanel();
-    useDiagramStore.setState({ brief: base, nodes: [], edges: [] });
-    render(<EditorRightPanel />);
-    await user.click(tab("Data model"));
-
-    act(() => {
-      useDiagramStore.setState({ selectedNodeId: "api" });
-    });
-    expect(screen.queryByRole("complementary", { name: "Design with AI" })).not.toBeInTheDocument();
-    act(() => {
-      useDiagramStore.setState({ selectedNodeId: null });
-    });
-
-    expect(tab("Data model")).toHaveAttribute("aria-pressed", "true");
-  });
-});
-
-describe("replacement notice before a run", () => {
-  it("warns in the composer when the diagram already has components", () => {
-    useDiagramStore.setState({ nodes: [service], edges: [] });
-    render(<DesignPanel />);
-    expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Generate design" })).toHaveAccessibleDescription(
-      /a version is saved first\.$/,
-    );
-  });
-
-  it("does not warn in the composer on an empty diagram", () => {
-    render(<DesignPanel />);
-    expect(screen.queryByText(REPLACEMENT_NOTICE)).not.toBeInTheDocument();
-  });
-
-  it("offers Update design, with the notice, for a saved brief that stopped at questions", () => {
-    const asking: DesignBrief = {
-      ...base,
-      questions: [
-        {
-          id: "q1",
-          topic: "scale",
-          question: "How many links a day?",
-          why: "Sizes storage.",
-          options: [],
-          recommended: "About 1k",
-          allowsCustom: true,
-        },
-      ],
-      ranFrom: { requirements: inputsFingerprint(base.inputs) },
-    };
-    useDiagramStore.setState({ brief: asking, nodes: [service], edges: [] });
-    render(<DesignPanel />);
-    expect(screen.queryByRole("region", { name: "Questions" })).toBeNull();
-    expect(
-      screen.getByText("Requirements, components, reasoning and API will update"),
-    ).toBeVisible();
-    expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Update design" })).toBeVisible();
-  });
-});
-
-describe("EditorRightPanel", () => {
-  it("gives the slot to the inspector while something is selected", () => {
-    useUIStore.getState().openDesignPanel();
-    render(<EditorRightPanel />);
-    expect(screen.getByRole("complementary", { name: "Design with AI" })).toBeVisible();
-
-    act(() => {
-      useDiagramStore.setState({ selectedNodeId: "api" });
-    });
-    expect(screen.getByRole("complementary", { name: "Properties" })).toBeInTheDocument();
-    expect(screen.queryByRole("complementary", { name: "Design with AI" })).not.toBeInTheDocument();
-
-    // Closing the inspector shows the design panel again.
-    act(() => {
-      useDiagramStore.setState({ selectedNodeId: null });
-    });
-    expect(screen.getByRole("complementary", { name: "Design with AI" })).toBeVisible();
-  });
-
-  it("shows the inspector when the design panel is closed", () => {
-    render(<EditorRightPanel />);
-    expect(screen.getByRole("complementary", { name: "Properties" })).toBeInTheDocument();
-  });
-
-  // A hidden slot stays hidden (the toolbar's run indicator covers it); a closed design panel does not.
-  it("shows the run status even when the design panel was closed", () => {
-    useUIStore.setState({ rightPanelVisible: true, designPanelOpen: false });
     useDiagramStore.setState({ brief: base });
     render(<EditorRightPanel />);
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    await user.click(section("API"));
+    expect(screen.getByRole("button", { name: "Update design" })).toBeVisible();
+    await user.click(section("Brief"));
+    expect(screen.getByText("A URL shortener")).toBeInTheDocument();
+  });
+
+  it("shows AI progress in Brief while other sections stay navigable", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({ brief: base });
+    useUIStore.getState().openRightPanel("brief");
+    render(<EditorRightPanel />);
     act(() => {
-      useAiDesignStore.getState().start("d1");
+      void useAiDesignStore.getState().start("d1");
       useAiDesignStore.getState().setStage("requirements");
     });
-    expect(screen.getByRole("status")).toHaveTextContent("Clarifying requirements");
+    expect(screen.getByRole("list", { name: "Design progress" })).toBeVisible();
+    await user.click(section("API"));
+    expect(screen.getByText("Endpoints and events appear here after an update.")).toBeVisible();
+    await user.click(section("Brief"));
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
   });
 
-  it("shows the design panel and its Cancel during a run, even if it was closed", async () => {
+  it("has one close action that closes the entire sidebar, without clearing selection", async () => {
     const user = userEvent.setup();
-    useDiagramStore.setState({ brief: base });
-    useAiDesignStore.getState().start("d1");
+    useDiagramStore.setState({ nodes: [service], selectedNodeId: "api" });
     render(<EditorRightPanel />);
-    const panel = screen.getByRole("complementary", { name: "Design with AI" });
-    await user.click(within(panel).getByRole("button", { name: "Cancel" }));
-    expect(pipeline.cancel).toHaveBeenCalledTimes(1);
-  });
-
-  it("gives the slot to the inspector for a selection made during a run", () => {
-    useUIStore.getState().openDesignPanel();
-    useDiagramStore.setState({ brief: base });
-    useAiDesignStore.getState().start("d1");
-    render(<EditorRightPanel />);
-    expect(screen.getByRole("complementary", { name: "Design with AI" })).toBeVisible();
-
-    act(() => useDiagramStore.getState().setSelectedNode("api"));
-    expect(screen.getByRole("complementary", { name: "Properties" })).toBeInTheDocument();
-
-    // Closing the inspector returns to the run's progress.
-    act(() => useDiagramStore.getState().setSelectedNode(null));
-    expect(screen.getByRole("complementary", { name: "Design with AI" })).toBeVisible();
-  });
-
-  it("lets a compact screen hide the slot during a run to show the canvas", () => {
-    useUIStore.setState({ rightPanelVisible: false });
-    useAiDesignStore.getState().start("d1");
-    render(<EditorRightPanel />);
+    await user.click(screen.getByRole("button", { name: "Close sidebar" }));
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(useUIStore.getState().rightPanelVisible).toBe(false);
+    expect(useDiagramStore.getState().selectedNodeId).toBe("api");
+  });
+
+  it("exposes saved request flows in the same sidebar instead of a floating second sidebar", async () => {
+    const user = userEvent.setup();
+    render(<EditorRightPanel />);
+    await user.click(section("Flows"));
+    expect(screen.getAllByRole("complementary")).toHaveLength(1);
+    expect(screen.getByText(/Save a replayable flow scenario/)).toBeVisible();
+  });
+
+  it("preserves the replace-design warning in Brief", async () => {
+    const user = userEvent.setup();
+    useDiagramStore.setState({ nodes: [service] });
+    render(<EditorRightPanel />);
+    await user.click(section("Brief"));
+    expect(screen.getByText(REPLACEMENT_NOTICE)).toBeVisible();
+  });
+
+  it("retains section state when hidden and reopened", async () => {
+    const user = userEvent.setup();
+    render(<EditorRightPanel />);
+    await user.click(section("API"));
+    await user.click(screen.getByRole("button", { name: "Close sidebar" }));
+    act(() => useUIStore.getState().toggleRightPanel());
+    expect(section("API")).toHaveAttribute("aria-pressed", "true");
   });
 });

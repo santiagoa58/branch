@@ -99,33 +99,32 @@ const architectureNode = {
 };
 
 describe("Design with AI entry points", () => {
-  it("the toolbar button opens and closes the design panel", async () => {
+  it("the toolbar button selects Brief in the one sidebar", async () => {
     const user = userEvent.setup();
     useDiagramStore.getState().hydrateDiagram({ nodes: [architectureNode], edges: [] });
     render(<DiagramEditor />);
     const button = screen.getByRole("button", { name: "Design with AI" });
     expect(button).toHaveAttribute("aria-pressed", "false");
-
     await user.click(button);
-    expect(useUIStore.getState()).toMatchObject({ designPanelOpen: true, rightPanelVisible: true });
+    expect(useUIStore.getState()).toMatchObject({ rightPanelTab: "brief", rightPanelVisible: true });
     expect(button).toHaveAttribute("aria-pressed", "true");
-
+    // Clicking the shortcut twice never creates a second panel or hides the sidebar.
     await user.click(button);
-    expect(useUIStore.getState().designPanelOpen).toBe(false);
+    expect(useUIStore.getState()).toMatchObject({ rightPanelTab: "brief", rightPanelVisible: true });
+    expect(screen.getAllByRole("complementary", { name: "Editor sidebar" })).toHaveLength(1);
   });
 
-  it("opening the panel clears the selection so the inspector gives way", async () => {
+  it("opening Brief preserves the selected node and allows returning to Inspect", async () => {
     const user = userEvent.setup();
     useDiagramStore.getState().hydrateDiagram({ nodes: [architectureNode], edges: [] });
     act(() => useDiagramStore.getState().setSelectedNode("api"));
-    useUIStore.getState().openDesignPanel();
     render(<DiagramEditor />);
-    const button = screen.getByRole("button", { name: "Design with AI" });
-    expect(button).toHaveAttribute("aria-pressed", "false");
-
-    await user.click(button);
-    expect(useDiagramStore.getState().selectedNodeId).toBeNull();
-    expect(useUIStore.getState().designPanelOpen).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Design with AI" }));
+    expect(useDiagramStore.getState().selectedNodeId).toBe("api");
+    expect(useUIStore.getState().rightPanelTab).toBe("brief");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    expect(useUIStore.getState().rightPanelTab).toBe("inspect");
+    expect(useDiagramStore.getState().selectedNodeId).toBe("api");
   });
 
   it("the empty canvas offers Design with AI beside the starter templates", async () => {
@@ -133,9 +132,8 @@ describe("Design with AI entry points", () => {
     render(<DiagramEditor />);
     expect(screen.getByRole("button", { name: "Browse starter templates" })).toBeVisible();
     const buttons = screen.getAllByRole("button", { name: "Design with AI" });
-    // The toolbar button and the empty-canvas button.
     expect(buttons).toHaveLength(2);
     await user.click(buttons[1]!);
-    expect(useUIStore.getState().designPanelOpen).toBe(true);
+    expect(useUIStore.getState().rightPanelTab).toBe("brief");
   });
 });

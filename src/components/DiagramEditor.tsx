@@ -28,7 +28,6 @@ import { EditorContextMenu } from "@/components/panels/EditorContextMenu";
 import { ProtocolLegend } from "@/components/panels/ProtocolLegend";
 import { CanvasStatusBar } from "@/components/panels/CanvasStatusBar";
 import { SpotlightSearch } from "@/components/panels/SpotlightSearch";
-import { FlowsPanel } from "@/components/panels/FlowsPanel";
 import { AiRunCanvasHint } from "@/components/panels/AiRunCanvasHint";
 import { ImportDialog } from "@/components/ui/ImportDialog";
 import { TemplateGalleryDialog } from "@/components/ui/TemplateGalleryDialog";

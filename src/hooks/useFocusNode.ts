@@ -50,6 +50,7 @@ export function useFocusNode(): (nodeId: string) => void {
         return;
       }
       selectOnly(nodeId);
+      useUIStore.getState().openRightPanel("inspect");
 
       // A child of a collapsed group is hidden; the outermost collapsed group stands in for it.
       const shownId = getVisibleRepresentative(nodeId, byId);

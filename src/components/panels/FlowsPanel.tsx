@@ -129,7 +129,11 @@ export function FlowsPanel() {
                     )}
                     <button
                       type="button"
-                      onClick={() => !sourceMissing && setSelectedNode(flow.sourceNodeId)}
+                      onClick={() => {
+                        if (!sourceMissing) {
+                          setSelectedNode(flow.sourceNodeId);
+                        }
+                      }}
                       disabled={sourceMissing}
                       className={cn(
                         "mt-1 text-[10px] font-mono text-muted-foreground truncate hover:underline disabled:no-underline disabled:cursor-not-allowed",
