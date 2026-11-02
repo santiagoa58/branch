@@ -157,13 +157,17 @@ function crossingsOf(layout: SiblingLayout, boxes: LayoutBox[], edges: LayoutEdg
  * whose sketched routes cross least wins, the first on a tie, so the choice stays deterministic.
  * A large diagram gets one quicker pass, so layout stays well under a second.
  */
-async function layoutGraph(boxes: LayoutBox[], edges: LayoutEdge[]): Promise<SiblingLayout> {
+async function layoutGraph(
+  boxes: LayoutBox[],
+  edges: LayoutEdge[],
+  quick: boolean,
+): Promise<SiblingLayout> {
   if (boxes.length === 0) {
     return { positions: new Map(), width: 0, height: 0 };
   }
   const elk = await loadEngine();
   let best: { layout: SiblingLayout; crossings: number } | undefined;
-  const small = boxes.length + edges.length <= SMALL_GRAPH;
+  const small = !quick && boxes.length + edges.length <= SMALL_GRAPH;
   for (const variant of small ? LAYOUT_VARIANTS : LAYOUT_VARIANTS.slice(0, 1)) {
     // oxlint-disable-next-line no-await-in-loop -- one ELK engine runs one layout at a time
     const result = await elk.layout(
@@ -230,6 +234,7 @@ function shelve(layout: SiblingLayout, comments: LayoutBox[]): SiblingLayout {
 export async function layoutSiblings(
   boxes: LayoutBox[],
   edges: LayoutEdge[],
+  quick = false,
 ): Promise<SiblingLayout> {
   const sorted = [...boxes].sort((a, b) => compareIds(a.id, b.id));
   const zoned = sorted.filter((box) => box.tier !== undefined);
@@ -237,6 +242,7 @@ export async function layoutSiblings(
   const layout = await layoutGraph(
     zoned,
     edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)),
+    quick,
   );
   return shelve(
     layout,

@@ -136,8 +136,12 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     }
     loadingRef.current = true;
     setLoadingId(template.id);
+    setSelectedId(template.id);
+    setConfirmReplace(false);
     const diagramId = cloudWorkspace.getState().diagram?.id;
-    layoutTemplate(template)
+    // First load gets a single fast ELK pass; the explicit Auto-format tool
+    // can run the full multi-pass crossing optimizer when the user needs it.
+    layoutTemplate(template, true)
       .then((laidOut) => {
         if (open.current && cloudWorkspace.getState().diagram?.id === diagramId) {
           applyTemplate(laidOut, mode, onClose, fitView);
@@ -205,6 +209,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
             <input
               type="search"
               autoFocus
+              disabled={loadingId !== null}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -231,6 +236,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                 key={id}
                 type="button"
                 aria-pressed={category === id}
+                disabled={loadingId !== null}
                 onClick={() => {
                   setCategory(id);
                   setConfirmReplace(false);
@@ -261,6 +267,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                     <button
                       key={suggestion}
                       type="button"
+                      disabled={loadingId !== null}
                       onClick={() => {
                         setQuery(suggestion);
                         setCategory("all");
@@ -355,14 +362,23 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               <div className="border-t border-border p-4">
-                {canvasEmpty ? (
+                {loadingId !== null ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-busy="true"
+                    className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground opacity-70"
+                  >
+                    Loading template…
+                  </button>
+                ) : canvasEmpty ? (
                   <button
                     type="button"
                     onClick={() => loadTemplate(selected, "replace")}
                     disabled={editBlocked || loadingId !== null}
                     className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]"
                   >
-                    {loadingId === selected.id ? "Loading template…" : "Use template"}
+                    Use template
                   </button>
                 ) : confirmReplace ? (
                   <div role="alert" className="flex flex-col gap-2">
@@ -396,7 +412,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]"
                     >
                       <PlusIcon aria-hidden="true" className="size-4" />
-                      {loadingId === selected.id ? "Adding template…" : "Add to canvas"}
+                      Add to canvas
                     </button>
                     <button
                       type="button"

@@ -1,8 +1,6 @@
-import { useMemo } from "react";
 import type { Node } from "@xyflow/react";
 import type { ArchitectureNodeType, DiagramData } from "@/types";
 import type { DiagramTemplate } from "@/templates";
-import { useTemplateLayout } from "@/hooks/useTemplateLayout";
 import { cn } from "@/lib/utils";
 import { absoluteRects } from "@/utils/layout/geometry";
 import { NODE_TYPES_CONFIG } from "@/constants";
@@ -74,8 +72,8 @@ function buildPreview(data: DiagramData) {
  * A small schematic that needs no ELK calculation. Template definitions can have placeholder
  * positions, so a preview grid gives cards visible content without laying out the entire catalog.
  */
-function compactPreview(data: DiagramData) {
-  const components = data.nodes.filter((node) => node.type === "architecture").slice(0, 16);
+function compactPreview(data: DiagramData, limit: number) {
+  const components = data.nodes.filter((node) => node.type === "architecture").slice(0, limit);
   const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(components.length))));
   const nodes = components.map((node, index) => {
     const { parentId: _parentId, ...rest } = node;
@@ -90,14 +88,8 @@ function compactPreview(data: DiagramData) {
 }
 
 export function TemplatePreview({ template, className, compact = false }: TemplatePreviewProps) {
-  const data = useTemplateLayout(template, !compact);
-  const preview = useMemo(
-    () => (compact ? compactPreview(template.data) : data ? buildPreview(data) : null),
-    [compact, data, template],
-  );
-  if (!preview) {
-    return <svg className={cn("w-full h-full", className)} aria-hidden="true" />;
-  }
+  // Rendering gallery previews must never start an ELK computation.
+  const preview = compactPreview(template.data, compact ? 16 : 40);
   const { groups, blocks, lines, viewBox } = preview;
 
   return (

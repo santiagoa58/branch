@@ -29,7 +29,11 @@ export interface DiagramLayout {
  * container's content. Node IDs are expected to be unique, as enforced by the diagram schema.
  * The inputs are never modified, and the same input always gives the same output.
  */
-export async function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Promise<DiagramLayout> {
+export async function autoLayoutDiagram(
+  nodes: Node[],
+  edges: Edge[],
+  quick = false,
+): Promise<DiagramLayout> {
   const hierarchy = buildHierarchy(nodes);
   const projected = projectEdges(edges, hierarchy);
   const tiers = layoutTiers(hierarchy);
@@ -48,6 +52,7 @@ export async function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Promise<D
         tier: parent === undefined ? tiers.get(child.id) : child.type === "comment" ? undefined : 0,
       })),
       projected.get(parent) ?? [],
+      quick,
     );
     for (const [id, position] of layout.positions) {
       positions.set(id, {
