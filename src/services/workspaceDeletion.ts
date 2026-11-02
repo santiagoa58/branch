@@ -7,7 +7,7 @@ import { workspaceQuery } from "./workspaceQuery";
  * allows stale cached cards to flash after navigation and makes confirmation look ineffective.
  * Cancel outstanding list reads first so older responses cannot restore the deleted item.
  */
-export async function removeDeletedDiagramFromCache(
+async function removeDeletedDiagramFromCache(
   client: QueryClient,
   projectId: string,
   diagramId: string,
