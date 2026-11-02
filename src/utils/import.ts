@@ -215,12 +215,14 @@ export function buildImportData(
   imported: DiagramData,
   options: ImportOptions,
 ): DiagramData {
-  const combined =
-    options.mode === "merge"
-      ? mergeDiagramData(current, imported)
-      : options.mode === "append"
-        ? appendDiagramData(current, imported)
-        : imported;
+  let combined: DiagramData;
+  if (options.mode === "merge") {
+    combined = mergeDiagramData(current, imported);
+  } else if (options.mode === "append") {
+    combined = appendDiagramData(current, imported);
+  } else {
+    combined = imported;
+  }
   if (options.includeViewport) {
     return combined;
   }

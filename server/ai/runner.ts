@@ -38,10 +38,9 @@ class InvalidOutputError extends Error {
   }
 }
 
-// Repeating the issues alone lets a model that guessed the shape guess again; point it back at the
-// output JSON Schema that every stage's system prompt ends with.
+// The SDK supplies the stage output schema as the structured-response format.
 const RETRY_INSTRUCTION =
-  "Reply again with one JSON object that matches the output JSON Schema in your instructions exactly: use only its keys, with no extra keys and none renamed, include every required key, and give every value the type the schema lists.";
+  "Return a JSON object that matches the structured output schema. Include required keys, use correct value types, and do not add or rename keys.";
 
 function zodErrorIn(error: unknown): z.ZodError | undefined {
   let current = error;
@@ -107,7 +106,7 @@ export function createGatewayRunner(
         temperature: 0,
         abortSignal: signal,
         providerOptions: {
-          gateway: { user: owner },
+          gateway: { user: owner, has: ["structured-output"] },
           // OpenAI strict mode (the default since AI SDK 6) rejects optional fields and open
           // records, which the stage schemas use; the schema in the prompt plus Zod keep it exact.
           openai: { strictJsonSchema: false },

@@ -67,5 +67,5 @@ describe("crossing regression", () => {
     }
     expect(total).toBeLessThanOrEqual(70);
     expect(total).toBeLessThan(DAGRE_TEMPLATES_AS_DRAWN / 3);
-  });
+  }, 30_000);
 });

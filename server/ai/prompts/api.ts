@@ -18,7 +18,6 @@ const SYSTEM = joinSections(
 - Request, response and payload field maps are name → type, such as {"url": "string", "alias": "string?"}. A trailing ? marks an optional field.
 - Only endpoints the requirements need; list the errors a caller must handle.
 - Use style "stream" for streamed responses and "realtime" for long-lived connections such as WebSockets.`,
-
 );
 
 export function buildApiPrompt(input: ApiInput): StagePrompt {

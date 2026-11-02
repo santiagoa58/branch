@@ -10,10 +10,7 @@ export const apiProjectSchema = z.strictObject({
   updatedAt: z.string(),
 });
 
-/**
- * Duplicate of apiProjectSchema; knip suppression pending plan item 26.
- * @alias
- */
+/** Project list and detail share the same contract. */
 export const apiProjectSummarySchema = apiProjectSchema;
 
 export const apiDiagramSchema = z.strictObject({

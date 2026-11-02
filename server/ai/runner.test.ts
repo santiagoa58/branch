@@ -79,7 +79,10 @@ describe("createGatewayRunner", () => {
         model: "test/decisions-model",
         temperature: 0,
         abortSignal: signal,
-        providerOptions: { gateway: { user: "alice" }, openai: { strictJsonSchema: false } },
+        providerOptions: {
+          gateway: { user: "alice", has: ["structured-output"] },
+          openai: { strictJsonSchema: false },
+        },
       }),
     );
     const call = generate.mock.calls[0]?.[0];
@@ -108,7 +111,7 @@ describe("createGatewayRunner", () => {
     await expect(runner.run("decisions", input, "alice", signal)).resolves.toEqual(valid);
     expect(generate).toHaveBeenCalledTimes(2);
     expect(generate.mock.calls[1]?.[0].prompt).toContain("bad");
-    expect(generate.mock.calls[1]?.[0].prompt).toMatch(/matches the output JSON Schema .* exactly/);
+    expect(generate.mock.calls[1]?.[0].prompt).toMatch(/matches the structured output schema/);
   });
 
   it("fails after the second schema failure", async () => {
@@ -278,8 +281,8 @@ describe("createGatewayRunner with the AI SDK", () => {
       const { model, expectedSystem } = await runCase(stage, cases[stage]);
       const system = systemOf(model.doGenerateCalls[0]);
       expect(system).toBe(expectedSystem);
-      expect(system).toMatch(/JSON Schema/);
-      expect(system).toContain('"additionalProperties":false');
+      expect(system).toMatch(/structured JSON object/);
+      expect(system).not.toContain('"additionalProperties":false');
     },
   );
 
@@ -329,12 +332,12 @@ describe("createGatewayRunner with the AI SDK", () => {
       ).resolves.toEqual(stage1Output);
       expect(model.doGenerateCalls).toHaveLength(2);
       const [first, retry] = model.doGenerateCalls;
-      expect(systemOf(first)).toMatch(/JSON Schema/);
+      expect(systemOf(first)).toMatch(/structured JSON object/);
       expect(systemOf(retry)).toBe(systemOf(first));
       const retryText = userTextOf(retry);
       expect(retryText).toMatch(/Your previous output was invalid: .*questions\[0\]\.why/);
-      expect(retryText).toMatch(/matches the output JSON Schema .* exactly/);
-      expect(retryText).toMatch(/no extra keys/);
+      expect(retryText).toMatch(/matches the structured output schema/);
+      expect(retryText).toMatch(/do not add or rename keys/);
     });
 
     it("fails when both attempts have the invented shape, as a 502", async () => {

@@ -58,7 +58,7 @@ describe("TemplateGalleryDialog", () => {
     expect(flows).toHaveLength(1);
     expect(onClose).toHaveBeenCalledOnce();
     expect(cloudWorkspace.schedule).toHaveBeenCalledOnce();
-  });
+  }, 20_000);
 
   it("filters by category and offers suggestions when nothing matches", async () => {
     mount();

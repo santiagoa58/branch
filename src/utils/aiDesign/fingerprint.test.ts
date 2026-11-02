@@ -131,7 +131,11 @@ describe("inputsFingerprint", () => {
     );
   });
 
-  it("returns a hex string", () => expect(inputsFingerprint(inputs())).toMatch(/^[0-9a-f]+$/));
+  it("returns a normalized canonical input signature", () => {
+    const parsed = JSON.parse(inputsFingerprint(inputs()));
+    expect(parsed.scope).toBe("fullstack");
+    expect(parsed.requirements).toEqual([["functional", "offline"], ["functional", "sync"]]);
+  });
 });
 
 describe("graphFingerprint", () => {

@@ -6,19 +6,8 @@ export type PipelineStage = "requirements" | "components" | "decisions" | "api";
 
 const PIPELINE: readonly PipelineStage[] = ["requirements", "components", "decisions", "api"];
 
-/** cyrb53: a synchronous, stable 53-bit string hash. Collisions are irrelevant at this scale. */
-function cyrb53(text: string): string {
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    h1 = Math.imul(h1 ^ code, 2654435761);
-    h2 = Math.imul(h2 ^ code, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
-}
+// Canonical JSON avoids maintaining a custom hash and cannot collide.
+const signature = (value: unknown): string => JSON.stringify(value);
 
 /** Sorts rows by their serialized form so list order never changes the hash. */
 function sortRows<T>(rows: T[]): T[] {
@@ -29,8 +18,7 @@ function sortRows<T>(rows: T[]): T[] {
 }
 
 export function inputsFingerprint(inputs: DesignBrief["inputs"]): string {
-  return cyrb53(
-    JSON.stringify({
+  return signature({
       prompt: normalizeText(inputs.prompt),
       scope: inputs.scope,
       requirements: sortRows(inputs.requirements.map((r) => [r.kind, normalizeText(r.text)])),
@@ -38,8 +26,7 @@ export function inputsFingerprint(inputs: DesignBrief["inputs"]): string {
       answers: sortRows(
         inputs.answers.map((a) => [normalizeText(a.question), normalizeText(a.answer), a.assumed]),
       ),
-    }),
-  );
+    });
 }
 
 function nodeRow(node: Node): [string, string, string] | undefined {
@@ -67,7 +54,7 @@ export function graphFingerprint(nodes: Node[], edges: Edge[]): string {
       data.async === true,
     ];
   });
-  return cyrb53(JSON.stringify({ nodes: sortRows(nodeRows), edges: sortRows(edgeRows) }));
+  return signature({ nodes: sortRows(nodeRows), edges: sortRows(edgeRows) });
 }
 
 /** Recorded by stages 3 to 5: `${inputs}:${graph}`. */
