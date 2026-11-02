@@ -59,7 +59,7 @@ export function EditorRightPanel() {
       </header>
       <nav
         aria-label="Sidebar sections"
-        className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-2 py-2"
+        className="grid shrink-0 grid-cols-3 gap-1 border-b border-border px-2 py-2"
       >
         {SECTIONS.map((section) => (
           <button
@@ -68,7 +68,7 @@ export function EditorRightPanel() {
             aria-pressed={active === section.id}
             onClick={() => open(section.id)}
             className={cn(
-              "relative shrink-0 rounded-md px-2.5 py-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+              "relative min-w-0 rounded-md px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
               active === section.id
                 ? "bg-accent text-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
