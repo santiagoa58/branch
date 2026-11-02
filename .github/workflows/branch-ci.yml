@@ -20,10 +20,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
-      - name: Diagnostics for workspace formatting
-        run: |
-          pnpm exec vp check --fix || true
-          git diff -- src/components/ui/ConfirmDialog.tsx src/pages/ProjectsPage.tsx src/services/workspaceDeletion.test.ts src/services/cloudPersistence.ts
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build

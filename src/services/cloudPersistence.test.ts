@@ -326,7 +326,7 @@ describe("cloud document lifecycle", () => {
     await cloud.load("a");
     cloud.schedule(edited);
     const deletion = deferred<void>();
-    const remove = vi.fn(() => deletion.promise);
+    const remove = vi.fn<() => Promise<void>>(() => deletion.promise);
     const pending = cloud.deleteCurrent(remove);
     expect(cloud.getState()).toMatchObject({
       status: "deleting",
@@ -374,7 +374,7 @@ describe("cloud document lifecycle", () => {
     cloud.schedule(edited);
     const flush = cloud.flush();
     cloud.schedule(empty);
-    const remove = vi.fn(async () => {});
+    const remove = vi.fn<() => Promise<void>>(async () => {});
     const deleting = cloud.deleteCurrent(remove);
     expect(remove).not.toHaveBeenCalled();
     writing.resolve(diagram("a", 2, edited));

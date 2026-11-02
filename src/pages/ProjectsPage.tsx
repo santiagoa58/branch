@@ -27,6 +27,22 @@ function diagramParentId(projects: ApiWorkspaceProject[], diagramId: string): st
   return project.id;
 }
 
+function filterWorkspaceProjects(projects: ApiWorkspaceProject[], search: string): ApiWorkspaceProject[] {
+  const term = search.trim().toLocaleLowerCase();
+  return projects.flatMap((project) => {
+    if (
+      !term ||
+      `${project.name} ${project.description ?? ""}`.toLocaleLowerCase().includes(term)
+    ) {
+      return [project];
+    }
+    const diagrams = project.diagrams.filter((diagram) =>
+      `${diagram.name} ${diagram.description ?? ""}`.toLocaleLowerCase().includes(term),
+    );
+    return diagrams.length ? [{ ...project, diagrams }] : [];
+  });
+}
+
 function WorkspaceSkeleton() {
   return (
     <output
@@ -98,19 +114,7 @@ export function ProjectsPage() {
     },
   });
 
-  const term = search.trim().toLocaleLowerCase();
-  const visibleProjects = projects.flatMap((project) => {
-    if (
-      !term ||
-      `${project.name} ${project.description ?? ""}`.toLocaleLowerCase().includes(term)
-    ) {
-      return [project];
-    }
-    const diagrams = project.diagrams.filter((diagram) =>
-      `${diagram.name} ${diagram.description ?? ""}`.toLocaleLowerCase().includes(term),
-    );
-    return diagrams.length ? [{ ...project, diagrams }] : [];
-  });
+  const visibleProjects = filterWorkspaceProjects(projects, search);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

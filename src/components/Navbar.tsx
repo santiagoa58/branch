@@ -215,7 +215,6 @@ export function Navbar() {
           </Tooltip>
         </div>
 
-        {/* Undo/Redo — inside the More menu on phones */}
         <div className="hidden sm:flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Undo (⌘Z)">
             <button
@@ -384,7 +383,6 @@ export function Navbar() {
             )}
           </button>
         </Tooltip>
-        {/* Everything the row hides on small screens lives here. */}
         <div className="relative md:hidden" ref={moreMenuRef}>
           <button
             type="button"

@@ -153,10 +153,7 @@ export class CloudPersistence {
       this.set({});
     }
   };
-  /**
-   * Deleting a document is not versioning. Discard queued autosaves, wait for any write already
-   * submitted, then delete. If deletion fails, the pending draft remains recoverable.
-   */
+  /** Discard queued writes on delete; preserve drafts if the server rejects it. */
   deleteCurrent = async (remove: () => Promise<void>) => {
     if (this.state.locked || !this.state.diagram) {
       throw new Error("The active diagram is not ready to delete.");
@@ -169,7 +166,6 @@ export class CloudPersistence {
     this.pending = null;
     this.set({ status: "deleting", activity: "deleting", dirty: false, message: null });
     try {
-      // Do not send queued writes, but let a write already in flight finish before DELETE.
       await this.saving?.catch(() => {});
       if (epoch !== this.epoch) {
         throw new Error("The active diagram changed during deletion.");

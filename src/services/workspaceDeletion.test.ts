@@ -78,10 +78,7 @@ describe("confirmed workspace deletions", () => {
     expect(
       client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams,
     ).toEqual([item, other]);
-    expect(client.getQueryData(workspaceQuery.diagrams("p1").queryKey)).toEqual([
-      item,
-      other,
-    ]);
+    expect(client.getQueryData(workspaceQuery.diagrams("p1").queryKey)).toEqual([item, other]);
     client.clear();
   });
 
