@@ -168,7 +168,7 @@ export function Navbar() {
               </button>
             </span>
           )}
-          {diagram?.id === diagramId && projectId && (
+          {diagram && diagramId && projectId && diagram.id === diagramId && (
             <>
               <ChevronRightIcon className="w-3 h-3 shrink-0 text-zinc-400" />
               <EditorDiagramMenu
@@ -183,10 +183,8 @@ export function Navbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-4">
-        {/* AI design run: stage, elapsed time and Cancel, whether or not the panel is open */}
         <AiRunIndicator />
 
-        {/* Panel Toggles */}
         <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Components panel">
             <button
@@ -286,7 +284,6 @@ export function Navbar() {
           </div>
         )}
 
-        {/* Export Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <Tooltip content="Export diagram">
             <button
@@ -366,7 +363,6 @@ export function Navbar() {
           <ThemeToggle />
         </div>
 
-        {/* Share Button */}
         <Tooltip
           className="hidden md:inline-flex"
           align="end"
