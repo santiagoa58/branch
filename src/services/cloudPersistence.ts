@@ -182,7 +182,7 @@ export class CloudPersistence {
       if (epoch === this.epoch) {
         this.pending = draft;
         this.set({
-          status: draft ? "pending" : oldStatus,
+          status: draft ? "pending" : oldStatus === "saving" ? "saved" : oldStatus,
           dirty: draft !== null,
           message: null,
         });

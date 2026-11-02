@@ -351,9 +351,9 @@ describe("cloud document lifecycle", () => {
   it("keeps unsaved edits when deleting fails and permits another save", async () => {
     await cloud.load("a");
     cloud.schedule(edited);
-    await expect(cloud.deleteCurrent(() => Promise.reject(new Error("Delete failed")))).rejects.toThrow(
-      "Delete failed",
-    );
+    await expect(
+      cloud.deleteCurrent(() => Promise.reject(new Error("Delete failed"))),
+    ).rejects.toThrow("Delete failed");
     expect(cloud.getState()).toMatchObject({
       status: "pending",
       dirty: true,
@@ -363,6 +363,24 @@ describe("cloud document lifecycle", () => {
     await cloud.flush();
     expect(api.update).toHaveBeenCalledTimes(1);
     expect(cloud.getState().status).toBe("saved");
+  });
+
+  it("waits for an in-flight save but never sends another queued write before deletion", async () => {
+    await cloud.load("a");
+    const writing = deferred<ApiDiagram>();
+    api.update.mockReturnValueOnce(writing.promise);
+    cloud.schedule(edited);
+    const flush = cloud.flush();
+    cloud.schedule(empty);
+    const remove = vi.fn(async () => {});
+    const deleting = cloud.deleteCurrent(remove);
+    expect(remove).not.toHaveBeenCalled();
+    writing.resolve(diagram("a", 2, edited));
+    await flush;
+    await deleting;
+    expect(api.update).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(cloud.getState()).toMatchObject({ status: "idle", diagram: null });
   });
 
   it("preserves an existing load when a transition fails", async () => {

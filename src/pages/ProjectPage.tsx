@@ -82,11 +82,6 @@ export function ProjectPage() {
         </div>
       </header>
 
-      {deleteMutation.isError && (
-        <p role="alert" className="px-6 py-2 text-sm text-muted-foreground">
-          Could not delete the diagram. Please try again.
-        </p>
-      )}
       {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-5">Diagrams</h2>
@@ -188,7 +183,9 @@ export function ProjectPage() {
         onCancel={() => setDeleteTarget(null)}
         onDelete={(item) => deleteMutation.mutate(item.id)}
         pending={deleteMutation.isPending}
-        errorMessage={deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined}
+        errorMessage={
+          deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined
+        }
       />
     </div>
   );

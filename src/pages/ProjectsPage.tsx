@@ -157,7 +157,7 @@ export function ProjectsPage() {
             Opening diagram…
           </output>
         )}
-        {(deleteMutation.isError || updateMutation.isError || deleteDiagramMutation.isError) && (
+        {updateMutation.isError && (
           <p role="alert" className="mb-4 text-sm text-muted-foreground">
             Could not update the workspace. Please try again.
           </p>

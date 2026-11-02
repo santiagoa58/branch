@@ -143,7 +143,9 @@ export function EditorDiagramMenu({ projectId, diagramId, diagramName }: Props) 
         target={confirmDelete ? { kind: "diagram", id: diagramId, name: diagramName } : null}
         onCancel={() => setConfirmDelete(false)}
         pending={deleteMutation.isPending}
-        errorMessage={deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined}
+        errorMessage={
+          deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined
+        }
         onDelete={(target) => {
           if (target.kind === "diagram" && target.id === diagramId) {
             deleteMutation.mutate();
