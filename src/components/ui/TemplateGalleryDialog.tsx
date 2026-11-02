@@ -110,7 +110,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
   };
 
   const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
-    if (loadingId !== null || editBlockReason() !== null) {
+    if (loadingId !== null) {
       return;
     }
     setLoadingId(template.id);
