@@ -98,20 +98,23 @@ describe("the inspector during an AI run", () => {
     ["a group", { selectedNodeId: "vpc" }, "Basics"],
     ["a comment", { selectedNodeId: "note" }, null],
     ["a connection", { selectedEdgeId: "api-db" }, "Basics"],
-  ] as const)("opens %s read-only while preserving inspector tab navigation", (_, selection, tab) => {
-    useDiagramStore.setState(selection);
-    render(<PropertiesPanel />);
-    if (tab) {
-      // Tabs only change what is shown, so they stay usable.
-      fireEvent.click(within(inspector()).getByRole("button", { name: new RegExp(`^${tab}`) }));
-    }
+  ] as const)(
+    "opens %s read-only while preserving inspector tab navigation",
+    (_, selection, tab) => {
+      useDiagramStore.setState(selection);
+      render(<PropertiesPanel />);
+      if (tab) {
+        // Tabs only change what is shown, so they stay usable.
+        fireEvent.click(within(inspector()).getByRole("button", { name: new RegExp(`^${tab}`) }));
+      }
 
-    const controls = editControls(inspector());
-    expect(controls.length).toBeGreaterThan(0);
-    for (const control of controls) {
-      expect(control).toBeDisabled();
-    }
-  });
+      const controls = editControls(inspector());
+      expect(controls.length).toBeGreaterThan(0);
+      for (const control of controls) {
+        expect(control).toBeDisabled();
+      }
+    },
+  );
 
   it("makes the connection's contract editor read-only", () => {
     useDiagramStore.setState({ selectedEdgeId: "api-db" });
