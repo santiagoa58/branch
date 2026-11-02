@@ -91,6 +91,7 @@ describe("confirmed workspace deletions", () => {
     await deleteProjectFromWorkspace(client, "p1");
     expect(client.getQueryData(workspaceQuery.root().queryKey)).toEqual([]);
     expect(client.getQueryData(workspaceQuery.diagrams("p1").queryKey)).toBeUndefined();
+    expect(client.getQueryData(["diagrams", "d1"])).toBeUndefined();
     client.clear();
   });
 });
