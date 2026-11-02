@@ -69,6 +69,10 @@ function seedProjectQueries(
   }
 }
 
+function isOpeningEditor(navigation: ReturnType<typeof useNavigation>): boolean {
+  return isOpeningEditor(navigation);
+}
+
 function WorkspaceSkeleton() {
   return (
     <output
