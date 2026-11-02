@@ -5,8 +5,7 @@ import type {
   DesignContext,
 } from "../../../src/schemas/aiDesign";
 
-// Few-shot example for the stage 2, 3 and 4 prompts, copied from the url-shortener starter
-// template (src/templates/catalog/web.ts). examples.test.ts fails when the two drift apart.
+// Test-only fixture based on the URL-shortener template. Never sent to models.
 
 const context: DesignContext = {
   prompt: "Design a URL shortener like Bitly.",

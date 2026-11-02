@@ -8,7 +8,7 @@ import {
   decisionsOutputSchema,
   designContextSchema,
 } from "../../src/schemas/aiDesign";
-import { urlShortenerExample } from "./examples/urlShortener";
+import { urlShortenerExample } from "./eval/urlShortenerFixture";
 
 // The example is a hand-written copy of the url-shortener template, kept small for the prompts.
 // These tests fail when the template changes so the few-shot examples never drift from it.

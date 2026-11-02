@@ -1,7 +1,5 @@
 import type { DecisionsInput } from "../../../src/schemas/aiDesign";
-import { urlShortenerExample } from "../examples/urlShortener";
 import {
-  example,
   formatContext,
   joinSections,
   section,
@@ -34,24 +32,6 @@ function nodeSections(
   );
 }
 
-// The example decision's input: the example node and its neighbours in the example graph.
-function exampleInput(): string {
-  const { context, components, decision } = urlShortenerExample;
-  const byKey = new Map(components.components.map((component) => [component.key, component]));
-  const node = byKey.get(decision.key);
-  if (!node) {
-    throw new Error(`The example has no component "${decision.key}"`);
-  }
-  const neighbours = components.connections.flatMap(({ from, to, protocol }): Neighbours => {
-    const direction = to === node.key ? "in" : from === node.key ? "out" : undefined;
-    const other = byKey.get(direction === "in" ? from : to);
-    return direction && other
-      ? [{ key: other.key, type: other.type, label: other.label, protocol, direction }]
-      : [];
-  });
-  return joinSections(formatContext(context), nodeSections(components.summary, node, neighbours));
-}
-
 const SYSTEM = joinSections(
   DESIGN_PREAMBLE,
   `Your task: explain the design decision behind this one component, as you would to an interviewer. Explain only this component; the others get their own explanation.
@@ -60,7 +40,6 @@ const SYSTEM = joinSections(
 - gains and costs: short phrases. Include only the most significant, usually one or two each.
 - considered: the main alternatives. Every option has a whyNot, a short phrase.
 - revisitWhen: the assumptions this choice rests on, which the user sees as "Assumes: ..." and can make requirements. Each is a short statement that holds today, such as "Links are only looked up by their short code"; if one stopped holding, you would change this choice. State what you assume, not the change that would break it.`,
-  example(exampleInput(), urlShortenerExample.decision.output),
 );
 
 export function buildDecisionsPrompt(input: DecisionsInput): StagePrompt {

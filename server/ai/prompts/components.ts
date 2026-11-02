@@ -4,9 +4,7 @@ import {
   edgeProtocolSchema,
   groupNodeTypeSchema,
 } from "../../../src/schemas/catalogEnums";
-import { urlShortenerExample } from "../examples/urlShortener";
 import {
-  example,
   formatContext,
   joinSections,
   section,
@@ -33,10 +31,7 @@ const SYSTEM = joinSections(
   `Component types: ${architectureNodeTypeSchema.options.join(", ")}`,
   `Group types: ${groupNodeTypeSchema.options.join(", ")}`,
   `Protocols: ${edgeProtocolSchema.options.join(", ")}`,
-  example(
-    joinSections(formatContext(urlShortenerExample.context), previousKeysSection([])),
-    urlShortenerExample.components,
-  ),
+
 );
 
 export function buildComponentsPrompt(input: ComponentsInput): StagePrompt {

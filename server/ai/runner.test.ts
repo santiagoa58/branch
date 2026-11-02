@@ -11,7 +11,7 @@ import {
   type StageOutput,
 } from "../../src/schemas/aiDesign";
 import { toAiHttpError } from "./errors";
-import { urlShortenerExample } from "./examples/urlShortener";
+import { urlShortenerExample } from "./eval/urlShortenerFixture";
 import { stagePrompts } from "./prompts";
 import { createGatewayRunner, StageOutputTooLargeError } from "./runner";
 

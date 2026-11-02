@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type { ApiInput, DesignContext, Scope } from "../../../src/schemas/aiDesign";
 
 export interface StagePrompt {
@@ -71,36 +70,4 @@ export function formatGraph(graph: ApiInput["graph"]): string {
   );
 }
 
-/** A few-shot example: the input it answers, then the expected output as compact JSON. */
-export function example(input: string, output: unknown): string {
-  return joinSections("Example input:", input, "Example output:", JSON.stringify(output));
-}
-
-// z.number().int() adds the safe-integer range, which tells a model nothing.
-function dropSafeIntegerRange(schema: z.core.JSONSchema.BaseSchema) {
-  if (schema.minimum === Number.MIN_SAFE_INTEGER && schema.maximum === Number.MAX_SAFE_INTEGER) {
-    delete schema.minimum;
-    delete schema.maximum;
-  }
-}
-
-/**
- * The stage's output contract for the system prompt: its JSON Schema, generated from the stage's
- * Zod output schema so the prompt can never drift from what the runner validates. The AI SDK also
- * sends that schema as `responseFormat`, but some models and providers ignore it or support only
- * plain JSON mode, so the prompt has to show the exact shape itself. Refinements such as "never
- * exactly one option" have no JSON Schema form; the stage prose states them.
- */
-export function outputSchemaSection(schema: z.ZodType): string {
-  const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(schema, {
-    target: "draft-07",
-    io: "input",
-    override: ({ jsonSchema: node }) => dropSafeIntegerRange(node),
-  });
-  return joinSections(
-    `Output JSON Schema. Reply with one JSON object that matches it exactly, and nothing else: no Markdown, no code fences, no commentary.
-- Use exactly the keys it lists: no extra keys, and no renamed ones. Include every required key.
-- Give every value the type it lists. Strings are JSON strings, booleans are true or false, and enum values are copied exactly.`,
-    JSON.stringify(jsonSchema),
-  );
-}
+/** A few-shot example: t
