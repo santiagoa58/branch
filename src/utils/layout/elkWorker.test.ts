@@ -30,7 +30,7 @@ const boxes: LayoutBox[] = [
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
-  vi.stubGlobal("Worker", class TestWorker {});
+  vi.stubGlobal("Worker", vi.fn<() => void>());
 });
 
 afterEach(() => {
@@ -42,7 +42,7 @@ describe("browser ELK worker", () => {
   it("uses the Vite-emitted worker asset instead of the blocking bundled engine", async () => {
     worker.layout.mockImplementation(async (graph) => ({
       ...graph,
-      children: graph.children?.map((child, index) => ({
+      children: (graph.children ?? []).map((child, index) => ({
         ...child,
         x: index * 250,
         y: 0,
@@ -62,10 +62,13 @@ describe("browser ELK worker", () => {
     const { layoutSiblings } = await import("./elk");
     const pending = layoutSiblings(boxes, [], true);
     await vi.waitFor(() => expect(worker.layout).toHaveBeenCalledOnce());
-    const rejected = expect(pending).rejects.toThrow(/layout timed out/i);
+    const settled = pending.then(
+      () => "resolved",
+      (error: unknown) => error,
+    );
     vi.useFakeTimers();
     await vi.advanceTimersByTimeAsync(12_001);
-    await rejected;
+    expect(await settled).toMatchObject({ message: expect.stringMatching(/layout timed out/i) });
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
 });
