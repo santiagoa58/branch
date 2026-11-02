@@ -5,7 +5,6 @@ import "@xyflow/react/dist/style.css";
 
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
-import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useUIStore } from "@/store/uiStore";
 import { editBlockReason, useEditBlocked } from "@/store/editLock";
 
@@ -156,7 +155,6 @@ export function DiagramEditor() {
     bringNodeToFront,
     sendNodeToBack,
   } = useDiagramStore();
-  const aiRunning = useAiDesignStore((state) => state.running);
   // While edits are blocked (an AI run, a load, pending deletions) the canvas stays viewable:
   // pan, zoom and selection work, but nothing can be moved, connected, added or removed.
   const editBlocked = useEditBlocked();

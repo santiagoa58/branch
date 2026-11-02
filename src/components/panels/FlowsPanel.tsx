@@ -28,7 +28,6 @@ export function FlowsPanel() {
   const sourceNodeId = useSimulationStore((s) => s.sourceNodeId);
   const simIsRunning = useSimulationStore((s) => s.isRunning);
   const stopSim = useSimulationStore((s) => s.stop);
-  const setSimMode = useSimulationStore((s) => s.setMode);
 
   // 'new' = create with the current sim source; or { id } for edit.
   const [dialog, setDialog] = useState<{ kind: "new" } | { kind: "edit"; id: string } | null>(null);
