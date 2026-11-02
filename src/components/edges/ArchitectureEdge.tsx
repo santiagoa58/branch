@@ -1,10 +1,4 @@
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  type EdgeProps,
-  type Edge,
-  getBezierPath,
-} from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, type Edge } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { hasDesignDecision } from "@/utils/designDecision";
 import type { ArchitectureEdgeData } from "@/types";
@@ -12,6 +6,8 @@ import type { ArchitectureEdgeData } from "@/types";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
 import { useEdgeLabelPosition } from "@/hooks/useEdgeLabelPosition";
+import { useEdgeRoute } from "@/hooks/useEdgeRoute";
+import { edgeLabelText } from "@/utils/edgeLabelText";
 import { useUIStore } from "@/store/uiStore";
 import { useState, useCallback } from "react";
 import { PROTOCOL_CONFIG } from "@/constants";
@@ -43,14 +39,12 @@ export function ArchitectureEdge({
     setIsDialogOpen(true);
   }, []);
 
-  const [edgePath, preferredLabelX, preferredLabelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
+  // Orthogonal routing that turns clear of nodes and keeps its own lane.
+  const {
+    path: edgePath,
+    labelX: preferredLabelX,
+    labelY: preferredLabelY,
+  } = useEdgeRoute(id, { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
   const isAnimated = edgeData?.animated ?? false;
 
@@ -115,22 +109,8 @@ export function ArchitectureEdge({
     return baseStyle;
   };
 
-  const label =
-    edgeData?.label || (edgeData?.method ? edgeData.method : edgeData?.protocol?.toUpperCase());
-
-  // Build label with async indicator and schema name
-  let fullLabel = label;
-
-  // Add async indicator
-  if (edgeData?.async) {
-    fullLabel = fullLabel ? `${fullLabel} (async)` : "(async)";
-  }
-
-  // Append schema name to label if data contract exists
-  if (edgeData?.dataContract?.schemaName) {
-    const baseLabel = fullLabel || edgeData?.protocol?.toUpperCase() || "DATA";
-    fullLabel = `${baseLabel} • ${edgeData.dataContract.schemaName}`;
-  }
+  // Label, async marker and schema name; auto-layout reserves room for the same text.
+  const fullLabel = edgeLabelText(edgeData);
 
   const hasDecision = hasDesignDecision(edgeData?.decision);
 
@@ -138,6 +118,7 @@ export function ArchitectureEdge({
     preferredLabelX,
     preferredLabelY,
     hasDecision,
+    id,
   );
 
   // Determine marker IDs for bidirectional support

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { cleanup, render } from "@testing-library/react";
-import { getBezierPath, Position, ReactFlowProvider } from "@xyflow/react";
+import { Position, ReactFlowProvider } from "@xyflow/react";
+import { routeEdge, routePath } from "@/utils/edgeRouting";
 import { ArchitectureEdge } from "./ArchitectureEdge";
 import { RollupEdge } from "./RollupEdge";
 import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
@@ -39,9 +40,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("fixed curved edge routing", () => {
+describe("orthogonal edge routing", () => {
   it.each([false, true])(
-    "uses a Bezier curve for an architecture edge (animated: %s)",
+    "draws an orthogonal path for an architecture edge (animated: %s)",
     (animated) => {
       const { container } = render(
         <ReactFlowProvider>
@@ -50,7 +51,10 @@ describe("fixed curved edge routing", () => {
           </svg>
         </ReactFlowProvider>,
       );
-      const [path] = getBezierPath(geometry);
+      const path = routePath(routeEdge(geometry, []).points);
+      // Straight runs and rounded corners only: no Bezier curve.
+      expect(path).toMatch(/^M0 0L/);
+      expect(path).not.toContain("C");
 
       expect(container.querySelector(".react-flow__edge-path")).toHaveAttribute("d", path);
       expect(useEdgeAnimation).toHaveBeenCalledWith({
@@ -64,7 +68,7 @@ describe("fixed curved edge routing", () => {
     },
   );
 
-  it("uses the same curved routing for collapsed-group connections", () => {
+  it("uses the same orthogonal routing for collapsed-group connections", () => {
     const { container } = render(
       <ReactFlowProvider>
         <svg>
@@ -75,7 +79,7 @@ describe("fixed curved edge routing", () => {
 
     expect(container.querySelector(".react-flow__edge-path")).toHaveAttribute(
       "d",
-      getBezierPath(geometry)[0],
+      routePath(routeEdge(geometry, []).points),
     );
   });
 

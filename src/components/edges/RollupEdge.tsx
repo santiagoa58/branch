@@ -1,4 +1,4 @@
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from "@xyflow/react";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import type { RollupEdgeData, EdgeProtocol } from "@/types";
@@ -7,6 +7,7 @@ import { PROTOCOL_CONFIG } from "@/constants";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useEditBlocked } from "@/store/editLock";
 import { useEdgeLabelPosition } from "@/hooks/useEdgeLabelPosition";
+import { useEdgeRoute } from "@/hooks/useEdgeRoute";
 
 /**
  * Synthetic aggregated edge shown when edges cross a collapsed group's
@@ -29,16 +30,18 @@ export function RollupEdge({
   // Expanding the groups is an edit, so it is off while edits are blocked (an AI run).
   const editBlocked = useEditBlocked();
 
-  const [edgePath, preferredLabelX, preferredLabelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
+  const {
+    path: edgePath,
+    labelX: preferredLabelX,
+    labelY: preferredLabelY,
+  } = useEdgeRoute(id, { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
-  const { labelRef, labelX, labelY } = useEdgeLabelPosition(preferredLabelX, preferredLabelY);
+  const { labelRef, labelX, labelY } = useEdgeLabelPosition(
+    preferredLabelX,
+    preferredLabelY,
+    false,
+    id,
+  );
 
   const handleExpand = useCallback(
     (e: React.MouseEvent) => {
