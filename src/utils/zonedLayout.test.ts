@@ -221,11 +221,11 @@ describe("zoned auto layout", () => {
       nodes,
       edges.map((edge) => ({ ...edge, sourceHandle: "bottom", targetHandle: "top" })),
     );
-    const validSources = new Set([undefined, "left", "top", "bottom"]);
-    const validTargets = new Set([undefined, "right", "top", "bottom"]);
+    const validSources = new Set<string | null | undefined>([undefined, "left", "top", "bottom"]);
+    const validTargets = new Set<string | null | undefined>([undefined, "right", "top", "bottom"]);
     for (const edge of result.edges) {
-      expect(validSources.has(edge.sourceHandle), edge.id).toBe(true);
-      expect(validTargets.has(edge.targetHandle), edge.id).toBe(true);
+      expect(validSources.has(edge.sourceHandle)).toBe(true);
+      expect(validTargets.has(edge.targetHandle)).toBe(true);
     }
     expect(assignPorts(result.nodes, result.edges)).toBe(result.edges);
   });

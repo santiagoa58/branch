@@ -20,7 +20,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
-      - run: pnpm exec vp check --fix && git diff -- src/utils/layout/ports.ts
+      - run: pnpm exec vp check --fix; git diff -- src/utils/layout/ports.ts
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build
