@@ -3,6 +3,7 @@ import { MAX_HISTORY_LENGTH } from "@/constants";
 import { diagramDataSchema } from "@/schemas/diagram";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import type { CloudState } from "@/services/cloudPersistence";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import * as layout from "@/utils/layout";
@@ -89,6 +90,7 @@ let cloud: CloudState;
 beforeEach(() => {
   useDiagramStore.setState(useDiagramStore.getInitialState());
   useAnimationStore.setState({ pendingDeletions: new Set() });
+  useAiDesignStore.setState(useAiDesignStore.getInitialState());
   cloud = {
     diagram: null,
     status: "saved",
@@ -107,6 +109,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   useDiagramStore.setState(useDiagramStore.getInitialState());
   useAnimationStore.setState({ pendingDeletions: new Set() });
+  useAiDesignStore.setState(useAiDesignStore.getInitialState());
 });
 
 describe("diagram store auto-format integration", () => {
@@ -296,10 +299,12 @@ describe("diagram store auto-format integration", () => {
     expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(3);
   });
 
-  it.each(["empty", "locked", "loading", "pending deletion"])(
+  it.each(["empty", "locked", "loading", "pending deletion", "an AI run is active"])(
     "does not run layout, mutate history or save when %s",
     (reason) => {
-      if (reason === "empty") {
+      if (reason === "an AI run is active") {
+        useAiDesignStore.getState().start("d1");
+      } else if (reason === "empty") {
         useDiagramStore.setState({ nodes: [], edges: [], flows: [] });
       } else if (reason === "locked") {
         cloud = { ...cloud, locked: true };
@@ -310,15 +315,29 @@ describe("diagram store auto-format integration", () => {
       }
       const runLayout = vi.spyOn(layout, "autoLayoutDiagram");
       const saveHistory = vi.spyOn(useDiagramStore.getState(), "saveToHistory");
+      const saveDiagram = vi.spyOn(useDiagramStore.getState(), "saveDiagram");
       const before = useDiagramStore.getState();
+      const original = graphSnapshot();
 
       expect(before.applyAutoLayout()).toBe(false);
       expect(useDiagramStore.getState()).toBe(before);
+      expect(graphSnapshot()).toEqual(original);
+      expect(useDiagramStore.getState().history).toBe(before.history);
       expect(runLayout).not.toHaveBeenCalled();
       expect(saveHistory).not.toHaveBeenCalled();
+      expect(saveDiagram).not.toHaveBeenCalled();
       expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
     },
   );
+
+  it("formats again once the AI run has finished", () => {
+    useAiDesignStore.getState().start("d1");
+    useAiDesignStore.getState().finish();
+
+    expect(useDiagramStore.getState().applyAutoLayout()).toBe(true);
+    expect(useDiagramStore.getState().historyIndex).toBe(1);
+    expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
+  });
 
   it("propagates an algorithm error before any history mutation or save", () => {
     const failure = new Error("Layout could not be computed");

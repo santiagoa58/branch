@@ -1097,14 +1097,9 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   },
 
   applyAutoLayout: () => {
-    const cloud = cloudWorkspace.getState();
     const { nodes, edges, history, historyIndex } = get();
-    if (
-      nodes.length === 0 ||
-      cloud.locked ||
-      cloud.status === "loading" ||
-      useAnimationStore.getState().pendingDeletions.size > 0
-    ) {
+    // Check every edit block, an AI run included, before any layout, history entry or save.
+    if (nodes.length === 0 || editBlockReason() !== null) {
       return false;
     }
 
