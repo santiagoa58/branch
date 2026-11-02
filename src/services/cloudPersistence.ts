@@ -178,16 +178,10 @@ export class CloudPersistence {
     } catch (error) {
       if (epoch === this.epoch) {
         this.pending = draft;
-        this.set({
-          status: draft ? "pending" : oldStatus === "saving" ? "saved" : oldStatus,
-          dirty: draft !== null,
-          message: null,
-          activity: undefined,
-        });
+        const status = draft ? "pending" : oldStatus === "saving" ? "saved" : oldStatus;
+        this.set({ status, dirty: draft !== null, activity: undefined, message: null });
         if (draft) {
-          this.timer = setTimeout(() => {
-            void this.flush().catch(() => {});
-          }, this.delay);
+          this.timer = setTimeout(() => void this.flush().catch(() => {}), this.delay);
         }
       }
       throw error;

@@ -27,7 +27,10 @@ function diagramParentId(projects: ApiWorkspaceProject[], diagramId: string): st
   return project.id;
 }
 
-function filterWorkspaceProjects(projects: ApiWorkspaceProject[], search: string): ApiWorkspaceProject[] {
+function filterWorkspaceProjects(
+  projects: ApiWorkspaceProject[],
+  search: string,
+): ApiWorkspaceProject[] {
   const term = search.trim().toLocaleLowerCase();
   return projects.flatMap((project) => {
     if (
