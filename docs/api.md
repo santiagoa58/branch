@@ -54,6 +54,11 @@ The editor save coordinator owns drafts and revision chaining. TanStack Query ow
 
 Every call passes the Clerk user id as the AI Gateway `user`, so per-user budgets apply. Never expose these variables to the browser.
 
+Model routing requires the AI Gateway `structured-output` capability. The stage contracts
+include optional fields and open field maps, so OpenAI strict JSON Schema mode is disabled;
+the SDK still supplies the output schema and the server validates it with Zod, retrying once
+on invalid output. Run `pnpm eval:ai` to verify the chosen model and measure latency.
+
 ### Vercel setup
 
 Spend and request rate are controlled in Vercel, not in application code.

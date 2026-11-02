@@ -430,8 +430,8 @@ It is mounted in `server/handler.ts` behind the existing `requireOwner`.
 | ----------------------- | ------------------------------------------------------------------------------------- |
 | `server/routes/ai.ts`   | Route, validation, error mapping                                                      |
 | `server/ai/models.ts`   | Model id per stage: `AI_MODEL`, optionally overridden per stage by `AI_MODEL_<STAGE>` |
-| `server/ai/stages/*.ts` | One module per stage, as described below                                              |
-| `server/ai/examples/`   | Worked examples used as few-shot input in the stage 2, 3 and 4 prompts                |
+| `server/ai/prompts/`   | One prompt builder per pipeline stage                                                  |
+| `server/ai/eval/`      | Live evaluation cases and test-only fixtures                                           |
 
 Each stage module:
 
@@ -442,8 +442,8 @@ Each stage module:
 - If the output fails schema validation, retries once with the validation error included in the
   prompt. A second failure is returned as an error.
 
-The worked examples are taken from one starter template. A test asserts that each still matches
-its source template.
+The URL-shortener fixture is test-only. Production prompts rely on concise instructions and the
+structured output schema sent by the AI SDK, not embedded few-shot examples.
 
 ### Configuration
 
@@ -453,8 +453,9 @@ its source template.
 | `AI_MODEL`           | Default model for all stages.                                       |
 | `AI_MODEL_<STAGE>`   | Optional per-stage override.                                        |
 
-- All are added to `serverEnvSchema` and `.env.example`.
-- `vercel.json` sets the function `maxDuration` to cover the slowest stage.
+- AI configuration uses `aiEnvSchema`, independently of auth and database settings, and is
+  documented in `.env.example`.
+- Function `maxDuration` stays at the platform default until live evaluation measures latency.
 - Spend and request rate are controlled in Vercel, not in application code: AI Gateway budgets (team
   and default per user), and optionally a Vercel Firewall rate-limit rule on `/api/ai/*`. The setup
   is documented in `docs/api.md`.
@@ -625,7 +626,7 @@ Then:
 
 - Authentication, validation, body limit, and error mapping (402, 429, 502, truncation), with the
   AI call stubbed.
-- Prompt builders include the context, answers and examples.
+- Prompt builders include the context and answers without embedding worked examples.
 
 **Component**
 
@@ -649,8 +650,8 @@ Then:
   - structural expectations, for example a realtime transport for collaborative or chat systems,
     and a decision for every node
   - output size and latency
-- **How it runs:** first through a small, fast model acting as a stand-in, then against the real
-  gateway via a script.
+- **How it runs:** `pnpm eval:ai` executes the cases against a configured live gateway model,
+  printing the per-stage input/output sizes and latency. Placeholder results are not committed.
 
 ## 13. Delivery order
 

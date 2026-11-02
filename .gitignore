@@ -80,6 +80,5 @@ coverage/
 
 .neon
 
-# Local planning and evaluation scratch files
+# Local implementation plans
 /docs/superpowers/plans/
-.superpowers/eval-prompts/
