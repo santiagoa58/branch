@@ -8,6 +8,7 @@ import {
   httpMethodSchema,
 } from "./catalogEnums";
 import { designBriefSchema } from "./aiDesign";
+import { repairNodeHierarchy } from "../lib/nodeHierarchy";
 
 export { architectureNodeTypeSchema, edgeProtocolSchema, groupNodeTypeSchema, httpMethodSchema };
 
@@ -427,7 +428,11 @@ function refineDiagramReferences(data: Pick<DiagramData, "nodes" | "edges">, ctx
   });
 }
 
-export const diagramDataSchema = diagramStructureSchema.superRefine(refineDiagramReferences);
+// Like the retired-type rewrite, the hierarchy repair runs before validation (see repairNodeHierarchy).
+export const diagramDataSchema = z.preprocess(
+  repairNodeHierarchy,
+  diagramStructureSchema.superRefine(refineDiagramReferences),
+);
 
 export interface FormattedZodIssue {
   code: z.core.$ZodIssue["code"];
