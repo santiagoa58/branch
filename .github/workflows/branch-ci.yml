@@ -20,6 +20,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
+      - run: pnpm exec vp test run src/utils/layout/elkWorker.test.ts
+      - run: pnpm exec vp fmt . --write && git diff -- src/components/workspace/EditorDiagramMenu.tsx src/pages/ProjectPage.tsx src/pages/ProjectsPage.tsx src/services/cloudPersistence.test.ts
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build
