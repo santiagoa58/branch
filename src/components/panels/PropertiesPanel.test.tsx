@@ -453,6 +453,28 @@ describe("node properties", () => {
 });
 
 describe("group and connection properties", () => {
+  it("pins connection endpoints and persists manual sides across hydration", () => {
+    selectEdge();
+    render(<PropertiesPanel />);
+    expect(screen.getByRole("combobox", { name: "Source side" })).toHaveValue("auto");
+    expect(screen.getByRole("combobox", { name: "Target side" })).toHaveValue("auto");
+    fireEvent.change(screen.getByRole("combobox", { name: "Source side" }), {
+      target: { value: "top" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Target side" }), {
+      target: { value: "bottom" },
+    });
+    const saved = useDiagramStore.getState().exportDiagram();
+    expect(saved.edges[0]).toMatchObject({
+      sourceHandle: "top",
+      targetHandle: "bottom",
+      data: { sourceSide: "top", targetSide: "bottom" },
+    });
+    act(() => useDiagramStore.getState().hydrateDiagram(saved));
+    expect(screen.getByRole("combobox", { name: "Source side" })).toHaveValue("top");
+    expect(screen.getByRole("combobox", { name: "Target side" })).toHaveValue("bottom");
+  });
+
   it("defaults groups to Decision and retains reasoning without color controls on any tab", () => {
     useDiagramStore.getState().hydrateDiagram({
       nodes: [

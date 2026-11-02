@@ -234,6 +234,7 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       (change) => change.type === "position" && change.dragging === false,
     );
     if (hasPositionChange) {
+      setIfEditable((state) => ({ edges: assignPorts(state.nodes, state.edges) }));
       get().saveToHistory();
       get().saveDiagram();
     }
