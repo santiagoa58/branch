@@ -20,7 +20,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
-      - run: pnpm exec vp fmt . --write && git diff -- src/components/workspace/WorkspaceDeleteDialog.tsx src/pages/ProjectPage.tsx src/pages/ProjectsPage.tsx
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build

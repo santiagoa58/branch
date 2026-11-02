@@ -64,7 +64,8 @@ describe("ConfirmDialog", () => {
       />,
     );
     await user.keyboard("{Escape}");
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledOnce();
+    expect(onOpenChange.mock.calls[0]?.[0]).toBe(false);
     expect(onConfirm).not.toHaveBeenCalled();
   });
 });

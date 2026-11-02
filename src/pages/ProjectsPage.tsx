@@ -9,7 +9,10 @@ import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
-import { WorkspaceDeleteDialog, type WorkspaceDeleteTarget } from "@/components/workspace/WorkspaceDeleteDialog";
+import {
+  WorkspaceDeleteDialog,
+  type WorkspaceDeleteTarget,
+} from "@/components/workspace/WorkspaceDeleteDialog";
 import { preloadEditor } from "@/lib/editorRoute";
 import { ThemeToggle } from "@/components/ThemeToggle";
 

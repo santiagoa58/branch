@@ -11,11 +11,7 @@ interface WorkspaceDeleteDialogProps {
 }
 
 /** Explicit confirmation before a project or diagram is removed. Dismissal does nothing. */
-export function WorkspaceDeleteDialog({
-  target,
-  onCancel,
-  onDelete,
-}: WorkspaceDeleteDialogProps) {
+export function WorkspaceDeleteDialog({ target, onCancel, onDelete }: WorkspaceDeleteDialogProps) {
   const isProject = target?.kind === "project";
   const description = isProject
     ? `Delete project "${target.name}" and all ${target.diagramCount} of its diagrams? This cannot be undone.`

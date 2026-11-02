@@ -9,7 +9,10 @@ import { DocumentIcon } from "@heroicons/react/24/solid";
 import { diagramsApi, type ApiDiagramSummary } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
-import { WorkspaceDeleteDialog, type WorkspaceDeleteTarget } from "@/components/workspace/WorkspaceDeleteDialog";
+import {
+  WorkspaceDeleteDialog,
+  type WorkspaceDeleteTarget,
+} from "@/components/workspace/WorkspaceDeleteDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function ProjectPage() {
