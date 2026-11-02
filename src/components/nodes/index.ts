@@ -7,5 +7,3 @@ export const nodeTypes = {
   group: GroupNode,
   comment: CommentNode,
 };
-
-export { ArchitectureNode, GroupNode, CommentNode };

@@ -39,6 +39,7 @@ export function getIncomingEdges(nodeId: string, edges: Edge[]): Edge[] {
  * Returns the complete ordered path with all reachable nodes and edges,
  * plus branch-aware BFS levels for parallel path animation.
  */
+// oxlint-disable-next-line complexity -- debt: complexity 20; extract branches
 export function traceFlowPath(_nodes: Node[], edges: Edge[], sourceId: string): FlowPath {
   const visitedNodes = new Set<string>();
   const visitedEdges = new Set<string>();
@@ -129,6 +130,7 @@ export function traceFlowPath(_nodes: Node[], edges: Edge[], sourceId: string): 
             depth,
           });
 
+          // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
           if (!visitedNodes.has(sourceNodeId)) {
             visitedNodes.add(sourceNodeId);
             orderedNodeIds.push(sourceNodeId);
@@ -196,11 +198,12 @@ export function computeBlastRadius(
           nextFrontier.push(targetId);
           levelNodeIds.push(targetId);
           levelEdgeIds.push(edge.id);
-        } else if (visited.has(targetId) || failedSet.has(targetId)) {
+        } else if (
+          (visited.has(targetId) || failedSet.has(targetId)) &&
+          !levelEdgeIds.includes(edge.id)
+        ) {
           // Edge is still broken even if target was already visited
-          if (!levelEdgeIds.includes(edge.id)) {
-            levelEdgeIds.push(edge.id);
-          }
+          levelEdgeIds.push(edge.id);
         }
       }
     }
@@ -235,6 +238,7 @@ export function computeBlastRadius(
  * Each eligible node has `probability` chance of being selected, up to `maxCount`.
  * Protected nodes and already-failed nodes are excluded.
  */
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 export function selectRandomTargets(
   nodes: Node[],
   probability: number,
@@ -375,7 +379,7 @@ export function computePartition(
 
   // Sort groups by size descending — largest is groupA, rest merge into groupB
   const sortedGroups = [...groups.values()].sort((a, b) => b.length - a.length);
-  const groupA = sortedGroups[0] || [];
+  const groupA = sortedGroups[0] ?? [];
   const groupB = sortedGroups.slice(1).flat();
 
   // If everything ended up in one group (no actual partition), force a minimal cut

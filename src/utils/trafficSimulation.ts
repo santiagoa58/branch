@@ -15,7 +15,7 @@ export const DEFAULT_HOP_MS = 100;
 
 export type HopKind = "request" | "response" | "error" | "message";
 
-export interface TrafficHop {
+interface TrafficHop {
   edgeId: string;
   from: string;
   to: string;
@@ -52,7 +52,7 @@ export interface TrafficPlan {
 export type HopDuration = (edge: Edge) => number;
 
 /** The diagram's own illustrative latency for an edge. */
-export function hopDuration(edge: Edge): number {
+function hopDuration(edge: Edge): number {
   const latency = edge.data?.["latencyMs"];
   return typeof latency === "number" && latency > 0 ? latency : DEFAULT_HOP_MS;
 }
@@ -81,6 +81,7 @@ interface Planner {
   handOff: (edge: Edge, startMs: number) => void;
 }
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 function createPlanner(
   edges: Edge[],
   down: ReadonlySet<string>,
@@ -187,6 +188,7 @@ function toPlan(
 }
 
 /** Plans one request from an entry component, or null when the entry itself is down. */
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 export function planRequest(
   edges: Edge[],
   sourceId: string,

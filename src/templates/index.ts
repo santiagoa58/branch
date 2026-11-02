@@ -1,6 +1,19 @@
 import type { DiagramData } from "@/types";
 import { designDecisionSchema } from "@/schemas/diagram";
 import type { DiagramTemplate, TemplateCategory } from "./types";
+import { threeTierWeb } from "./threeTierWeb";
+import { microservicesEcommerce } from "./microservicesEcommerce";
+import { dataPipeline } from "./dataPipeline";
+import { ragChatbot } from "./ragChatbot";
+import { STORAGE_TEMPLATES } from "./catalog/storage";
+import { SOCIAL_TEMPLATES } from "./catalog/social";
+import { MEDIA_TEMPLATES } from "./catalog/media";
+import { COMMERCE_TEMPLATES } from "./catalog/commerce";
+import { MARKETPLACE_TEMPLATES } from "./catalog/marketplace";
+import { WEB_TEMPLATES } from "./catalog/web";
+import { DATA_TEMPLATES } from "./catalog/data";
+import { AI_TEMPLATES } from "./catalog/ai";
+import { PLATFORM_TEMPLATES } from "./catalog/platform";
 
 export { TEMPLATE_CATEGORIES } from "./types";
 export type { DiagramTemplate, TemplateCategory } from "./types";
@@ -45,20 +58,6 @@ export function instantiateTemplate(template: DiagramTemplate): DiagramData {
 
   return { nodes, edges, flows };
 }
-
-import { threeTierWeb } from "./threeTierWeb";
-import { microservicesEcommerce } from "./microservicesEcommerce";
-import { dataPipeline } from "./dataPipeline";
-import { ragChatbot } from "./ragChatbot";
-import { STORAGE_TEMPLATES } from "./catalog/storage";
-import { SOCIAL_TEMPLATES } from "./catalog/social";
-import { MEDIA_TEMPLATES } from "./catalog/media";
-import { COMMERCE_TEMPLATES } from "./catalog/commerce";
-import { MARKETPLACE_TEMPLATES } from "./catalog/marketplace";
-import { WEB_TEMPLATES } from "./catalog/web";
-import { DATA_TEMPLATES } from "./catalog/data";
-import { AI_TEMPLATES } from "./catalog/ai";
-import { PLATFORM_TEMPLATES } from "./catalog/platform";
 
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   threeTierWeb,

@@ -98,6 +98,7 @@ export function IconPickerDialog(props: IconPickerDialogProps) {
   return props.isOpen ? <IconPickerSession {...props} /> : null;
 }
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 17, 203 lines; extract branches and split into smaller units
 function IconPickerSession({ onClose, onSelect, currentIcon }: IconPickerDialogProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,10 +112,10 @@ function IconPickerSession({ onClose, onSelect, currentIcon }: IconPickerDialogP
   const localGroups = useMemo(() => searchTechnologyIcons(query), [query]);
   const localIds = new Set(localGroups.flatMap((group) => group.icons.map(({ id }) => id)));
   const remoteIcons = result?.query === query ? result.icons.filter((id) => !localIds.has(id)) : [];
-  const loading = !!query && result?.query !== query;
+  const loading = Boolean(query) && result?.query !== query;
   const error = result?.query === query ? result.error : "";
   const canConfirm =
-    !!selectedIcon &&
+    Boolean(selectedIcon) &&
     (curatedIds.has(selectedIcon) || loadedIcons.has(selectedIcon) || iconLoaded(selectedIcon));
 
   const handleReady = useCallback((iconId: string) => {

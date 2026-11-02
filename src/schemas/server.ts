@@ -10,7 +10,30 @@ export const serverEnvSchema = z.object({
     .transform((value) => value.split(",").map((origin) => origin.trim()))
     .pipe(z.array(z.url()).min(1)),
 });
-export const routeIdSchema = z.uuid();
+
+/** An optional setting; an empty value (`AI_MODEL_API=` in an env file) counts as unset. */
+const optionalSetting = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
+// Kept apart from serverEnvSchema so auth and the database never depend on AI settings.
+export const aiEnvSchema = z.object({
+  AI_GATEWAY_API_KEY: optionalSetting,
+  AI_MODEL: z.string().min(1),
+  AI_MODEL_REQUIREMENTS: optionalSetting,
+  AI_MODEL_COMPONENTS: optionalSetting,
+  AI_MODEL_DECISIONS: optionalSetting,
+  AI_MODEL_API: optionalSetting,
+  AI_MODEL_DATA_MODEL: optionalSetting,
+});
+export type AiEnv = z.infer<typeof aiEnvSchema>;
+/**
+ * The AI settings `pnpm dev` forwards: only those that are set, so the dev server starts without
+ * them. The runtime still requires `AI_MODEL` (aiEnvSchema), so without it the AI routes return 502.
+ */
+export const devAiEnvSchema = aiEnvSchema.extend({ AI_MODEL: optionalSetting });
+const routeIdSchema = z.uuid();
 
 export const projectRouteParamsSchema = z.strictObject({ projectId: routeIdSchema });
 export const diagramRouteParamsSchema = z.strictObject({ diagramId: routeIdSchema });

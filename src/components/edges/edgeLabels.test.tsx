@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { getBezierPath, Position, ReactFlowProvider, type Node } from "@xyflow/react";
 import type { EdgeDetailsDialog } from "@/components/ui/EdgeDetailsDialog";
-import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
+import type { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
 import { useDiagramStore } from "@/store/diagramStore";
 import { ArchitectureEdge } from "./ArchitectureEdge";
 import { RollupEdge } from "./RollupEdge";

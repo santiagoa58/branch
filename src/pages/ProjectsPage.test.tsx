@@ -80,12 +80,14 @@ const emptyProject: ApiWorkspaceProject = {
   diagrams: [],
 };
 const workspace = [checkout, platform, emptyProject];
-const mounts: Array<{
+const mounts: {
   client: QueryClient;
   router: ReturnType<typeof createMemoryRouter>;
-}> = [];
+}[] = [];
 
-type EditorRouteModule = { Component: () => ReturnType<typeof ProjectsPage> };
+interface EditorRouteModule {
+  Component: () => ReturnType<typeof ProjectsPage>;
+}
 
 function renderWorkspace(lazyEditor?: () => Promise<EditorRouteModule>) {
   const client = new QueryClient({

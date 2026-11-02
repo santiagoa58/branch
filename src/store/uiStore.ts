@@ -1,6 +1,15 @@
 import { create } from "zustand";
 import type { EdgeProtocol } from "@/types";
 import type { PaletteNodeType } from "@/schemas/ui";
+import type { DesignBrief } from "@/schemas/aiDesign";
+
+export type DesignTabId = "brief" | "design" | "api" | "dataModel";
+
+/** An answer being chosen for a stage 1 question: an option label, or a written answer (`custom`). */
+export interface QuestionDraft {
+  custom: boolean;
+  text: string;
+}
 
 /**
  * Below Tailwind's lg breakpoint the side panels slide over the canvas instead of sitting beside
@@ -8,7 +17,7 @@ import type { PaletteNodeType } from "@/schemas/ui";
  */
 export const COMPACT_LAYOUT_QUERY = "(max-width: 1023px)";
 
-export function isCompactLayout(): boolean {
+function isCompactLayout(): boolean {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
@@ -23,6 +32,32 @@ interface UIState {
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
   closePanels: () => void;
+
+  /**
+   * The AI design panel shares the right-hand slot with the inspector, which takes precedence
+   * while something is selected.
+   */
+  designPanelOpen: boolean;
+  /** Shows the right-hand slot with the design panel; a compact screen closes the palette. */
+  openDesignPanel: () => void;
+  /** On a compact screen this also hides the right-hand slot instead of revealing the inspector. */
+  closeDesignPanel: () => void;
+  /** Kept here, not in the panel, so the tab survives the inspector taking the slot. */
+  designTab: DesignTabId;
+  setDesignTab: (tab: DesignTabId) => void;
+  /**
+   * Answers chosen but not yet submitted, by question text, for one set of stage 1 questions.
+   * A new questions array (a new stage 1 result) starts empty. Ephemeral: never persisted.
+   */
+  questionDrafts: {
+    questions: DesignBrief["questions"] | null;
+    drafts: Record<string, QuestionDraft>;
+  };
+  setQuestionDraft: (
+    questions: DesignBrief["questions"],
+    question: string,
+    draft: QuestionDraft,
+  ) => void;
 
   /** A component chosen in the palette by click or tap, added by the editor at the view center. */
   pendingPaletteAdd: PaletteNodeType | null;
@@ -59,7 +94,35 @@ export const useUIStore = create<UIState>((set) => ({
         ? { rightPanelVisible, leftPanelVisible: false }
         : { rightPanelVisible };
     }),
-  closePanels: () => set({ leftPanelVisible: false, rightPanelVisible: false }),
+  closePanels: () =>
+    set({ leftPanelVisible: false, rightPanelVisible: false, designPanelOpen: false }),
+
+  designPanelOpen: false,
+  openDesignPanel: () =>
+    set(
+      isCompactLayout()
+        ? { designPanelOpen: true, rightPanelVisible: true, leftPanelVisible: false }
+        : { designPanelOpen: true, rightPanelVisible: true },
+    ),
+  closeDesignPanel: () =>
+    set(
+      isCompactLayout()
+        ? { designPanelOpen: false, rightPanelVisible: false }
+        : { designPanelOpen: false },
+    ),
+  designTab: "brief",
+  setDesignTab: (designTab) => set({ designTab }),
+  questionDrafts: { questions: null, drafts: {} },
+  setQuestionDraft: (questions, question, draft) =>
+    set((state) => ({
+      questionDrafts: {
+        questions,
+        drafts: {
+          ...(state.questionDrafts.questions === questions ? state.questionDrafts.drafts : {}),
+          [question]: draft,
+        },
+      },
+    })),
 
   pendingPaletteAdd: null,
   requestPaletteAdd: (type) => set({ pendingPaletteAdd: type }),

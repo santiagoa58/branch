@@ -35,6 +35,7 @@ function WorkspaceSkeleton() {
   );
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 333 lines; split into smaller units
 export function ProjectsPage() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
@@ -282,6 +283,7 @@ export function ProjectsPage() {
                       type="button"
                       disabled={deleteMutation.isPending}
                       onClick={() => {
+                        // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
                         if (confirm(`Delete project "${project.name}" and all its diagrams?`)) {
                           deleteMutation.mutate(project.id);
                         }
@@ -351,6 +353,7 @@ export function ProjectsPage() {
                           type="button"
                           disabled={deleteDiagramMutation.isPending}
                           onClick={() => {
+                            // oxlint-disable-next-line no-alert -- native confirm() guards this destructive delete until an in-app dialog replaces it
                             if (confirm(`Delete diagram "${diagram.name}"?`)) {
                               deleteDiagramMutation.mutate(diagram.id);
                             }

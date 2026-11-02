@@ -1,4 +1,4 @@
-import { Node, Edge } from "@xyflow/react";
+import type { Node, Edge } from "@xyflow/react";
 
 // Node types for architecture components
 export type ArchitectureNodeType =
@@ -84,7 +84,7 @@ export type GroupNodeType =
 // Comment note colors
 export type CommentColor = "yellow" | "blue" | "green" | "pink" | "purple";
 
-export type NodeStatus = "active" | "inactive" | "warning";
+type NodeStatus = "active" | "inactive" | "warning";
 
 export interface ArchitectureAttribute {
   name: string;
@@ -148,7 +148,7 @@ export type GroupNodeData = {
 } & Record<string, unknown>;
 
 // Data structure for comment/annotation nodes
-export type CommentNodeData = {
+type CommentNodeData = {
   text: string;
   color?: CommentColor;
   author?: string;
@@ -254,10 +254,6 @@ export interface DiagramData {
     y: number;
     zoom: number;
   };
-}
-
-// History state for undo/redo
-export interface HistoryState {
-  nodes: DiagramNode[];
-  edges: ArchitectureEdge[];
+  /** Optional AI design brief. Backward-compat: diagrams made by hand have none. */
+  brief?: import("@/schemas/aiDesign").DesignBrief;
 }

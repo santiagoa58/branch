@@ -2,6 +2,12 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vite-plus/test"
 import { render, screen, waitFor, act, cleanup, fireEvent } from "@testing-library/react";
 import { StrictMode, Suspense, lazy, useEffect } from "react";
 import { MemoryRouter, Routes, Route, useParams } from "react-router-dom";
+import { AccountControls, CloudAuth, RequireAuth } from "./CloudAuth";
+import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
+import { diagramsApi, projectsApi, type ApiDiagram } from "@/services/api";
+import { useDiagramStore } from "@/store/diagramStore";
+import { useAnimationStore } from "@/store/animationStore";
+import { diagramDataSchema } from "@/schemas/diagram";
 const auth = vi.hoisted(() => ({
   isLoaded: true,
   isSignedIn: true,
@@ -41,12 +47,6 @@ vi.mock("@clerk/react", () => ({
   SignIn: () => <p>Sign-in panel</p>,
   SignUp: () => <p>Sign-up panel</p>,
 }));
-import { AccountControls, CloudAuth, RequireAuth } from "./CloudAuth";
-import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
-import { diagramsApi, projectsApi, type ApiDiagram } from "@/services/api";
-import { useDiagramStore } from "@/store/diagramStore";
-import { useAnimationStore } from "@/store/animationStore";
-import { diagramDataSchema } from "@/schemas/diagram";
 const data = diagramDataSchema.parse({ nodes: [], edges: [], flows: [] });
 const diagram: ApiDiagram = {
   id: "a",
@@ -308,8 +308,8 @@ describe("cloud authentication transitions", () => {
     vi.stubGlobal(
       "URL",
       class extends URL {
-        static createObjectURL = createUrl;
-        static revokeObjectURL = revokeUrl;
+        static override createObjectURL = createUrl;
+        static override revokeObjectURL = revokeUrl;
       },
     );
     const downloads: string[] = [];
@@ -329,7 +329,7 @@ describe("cloud authentication transitions", () => {
     }
     const contents = await new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.addEventListener("load", () => resolve(reader.result));
       reader.readAsText(blob);
     });
     expect(contents).toBe(JSON.stringify(snapshot, null, 2));

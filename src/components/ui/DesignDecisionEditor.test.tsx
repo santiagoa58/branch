@@ -41,9 +41,9 @@ describe("DesignDecisionEditor", () => {
     expect(screen.getByLabelText("Chosen approach")).toHaveValue("Redis cache-aside");
     expect(screen.getByLabelText("Why")).toHaveValue("Most reads repeat within a minute.");
     expect(screen.getByLabelText("Why")).toHaveAccessibleDescription(/one sentence/i);
-    expect(screen.getByRole("textbox", { name: "Benefits 1" })).toHaveValue("Fewer database reads");
-    expect(screen.getByRole("textbox", { name: "Benefits 2" })).toHaveValue("Faster page loads");
-    expect(screen.getByRole("textbox", { name: "Drawbacks 1" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Gains 1" })).toHaveValue("Fewer database reads");
+    expect(screen.getByRole("textbox", { name: "Gains 2" })).toHaveValue("Faster page loads");
+    expect(screen.getByRole("textbox", { name: "Costs 1" })).toHaveValue(
       "Reads can be up to 60 s stale",
     );
     expect(screen.getByRole("textbox", { name: "Option 1" })).toHaveValue("Read replicas");
@@ -53,7 +53,7 @@ describe("DesignDecisionEditor", () => {
     expect(screen.getByRole("textbox", { name: "Revisit when 1" })).toHaveValue(
       "Reads must always be current",
     );
-    expect(screen.getByRole("group", { name: "Benefits" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Gains" })).toBeVisible();
     expect(screen.getByRole("group", { name: "Considered instead" })).toBeVisible();
   });
 
@@ -67,7 +67,7 @@ describe("DesignDecisionEditor", () => {
       "maxLength",
       String(DECISION_LIMITS.reason),
     );
-    for (const name of ["Benefits 1", "Drawbacks 1", "Option 1", "Why not option 1"]) {
+    for (const name of ["Gains 1", "Costs 1", "Option 1", "Why not option 1"]) {
       expect(screen.getByRole("textbox", { name })).toHaveAttribute(
         "maxLength",
         String(DECISION_LIMITS.item),
@@ -78,7 +78,7 @@ describe("DesignDecisionEditor", () => {
   it("edits one item while preserving every other field", () => {
     const original = structuredClone(decision);
     const { onChange } = mount(original);
-    fireEvent.change(screen.getByRole("textbox", { name: "Benefits 2" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Gains 2" }), {
       target: { value: "Lower p95 latency" },
     });
     expect(onChange).toHaveBeenLastCalledWith({
@@ -91,15 +91,15 @@ describe("DesignDecisionEditor", () => {
   it("adds, fills and removes list items", async () => {
     const user = userEvent.setup();
     const { onChange } = mount();
-    await user.click(screen.getByRole("button", { name: "Add drawback" }));
+    await user.click(screen.getByRole("button", { name: "Add cost" }));
     expect(onChange).toHaveBeenLastCalledWith({
       ...decision,
       drawbacks: ["Reads can be up to 60 s stale", ""],
     });
-    fireEvent.change(screen.getByRole("textbox", { name: "Drawbacks 2" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Costs 2" }), {
       target: { value: "Cache to operate" },
     });
-    await user.click(screen.getByRole("button", { name: "Remove benefit 1" }));
+    await user.click(screen.getByRole("button", { name: "Remove gain 1" }));
     expect(onChange).toHaveBeenLastCalledWith({
       ...decision,
       benefits: ["Faster page loads"],
@@ -110,10 +110,10 @@ describe("DesignDecisionEditor", () => {
   it("keeps the remaining row's input element when an earlier row is removed", async () => {
     const user = userEvent.setup();
     mount();
-    const second = screen.getByRole("textbox", { name: "Benefits 2" });
+    const second = screen.getByRole("textbox", { name: "Gains 2" });
     second.focus();
-    await user.click(screen.getByRole("button", { name: "Remove benefit 1" }));
-    const remaining = screen.getByRole("textbox", { name: "Benefits 1" });
+    await user.click(screen.getByRole("button", { name: "Remove gain 1" }));
+    const remaining = screen.getByRole("textbox", { name: "Gains 1" });
     expect(remaining).toBe(second);
     expect(remaining).toHaveValue("Faster page loads");
   });
@@ -124,10 +124,10 @@ describe("DesignDecisionEditor", () => {
     rerender(
       <DesignDecisionEditor value={{ ...decision, benefits: ["Only one"] }} onChange={onChange} />,
     );
-    expect(screen.getByRole("textbox", { name: "Benefits 1" })).toHaveValue("Only one");
-    expect(screen.queryByRole("textbox", { name: "Benefits 2" })).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Gains 1" })).toHaveValue("Only one");
+    expect(screen.queryByRole("textbox", { name: "Gains 2" })).not.toBeInTheDocument();
     rerender(<DesignDecisionEditor value={decision} onChange={onChange} />);
-    expect(screen.getByRole("textbox", { name: "Benefits 2" })).toHaveValue("Faster page loads");
+    expect(screen.getByRole("textbox", { name: "Gains 2" })).toHaveValue("Faster page loads");
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -167,7 +167,7 @@ describe("DesignDecisionEditor", () => {
     const onChange = vi.fn<(next: DesignDecision) => void>();
     render(<DesignDecisionEditor value={undefined} onChange={onChange} />);
     expect(screen.getByLabelText("Chosen approach")).toHaveValue("");
-    expect(screen.queryByRole("textbox", { name: "Benefits 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Gains 1" })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Chosen approach"), { target: { value: "Redis" } });
     expect(onChange).toHaveBeenLastCalledWith({ choice: "Redis" });
   });
@@ -178,7 +178,7 @@ describe("DesignDecisionEditor", () => {
     rerender(<DesignDecisionEditor value={{ reason: "Keep it simple" }} onChange={onChange} />);
     expect(screen.getByLabelText("Chosen approach")).toHaveValue("");
     expect(screen.getByLabelText("Why")).toHaveValue("Keep it simple");
-    expect(screen.queryByRole("textbox", { name: "Benefits 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Gains 1" })).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -204,7 +204,7 @@ describe("DesignDecisionEditor", () => {
     document.addEventListener("keyup", onKeyUp);
     try {
       await user.keyboard("{Enter}");
-      await user.click(screen.getByRole("textbox", { name: "Benefits 1" }));
+      await user.click(screen.getByRole("textbox", { name: "Gains 1" }));
       await user.keyboard("{Enter}");
       await user.click(screen.getByLabelText("Why"));
       await user.keyboard("{End}{Enter}Second line");

@@ -2,13 +2,26 @@ import type { ErrorHandler, NotFoundHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { apiErrorBodySchema } from "../../src/schemas/api";
-import { HttpError } from "../repository";
 import type { WorkspaceEnv } from "../types";
 
-function errorResponse(status: number, message: string): Response {
+export class HttpError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public headers: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
+
+function errorResponse(
+  status: number,
+  message: string,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(apiErrorBodySchema.parse({ message })), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 }
 
@@ -17,9 +30,9 @@ export const notFound: NotFoundHandler<WorkspaceEnv> = () =>
 
 export const handleError: ErrorHandler<WorkspaceEnv> = (error) => {
   if (error instanceof HttpError) {
-    return errorResponse(error.status, error.message);
+    return errorResponse(error.status, error.message, error.headers);
   }
-  if (error instanceof HTTPException && (error.status === 400 || error.status === 405)) {
+  if (error instanceof HTTPException && error.status === 400) {
     return errorResponse(400, "Invalid JSON request.");
   }
   console.error("Workspace API request failed", error);

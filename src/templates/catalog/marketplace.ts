@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const rideHailing = defineTemplate({
+const rideHailing = defineTemplate({
   id: "ride-hailing",
   name: "Ride hailing",
   category: "marketplace",
@@ -188,7 +188,7 @@ export const rideHailing = defineTemplate({
   },
 });
 
-export const foodDelivery = defineTemplate({
+const foodDelivery = defineTemplate({
   id: "food-delivery",
   name: "Food delivery",
   category: "marketplace",
@@ -360,7 +360,7 @@ export const foodDelivery = defineTemplate({
   },
 });
 
-export const bookingMarketplace = defineTemplate({
+const bookingMarketplace = defineTemplate({
   id: "booking-marketplace",
   name: "Stay booking marketplace",
   category: "marketplace",

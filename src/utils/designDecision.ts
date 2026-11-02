@@ -41,15 +41,16 @@ export function consideredKey(item: ConsideredOption): string {
   return `${item.option}\u0000${item.whyNot ?? ""}`;
 }
 
+function nonBlank(items: string[]): string[] {
+  return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+}
+
 /**
  * The same decision with blank text, empty items and repeated entries removed, for display and
  * export. A repeated entry adds nothing, and unique entries can key their own list rows.
  */
 export function getDocumentedDecision(decision: DesignDecision | undefined): DesignDecisionView {
   const view = getDesignDecision(decision);
-  const nonBlank = (items: string[]) => [
-    ...new Set(items.map((item) => item.trim()).filter(Boolean)),
-  ];
   const considered = new Map<string, ConsideredOption>();
   for (const item of view.considered) {
     const option = item.option.trim();
@@ -72,8 +73,8 @@ export function getDocumentedDecision(decision: DesignDecision | undefined): Des
 export function hasDesignDecision(decision: DesignDecision | undefined): boolean {
   const view = getDocumentedDecision(decision);
   return (
-    !!view.choice ||
-    !!view.reason ||
+    Boolean(view.choice) ||
+    Boolean(view.reason) ||
     view.benefits.length > 0 ||
     view.drawbacks.length > 0 ||
     view.considered.length > 0 ||

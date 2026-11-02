@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { DiagramEditor } from "@/components/DiagramEditor";
 import { NodePalette } from "@/components/panels/NodePalette";
-import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
+import { EditorRightPanel } from "@/components/panels/EditorRightPanel";
 import { Navbar } from "@/components/Navbar";
 import { LoadingState } from "@/components/ui/loading";
 import { DiagramLoadError } from "@/components/DiagramLoadError";
@@ -9,6 +9,7 @@ import { CloudNavigationGuard, CloudSaveError } from "@/components/CloudSaveStat
 import { ToastNotifications } from "@/components/ui/ToastNotifications";
 import { useUIStore } from "@/store/uiStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -26,6 +27,9 @@ function App() {
     }
     return () => {
       cloudWorkspace.cancelLoad();
+      // Leaving the diagram (another diagram, or another page) ends its AI run. Another page keeps
+      // the document active, so the cloudWorkspace subscription alone would let the run finish.
+      useAiDesignStore.getState().cancel();
     };
   }, [projectId, diagramId, setCurrentProject, setCurrentDiagram]);
 
@@ -37,21 +41,7 @@ function App() {
         <CloudNavigationGuard />
         <Navbar />
         <CloudSaveError />
-        {!loaded ? (
-          cloud.status === "load-error" ? (
-            <DiagramLoadError
-              failure={cloud.loadFailure}
-              message={cloud.message}
-              onRetry={() => {
-                if (diagramId) {
-                  void cloudWorkspace.load(diagramId, projectId);
-                }
-              }}
-            />
-          ) : (
-            <LoadingState label="Loading diagram…" className="flex-1" />
-          )
-        ) : (
+        {loaded ? (
           <main className="flex-1 flex overflow-hidden relative" inert={locked}>
             {/* Below lg the panels slide over the canvas instead of squeezing it to nothing. */}
             {(leftPanelVisible || rightPanelVisible) && (
@@ -68,12 +58,21 @@ function App() {
               </div>
             )}
             <DiagramEditor />
-            {rightPanelVisible && (
-              <div className="flex max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-40 max-lg:max-w-full max-lg:shadow-2xl">
-                <PropertiesPanel />
-              </div>
-            )}
+            {/* Outside the editor, so the design panel stays usable while an AI run locks the canvas. */}
+            <EditorRightPanel />
           </main>
+        ) : cloud.status === "load-error" ? (
+          <DiagramLoadError
+            failure={cloud.loadFailure}
+            message={cloud.message}
+            onRetry={() => {
+              if (diagramId) {
+                void cloudWorkspace.load(diagramId, projectId);
+              }
+            }}
+          />
+        ) : (
+          <LoadingState label="Loading diagram…" className="flex-1" />
         )}
         {loaded && locked && (
           <div className="fixed inset-0 z-90 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">

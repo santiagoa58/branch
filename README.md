@@ -74,13 +74,11 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 - **Clone-and-Animate** — Captures node position, clones to overlay, removes from state, then animates fragments flying outward with staggered rotation/scale/opacity
 - **Connected edges** fade out simultaneously during the shatter animation
 
-### AI Integration (OpenAI)
+### AI System Design
 
-- **Architecture Analysis** — AI-powered review with scoring and recommendations
-- **Connection Suggestions** — Smart protocol recommendations based on node types
-- **Documentation Generation** — Generate Markdown with decisions (one row per benefit, drawback, option considered and revisit trigger) and architecture attributes with their units
-- **Secure Key Storage** — API keys stored locally, never sent to servers
-- **Settings Panel** — Configure provider, model, and test connections
+- **Staged pipeline** — A design is generated in stages: requirements, then components, then decisions and API, with a data model on demand. Each stage regenerates its whole output from its inputs.
+- **Server-side AI** — Calls go through `POST /api/ai/:stage` to the Vercel AI Gateway. The gateway key lives only in server environment variables; spend is controlled by AI Gateway budgets. See [docs/api.md](docs/api.md) for setup.
+- **Prompt evaluation** — `pnpm eval:ai` runs the prompts against the gateway and `pnpm eval:prompts` dumps the built prompts; see `server/ai/eval/RESULTS.md`.
 
 ### Cloud Workspace
 
@@ -126,7 +124,7 @@ The app opens at sign-in and then the workspace dashboard, with projects and the
    cp .env.example .env.local
    ```
 
-4. Edit `.env.local` with your actual connection strings, Clerk keys and exact allowed frontend origins. Never commit this file. Only `VITE_CLERK_PUBLISHABLE_KEY` is exposed to the browser; `CLERK_SECRET_KEY` and `DATABASE_URL` stay server-side. AI provider keys remain client-side preferences and are never sent to this backend.
+4. Edit `.env.local` with your actual connection strings, Clerk keys and exact allowed frontend origins. Never commit this file. Only `VITE_CLERK_PUBLISHABLE_KEY` is exposed to the browser; `CLERK_SECRET_KEY` and `DATABASE_URL` stay server-side. For AI design, set `AI_MODEL` and, unless Vercel OIDC is available, `AI_GATEWAY_API_KEY`; both are server-side only (see [docs/api.md](docs/api.md)).
 5. For a new, empty database, run `migrations/001_workspace.sql` through the Neon SQL Editor or a trusted PostgreSQL client to create the application tables and indexes. This initializes the schema; it does not migrate legacy data. Skip this step if the tables already exist—do not rerun the file against an initialized database. Schema setup never runs during builds or API requests.
 
 ### Local development
@@ -167,7 +165,7 @@ The database is authoritative. Hydration does not save or add an edit history en
 
 Navigation flushes pending edits. If saving fails, navigation stays blocked and the canvas remains available. Retry the save, or export JSON and explicitly discard before leaving. If a session expires, pending edits remain in memory and are recoverable after signing back into the same account. Account changes clear private clipboard and document state. Browser refresh/close warns while edits are pending; closing anyway loses unsaved memory. Conflicts never retry over newer cloud data: export your edits, explicitly reload, then use Import if you want to apply them. There is no automatic merge or offline synchronization. Requests are bounded to 4 MB (including thumbnail/data JSON); larger documents fail visibly and remain exportable.
 
-Import remains an explicit editor action that edits the active cloud document and schedules a save. URL parameters never implicitly load a document snapshot. Theme, panel preferences, onboarding progress and AI provider settings remain browser preferences; AI analysis caches now stay in memory.
+Import remains an explicit editor action that edits the active cloud document and schedules a save. URL parameters never implicitly load a document snapshot. Theme, panel preferences and onboarding progress remain browser preferences.
 
 Decisions and attributes belong to the diagram and persist with cloud saves, version snapshots, and JSON backups. Existing documents remain compatible: legacy node `status`, `healthCheckUrl`, `technology`, `port`, `tags`, and color fields are retained losslessly even though their controls are removed. Legacy `metadata` remains readable as attributes; explicit attributes take precedence when names match, without deleting the old metadata or inventing units for existing values. Decisions use only the structured shape; the earlier paragraph fields (`alternatives`, `tradeoffs`, `assumptions`) are no longer accepted. Simulation failure/chaos state is separate and remains ephemeral.
 
@@ -315,7 +313,7 @@ Markdown regenerates IDs and positions. Grouped children remain present as flat 
 - **TanStack React Query 5** — Server state management
 - **Vite+** — Project-local unified toolchain for Vite, Vitest, Oxlint, and Oxfmt
 - **Vitest** — Unit testing with V8 coverage
-- **OpenAI SDK** — AI integration (client-side)
+- **Vercel AI SDK** — Structured-output AI calls through the Vercel AI Gateway (server-side)
 - **html-to-image** — Export functionality
 - **jsPDF** — PDF generation
 
@@ -340,7 +338,7 @@ src/schemas/             Shared Zod trust boundaries
 - React Flow groups use `parentId` and `extent: 'parent'`; parents must precede children in node arrays, and child positions are relative to the parent.
 - Import GSAP only through `src/lib/gsap.ts`, use `useGSAP()` for cleanup, and target React Flow elements through `data-node-id`/`data-edge-id`. Apply simulation speed with `timeline.timeScale(speed)`.
 - Keep graph algorithms in `src/utils/graphTraversal.ts` pure.
-- AI providers implement `AIProvider`. API keys remain client-side and must be checked before requests.
+- AI calls go through `/api/ai/*` with the server-held AI Gateway key. Stage schemas live in `src/schemas/aiDesign.ts`; code owns freshness, ids, layout and persistence.
 - Treat API payloads, imported files, API routes, AI responses, and browser storage as untrusted. Validate them with Zod schemas in `src/schemas/`; do not rely on type assertions or handwritten structural validators.
 - Use zinc for structural UI and reserve other colors for semantic states. Reuse CSS variables from `src/index.css` and the `cn()` helper from `src/lib/utils.ts`.
 - Use `src/services/notify.ts` for notifications rather than importing Sileo in feature components. Keep one top-right `Toaster` in `src/App.tsx`; do not add notification state to Zustand.

@@ -58,8 +58,8 @@ function mount(nodes: Node[], x: number, y: number, hasDecision = false) {
   return { ...result, label };
 }
 
-function rect(node: InternalNode): Rect {
-  return { ...node.internals.positionAbsolute, ...leafSize(node) };
+function rect(internal: InternalNode): Rect {
+  return { ...internal.internals.positionAbsolute, ...leafSize(internal) };
 }
 
 function expectClear(x: number, y: number, obstacles: Rect[], width = 180) {

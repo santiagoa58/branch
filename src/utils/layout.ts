@@ -57,7 +57,7 @@ export function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Node[] {
     return {
       ...node,
       position: anchoredPosition(node, positions.get(node.id)!, footprints.get(node.id)!),
-      ...(node.parentId !== undefined ? { extent: "parent" as const } : {}),
+      ...(node.parentId === undefined ? {} : { extent: "parent" as const }),
       ...(expanded
         ? {
             style: { ...node.style, ...expanded },

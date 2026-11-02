@@ -1,4 +1,5 @@
-import { ArchitectureNodeType, GroupNodeType, CommentColor, EdgeProtocol } from "@/types";
+// oxlint-disable max-lines -- debt: 1154 lines (limit 450); split the module
+import type { ArchitectureNodeType, GroupNodeType, CommentColor, EdgeProtocol } from "@/types";
 import {
   CpuChipIcon,
   CircleStackIcon,
@@ -371,6 +372,7 @@ const NODE_STYLE_PRESETS = {
   },
 } satisfies Record<string, NodeTypeConfig>;
 
+// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
 function catalogNode(
   preset: keyof typeof NODE_STYLE_PRESETS,
   label: string,
@@ -838,23 +840,6 @@ export const NODE_TYPES_CONFIG: Record<ArchitectureNodeType, NodeTypeConfig> = {
     CloudIcon,
     ["external", "saas", "payment", "stripe", "email provider", "partner api"],
   ),
-};
-
-// Edge styles by protocol (legacy - kept for reference)
-export const EDGE_STYLES: Record<
-  string,
-  {
-    strokeDasharray?: string;
-    animated?: boolean;
-    strokeWidth: number;
-  }
-> = {
-  http: { strokeWidth: 2 },
-  grpc: { strokeDasharray: "5 5", strokeWidth: 2 },
-  websocket: { animated: true, strokeWidth: 2 },
-  tcp: { strokeWidth: 3 },
-  amqp: { strokeDasharray: "2 2", animated: true, strokeWidth: 2 },
-  kafka: { strokeDasharray: "2 2", animated: true, strokeWidth: 2 },
 };
 
 // Protocol configuration with colors, labels, and styles

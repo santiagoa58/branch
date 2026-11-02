@@ -1,4 +1,4 @@
-export interface TechnologyIcon {
+interface TechnologyIcon {
   id: string;
   name: string;
   aliases?: readonly string[];

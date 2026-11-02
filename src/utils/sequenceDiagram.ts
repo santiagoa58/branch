@@ -52,6 +52,7 @@ const nodeLabel = (node: Node | undefined, fallback: string): string => {
  * Build the message text shown on a sequence arrow, e.g.
  * `HTTP/REST GET • CreateUser (12ms)`.
  */
+// oxlint-disable-next-line complexity -- debt: complexity 16; extract branches
 function buildMessage(
   data: ArchitectureEdgeData | undefined,
   opts: Required<Omit<SequenceDiagramOptions, "title">>,

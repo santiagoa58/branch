@@ -1,9 +1,10 @@
+// oxlint-disable max-lines -- debt: 845 lines (limit 450); split the module
 import { useState } from "react";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { GROUP_TYPES_CONFIG, DATA_FORMATS, COMMENT_CONFIG, PROTOCOL_CONFIG } from "@/constants";
-import type { GroupNodeType, DataFormat } from "@/types";
+import type { GroupNodeType, DataFormat, EdgeProtocol } from "@/types";
 import { cn } from "@/lib/utils";
 import { hasDesignDecision } from "@/utils/designDecision";
 import { applyValidatedInput } from "@/lib/validatedInput";
@@ -25,9 +26,29 @@ import {
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
+import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
+import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 
+type ProtocolGroup = (typeof PROTOCOL_CONFIG)[EdgeProtocol]["group"];
+
+const PROTOCOL_GROUP_LABELS: Record<ProtocolGroup, string> = {
+  standard: "Standard",
+  messaging: "Messaging",
+  data: "Data",
+  auth: "Auth & DNS",
+  aiml: "AI/ML",
+};
+
+/** Every protocol under its config group; groups and protocols keep the enum's order. */
+const PROTOCOL_OPTION_GROUPS = new Map<ProtocolGroup, EdgeProtocol[]>();
+for (const protocol of edgeProtocolSchema.options) {
+  const { group } = PROTOCOL_CONFIG[protocol];
+  PROTOCOL_OPTION_GROUPS.set(group, [...(PROTOCOL_OPTION_GROUPS.get(group) ?? []), protocol]);
+}
+
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 47, 770 lines; extract branches and split into smaller units
 export function PropertiesPanel() {
   const {
     nodes,
@@ -45,6 +66,7 @@ export function PropertiesPanel() {
 
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
+  const requireProps = useRequireCondition();
 
   // Associate the selected contract side with its edge so changing selection
   // naturally falls back to the request side without an effect-driven reset.
@@ -370,7 +392,9 @@ export function PropertiesPanel() {
                 key={`decision-${selectedNode.id}`}
                 value={groupData.decision}
                 onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
+                {...requireProps}
               />
+              <RegenerateReasoningButton nodeId={selectedNode.id} />
             </div>
             <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
               {/* Metadata Section */}
@@ -455,7 +479,7 @@ export function PropertiesPanel() {
             {
               id: "contract",
               label: "API",
-              populated: !!(edgeData.dataContract || edgeData.responseContract),
+              populated: Boolean(edgeData.dataContract ?? edgeData.responseContract),
             },
             {
               id: "design",
@@ -504,34 +528,15 @@ export function PropertiesPanel() {
                     onKeyDown={(e) => e.stopPropagation()}
                     className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                   >
-                    <optgroup label="Standard">
-                      <option value="http">HTTP/REST</option>
-                      <option value="grpc">gRPC</option>
-                      <option value="graphql">GraphQL</option>
-                      <option value="websocket">WebSocket</option>
-                      <option value="tcp">TCP</option>
-                    </optgroup>
-                    <optgroup label="Messaging">
-                      <option value="amqp">AMQP</option>
-                      <option value="rabbitmq">RabbitMQ</option>
-                      <option value="kafka">Kafka</option>
-                      <option value="eventbridge">EventBridge</option>
-                      <option value="sns">SNS/Push</option>
-                    </optgroup>
-                    <optgroup label="Data">
-                      <option value="sql">SQL/Database</option>
-                      <option value="redis">Redis</option>
-                      <option value="s3">S3/Blob</option>
-                      <option value="vector">Vector Search</option>
-                      <option value="search">Search</option>
-                    </optgroup>
-                    <optgroup label="Auth &amp; DNS">
-                      <option value="oauth">OAuth/OIDC</option>
-                      <option value="dns">DNS</option>
-                    </optgroup>
-                    <optgroup label="AI/ML">
-                      <option value="inference">AI Inference</option>
-                    </optgroup>
+                    {[...PROTOCOL_OPTION_GROUPS].map(([group, protocols]) => (
+                      <optgroup key={group} label={PROTOCOL_GROUP_LABELS[group]}>
+                        {protocols.map((protocol) => (
+                          <option key={protocol} value={protocol}>
+                            {PROTOCOL_CONFIG[protocol].label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                   <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
                 </div>
@@ -662,6 +667,7 @@ export function PropertiesPanel() {
             <hr className="border-zinc-200 dark:border-zinc-800" />
 
             {/* Data Contract Section — segmented Request | Response for request/response protocols. */}
+            {/* oxlint-disable-next-line complexity -- debt: complexity 28; extract branches */}
             {(() => {
               const supportsResponse =
                 edgeData.protocol !== null &&

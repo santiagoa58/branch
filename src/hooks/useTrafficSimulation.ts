@@ -22,7 +22,7 @@ import {
 import { computeStepDuration, getEdgePath, getEdgeSvgLayer } from "./useSimulationAnimation";
 
 /** How often each entry point sends a request at 1× speed. */
-export const SPAWN_EVERY_MS = 1800;
+const SPAWN_EVERY_MS = 1800;
 /** Requests on screen at once; more would turn the canvas into noise. */
 const MAX_IN_FLIGHT = 24;
 

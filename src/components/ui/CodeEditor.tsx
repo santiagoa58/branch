@@ -4,7 +4,7 @@ import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
 import { EditorView } from "@codemirror/view";
 import { useThemeStore } from "@/store/themeStore";
-import { DataFormat } from "@/types";
+import type { DataFormat } from "@/types";
 
 interface CodeEditorProps {
   value: string;
@@ -116,7 +116,7 @@ export function CodeEditor({
         theme={isDark ? "dark" : "light"}
         extensions={extensions}
         onChange={onChange}
-        {...(placeholder !== undefined ? { placeholder } : {})}
+        {...(placeholder === undefined ? {} : { placeholder })}
         readOnly={readOnly}
         basicSetup={{
           lineNumbers: true,

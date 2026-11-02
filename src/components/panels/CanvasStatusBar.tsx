@@ -1,7 +1,8 @@
 import { useMemo } from "react";
+import type { Node } from "@xyflow/react";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
-import { ArchitectureNodeData } from "@/types";
+import type { ArchitectureNodeData } from "@/types";
 import { cn } from "@/lib/utils";
 
 type Health = "healthy" | "degraded" | "critical";
@@ -18,6 +19,35 @@ function Separator() {
   );
 }
 
+function countArchitectureKinds(nodes: Node[]) {
+  let services = 0;
+  let data = 0;
+  let queues = 0;
+  let archNodes = 0;
+
+  for (const n of nodes) {
+    if (n.type !== "architecture") {
+      continue;
+    }
+    archNodes++;
+    const t = (n.data as ArchitectureNodeData).type;
+    if (t === "service" || t === "gateway" || t === "lambda" || t === "loadbalancer") {
+      services++;
+    } else if (
+      t === "database" ||
+      t === "cache" ||
+      t === "storage" ||
+      t === "datalake" ||
+      t === "vectordb"
+    ) {
+      data++;
+    } else if (t === "queue" || t === "eventbus") {
+      queues++;
+    }
+  }
+  return { archNodes, services, data, queues };
+}
+
 export function CanvasStatusBar() {
   const nodes = useDiagramStore((s) => s.nodes);
   const edges = useDiagramStore((s) => s.edges);
@@ -25,34 +55,10 @@ export function CanvasStatusBar() {
   const affectedNodeIds = useSimulationStore((s) => s.affectedNodeIds);
   const simulationMode = useSimulationStore((s) => s.mode);
 
-  const { archNodes, services, data, queues } = useMemo(() => {
-    let services = 0;
-    let data = 0;
-    let queues = 0;
-    let archNodes = 0;
-
-    for (const n of nodes) {
-      if (n.type !== "architecture") {
-        continue;
-      }
-      archNodes++;
-      const t = (n.data as ArchitectureNodeData).type;
-      if (t === "service" || t === "gateway" || t === "lambda" || t === "loadbalancer") {
-        services++;
-      } else if (
-        t === "database" ||
-        t === "cache" ||
-        t === "storage" ||
-        t === "datalake" ||
-        t === "vectordb"
-      ) {
-        data++;
-      } else if (t === "queue" || t === "eventbus") {
-        queues++;
-      }
-    }
-    return { archNodes, services, data, queues };
-  }, [nodes]);
+  const { archNodes, services, data, queues } = useMemo(
+    () => countArchitectureKinds(nodes),
+    [nodes],
+  );
 
   const health: Health = useMemo(() => {
     if (simulationMode === "idle") {

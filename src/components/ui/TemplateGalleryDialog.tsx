@@ -47,6 +47,7 @@ export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialog
   return <TemplateGallery onClose={onClose} />;
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 281 lines; split into smaller units
 function TemplateGallery({ onClose }: { onClose: () => void }) {
   const canvasEmpty = useDiagramStore((s) => s.nodes.length === 0);
   const { fitView } = useReactFlow();
@@ -69,10 +70,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     const instance = instantiateTemplate(template);
     let finalData = instance;
     if (mode === "add") {
-      const current = exportDiagram();
-      finalData = appendDiagramData(current, instance, { x: 120, y: 120 });
-      // appendDiagramData only merges nodes/edges — carry the flows over too.
-      finalData.flows = [...(current.flows ?? []), ...(instance.flows ?? [])];
+      finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
     }
     importDiagram(finalData);
     notify.success({

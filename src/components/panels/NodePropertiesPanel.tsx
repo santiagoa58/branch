@@ -18,6 +18,8 @@ import { hasDesignDecision } from "@/utils/designDecision";
 import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
+import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
+import { useRequireCondition } from "./useRequireCondition";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 
 const fieldClass =
@@ -36,6 +38,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const { nodes, updateNodeData, setSelectedNode, addNodeToGroup, removeNodeFromGroup } =
     useDiagramStore();
   const requestDelete = useAnimationStore((state) => state.requestDelete);
+  const requireProps = useRequireCondition();
   const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
   const Icon = config.icon;
@@ -84,7 +87,9 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
             <DesignDecisionEditor
               value={data.decision}
               onChange={(decision) => updateNodeData(node.id, { decision })}
+              {...requireProps}
             />
+            <RegenerateReasoningButton nodeId={node.id} />
             <ArchitectureFactsEditor
               key={node.id}
               attributes={getNodeAttributes(data)}

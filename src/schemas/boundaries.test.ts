@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
-import { architectureAnalysisResponseSchema, connectionSuggestionsResponseSchema } from "./ai";
 import { apiDiagramSchema, updateDiagramRequestSchema } from "./api";
 import { diagramDataSchema } from "./diagram";
 import { iconifySearchResponseSchema } from "./iconify";
-import { analysisCacheSchema } from "./persistence";
 
 const node = {
   id: "service-1",
@@ -12,51 +10,7 @@ const node = {
   data: { label: "API", type: "service" },
 };
 
-const analysis = {
-  summary: "A single service",
-  score: 70,
-  issues: [],
-  recommendations: [],
-};
-
 describe("external response contracts", () => {
-  it.each([
-    {},
-    { ...analysis, score: "70" },
-    { ...analysis, score: null },
-    { ...analysis, issues: [null] },
-    { ...analysis, issues: [{ severity: "unknown" }] },
-    { ...analysis, recommendations: "none" },
-  ])("rejects malformed AI analysis instead of inventing defaults: %j", (input) => {
-    expect(architectureAnalysisResponseSchema.safeParse(input).success).toBe(false);
-  });
-
-  it("accepts a valid analysis and adds its timestamp", () => {
-    const parsed = architectureAnalysisResponseSchema.parse(analysis);
-    expect(parsed.score).toBe(70);
-    expect(parsed.analyzedAt).toBeInstanceOf(Date);
-  });
-
-  it.each([
-    {},
-    { suggestions: "none" },
-    { suggestions: [{ sourceId: "a", targetId: "b", protocol: "invalid" }] },
-    {
-      suggestions: [
-        {
-          id: "s",
-          sourceId: "a",
-          targetId: "b",
-          protocol: "http",
-          reason: "Connect",
-          confidence: null,
-        },
-      ],
-    },
-  ])("rejects malformed AI suggestions: %j", (input) => {
-    expect(connectionSuggestionsResponseSchema.safeParse(input).success).toBe(false);
-  });
-
   it.each([{}, { icons: "bad", total: 2 }, { icons: [], total: null }, { icons: [], total: "2" }])(
     "rejects malformed Iconify search responses: %j",
     (input) => {
@@ -106,16 +60,6 @@ describe("external response contracts", () => {
       updateDiagramRequestSchema.safeParse({ data: { nodes: [], edges: [] }, expectedRevision: 1 })
         .success,
     ).toBe(true);
-  });
-
-  it.each([null, true, 123])("rejects invalid persisted analysis timestamps: %j", (analyzedAt) => {
-    expect(
-      analysisCacheSchema.safeParse({
-        diagramHash: "hash",
-        analysis: { ...analysis, analyzedAt },
-        expiresAt: 123,
-      }).success,
-    ).toBe(false);
   });
 
   it("rejects dangling edges at every diagram boundary", () => {

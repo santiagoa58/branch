@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- debt: 613 lines (limit 450); split the module
 /**
  * SimulationPanel — A floating overlay control bar for simulation mode.
  * Positioned at the bottom-center of the canvas.
@@ -8,7 +9,7 @@ import { useSimulationStore } from "@/store/simulationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { traceFlowPath, computeBlastRadius } from "@/utils/graphTraversal";
 import { flowPathToMermaidSequence } from "@/utils/sequenceDiagram";
-import type { SimulationSpeed } from "@/types/simulation";
+import type { SimulationSpeed, NamedFlow } from "@/types/simulation";
 import { simulationSpeedSchema } from "@/schemas/diagram";
 import { chaosSubModeSchema } from "@/schemas/ui";
 import { applyValidatedInput } from "@/lib/validatedInput";
@@ -16,7 +17,6 @@ import { SimulationStats } from "./SimulationStats";
 import { ChaosEventLog } from "./ChaosEventLog";
 import { SequenceDiagramDialog } from "@/components/ui/SequenceDiagramDialog";
 import { SaveFlowDialog } from "@/components/ui/SaveFlowDialog";
-import type { NamedFlow } from "@/types/simulation";
 import { TrafficLog } from "./TrafficLog";
 import { Activity } from "lucide-react";
 import {
@@ -43,6 +43,7 @@ interface SimulationPanelProps {
   onClose: () => void;
 }
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 76, 576 lines; extract branches and split into smaller units
 export function SimulationPanel({ onClose }: SimulationPanelProps) {
   const {
     mode,
@@ -93,7 +94,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
 
   // Get source node label for display
   const sourceNode = sourceNodeId ? nodes.find((n) => n.id === sourceNodeId) : null;
-  const sourceNodeLabel = sourceNode ? (sourceNode.data as Record<string, unknown>)["label"] : null;
+  const sourceNodeLabel = sourceNode ? sourceNode.data["label"] : null;
   const sourceLabel =
     typeof sourceNodeLabel === "string" && sourceNodeLabel
       ? sourceNodeLabel
@@ -155,6 +156,7 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
   };
 
   // Status message
+  // oxlint-disable-next-line complexity -- debt: complexity 22; extract branches
   const getStatusText = () => {
     if (mode === "idle") {
       return "Select a mode to begin";
@@ -190,12 +192,8 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
                 }
                 const fromNode = nodes.find((n) => n.id === step.fromNodeId);
                 const toNode = nodes.find((n) => n.id === step.toNodeId);
-                const fromLabel =
-                  ((fromNode?.data as Record<string, unknown> | undefined)?.["label"] as string) ||
-                  step.fromNodeId;
-                const toLabel =
-                  ((toNode?.data as Record<string, unknown> | undefined)?.["label"] as string) ||
-                  step.toNodeId;
+                const fromLabel = (fromNode?.data?.["label"] as string) || step.fromNodeId;
+                const toLabel = (toNode?.data?.["label"] as string) || step.toNodeId;
                 const proto = step.protocol ? ` [${step.protocol.toUpperCase()}]` : "";
                 return `Step ${currentStepIndex + 1}/${maxSteps}: ${fromLabel} →${proto} ${toLabel}`;
               })()
@@ -491,9 +489,9 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               disabled={!sourceNodeId}
               className={cn(
                 "whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
-                !sourceNodeId
-                  ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
-                  : "text-teal-600 dark:text-teal-400 hover:bg-teal-100 dark:hover:bg-teal-900/30",
+                sourceNodeId
+                  ? "text-teal-600 dark:text-teal-400 hover:bg-teal-100 dark:hover:bg-teal-900/30"
+                  : "text-zinc-300 dark:text-zinc-700 cursor-not-allowed",
               )}
               title="Generate a Mermaid sequence diagram from the traced flow"
             >
@@ -508,9 +506,9 @@ export function SimulationPanel({ onClose }: SimulationPanelProps) {
               disabled={!sourceNodeId}
               className={cn(
                 "whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1",
-                !sourceNodeId
-                  ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
-                  : "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30",
+                sourceNodeId
+                  ? "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30"
+                  : "text-zinc-300 dark:text-zinc-700 cursor-not-allowed",
               )}
               title="Save the current source as a replayable named flow"
             >

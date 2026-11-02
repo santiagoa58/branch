@@ -15,6 +15,7 @@ import {
   type UpdateThumbnailRequest,
   type CreateDiagramVersionRequest,
 } from "../src/schemas/api";
+import { HttpError } from "./http/errors";
 
 export interface Queryable {
   query(
@@ -25,16 +26,9 @@ export interface Queryable {
 export interface Database extends Queryable {
   transaction<T>(run: (client: Queryable) => Promise<T>): Promise<T>;
 }
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 const projectColumns = `id, name, description, color, created_at::text AS "createdAt", updated_at::text AS "updatedAt"`;
 const diagramColumns = `id, project_id AS "projectId", name, description, data, thumbnail, version, revision, created_at::text AS "createdAt", updated_at::text AS "updatedAt"`;
+const diagramSummaryColumns = `id, project_id AS "projectId", name, description, thumbnail, version, revision, created_at::text AS "createdAt", updated_at::text AS "updatedAt"`;
 const versionColumns = `id, diagram_id AS "diagramId", version_number AS "versionNumber", label, thumbnail, created_at::text AS "createdAt"`;
 const ownedDiagram = `id = $1 AND project_id IN (SELECT id FROM projects WHERE owner_id = $2)`;
 
@@ -51,7 +45,7 @@ export class WorkspaceRepository {
     const [projects, result] = await Promise.all([
       this.projects(owner),
       this.db.query(
-        `SELECT ${diagramColumns.replace("data, ", "")} FROM diagrams WHERE project_id IN (SELECT id FROM projects WHERE owner_id = $1) ORDER BY updated_at DESC`,
+        `SELECT ${diagramSummaryColumns} FROM diagrams WHERE project_id IN (SELECT id FROM projects WHERE owner_id = $1) ORDER BY updated_at DESC`,
         [owner],
       ),
     ]);
@@ -130,7 +124,7 @@ export class WorkspaceRepository {
     return apiDiagramSummaryListSchema.parse(
       (
         await this.db.query(
-          `SELECT ${diagramColumns.replace("data, ", "")} FROM diagrams WHERE project_id = $1 AND project_id IN (SELECT id FROM projects WHERE owner_id = $2) ORDER BY updated_at DESC`,
+          `SELECT ${diagramSummaryColumns} FROM diagrams WHERE project_id = $1 AND project_id IN (SELECT id FROM projects WHERE owner_id = $2) ORDER BY updated_at DESC`,
           [projectId, owner],
         )
       ).rows,

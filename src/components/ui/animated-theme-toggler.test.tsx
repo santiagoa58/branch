@@ -238,7 +238,7 @@ describe("AnimatedThemeToggler", () => {
     }
     const clips = keyframes["clipPath"];
     if (!Array.isArray(clips)) {
-      throw new Error("Expected clip path endpoints");
+      throw new TypeError("Expected clip path endpoints");
     }
     for (const clip of clips) {
       expect(clip).toMatch(/^polygon\(/);

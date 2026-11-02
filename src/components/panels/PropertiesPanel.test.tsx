@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { useDiagramStore } from "@/store/diagramStore";
-import { diagramDataSchema } from "@/schemas/diagram";
+import { diagramDataSchema, edgeProtocolSchema } from "@/schemas/diagram";
+import { PROTOCOL_CONFIG } from "@/constants";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 vi.mock("@/components/ui/CodeEditor", () => ({
@@ -54,13 +55,13 @@ const decision = {
 const decisionInputs = [
   ["Chosen approach", decision.choice],
   ["Why", decision.reason],
-  ["Benefits 1", "Fewer database reads"],
-  ["Drawbacks 1", "Potential stale reads"],
+  ["Gains 1", "Fewer database reads"],
+  ["Costs 1", "Potential stale reads"],
   ["Option 1", "Read replicas"],
   ["Why not option 1", "More operational work"],
   ["Revisit when 1", "Reads must be strongly consistent"],
 ] as const;
-const addButtons = ["Add benefit", "Add drawback", "Add option", "Add revisit trigger"];
+const addButtons = ["Add gain", "Add cost", "Add option", "Add revisit trigger"];
 
 function fillDecision() {
   for (const name of addButtons) {
@@ -450,6 +451,45 @@ describe("group and connection properties", () => {
     for (const hint of ["Show data passing", "Non-blocking call", "Request/Response"]) {
       expect(screen.getByText(hint)).toHaveClass("text-muted-foreground");
     }
+  });
+
+  it("offers every protocol exactly once, labelled and grouped from the protocol config", () => {
+    selectEdge();
+    render(<PropertiesPanel />);
+    const picker = screen.getByRole("combobox", { name: "Protocol" });
+    const options = within(picker).getAllByRole("option");
+    expect(options).toHaveLength(edgeProtocolSchema.options.length);
+    const groupLabels = {
+      standard: "Standard",
+      messaging: "Messaging",
+      data: "Data",
+      auth: "Auth & DNS",
+      aiml: "AI/ML",
+    };
+    for (const protocol of edgeProtocolSchema.options) {
+      const matches = options.filter((option) => option.getAttribute("value") === protocol);
+      expect(matches.map((option) => option.textContent)).toEqual([
+        PROTOCOL_CONFIG[protocol].label,
+      ]);
+      expect(matches[0]?.closest("optgroup")).toHaveAttribute(
+        "label",
+        groupLabels[PROTOCOL_CONFIG[protocol].group],
+      );
+    }
+    expect(
+      within(picker)
+        .getAllByRole("group")
+        .map((group) => group.getAttribute("label")),
+    ).toEqual(Object.values(groupLabels));
+  });
+
+  it("updates the edge when a newly offered protocol is chosen", () => {
+    selectEdge();
+    render(<PropertiesPanel />);
+    const picker = screen.getByRole("combobox", { name: "Protocol" });
+    fireEvent.change(picker, { target: { value: "mqtt" } });
+    expect(picker).toHaveValue("mqtt");
+    expect(useDiagramStore.getState().edges[0]?.data).toMatchObject({ protocol: "mqtt" });
   });
 
   it("retains connection reasoning alongside separate request and response contracts", () => {

@@ -1,5 +1,5 @@
-import { DragEvent } from "react";
-import { ArchitectureNodeType, GroupNodeType } from "@/types";
+import type { DragEvent } from "react";
+import type { ArchitectureNodeType, GroupNodeType } from "@/types";
 
 export function useDragEvent(
   nodeType: ArchitectureNodeType | `group-${GroupNodeType}` | "comment",

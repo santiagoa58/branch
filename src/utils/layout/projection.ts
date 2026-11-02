@@ -7,6 +7,7 @@ export interface LayoutEdge {
 }
 
 /** Project each real edge at the lowest container where its endpoints are siblings. */
+// oxlint-disable-next-line complexity -- debt: complexity 16; extract branches
 export function projectEdges(
   edges: Edge[],
   hierarchy: Hierarchy,

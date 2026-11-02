@@ -1,9 +1,11 @@
-import { useCallback, useRef, useEffect, useMemo, DragEvent, useState } from "react";
-import { ReactFlow, MiniMap, useReactFlow, useStoreApi, Node } from "@xyflow/react";
+// oxlint-disable max-lines -- debt: 685 lines (limit 450); split the module
+import { useCallback, useRef, useEffect, useMemo, type DragEvent, useState } from "react";
+import { ReactFlow, MiniMap, useReactFlow, useStoreApi, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useUIStore } from "@/store/uiStore";
 
 import { nodeTypes } from "@/components/nodes";
@@ -11,23 +13,17 @@ import { edgeTypes } from "@/components/edges";
 import { NODE_TYPES_CONFIG, GROUP_TYPES_CONFIG } from "@/constants";
 import { architectureNodeTypeSchema, groupNodeTypeSchema } from "@/schemas/diagram";
 import { paletteNodeTypeSchema, type PaletteNodeType } from "@/schemas/ui";
-import { ArchitectureNode, GroupNodeData } from "@/types";
+import type { ArchitectureNode, GroupNodeData } from "@/types";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { applyGroupCollapse } from "@/utils/groupRollup";
 import { cn } from "@/lib/utils";
-import {
-  ArrowDownTrayIcon,
-  DocumentDuplicateIcon,
-  ClipboardDocumentIcon,
-  ArrowUpCircleIcon,
-  ArrowDownCircleIcon,
-  Squares2X2Icon,
-} from "@heroicons/react/24/outline";
+import { Squares2X2Icon } from "@heroicons/react/24/outline";
 import { exportSelectedAsSvg, exportSelectedAsPng } from "@/utils/export";
 import { ShortcutsHelp } from "@/components/panels/ShortcutsHelp";
 import { SimulationPanel } from "@/components/panels/SimulationPanel";
 import { GettingStartedChecklist } from "@/components/panels/GettingStartedChecklist";
 import { DiagramInfoCard } from "@/components/panels/DiagramInfoCard";
+import { EditorContextMenu } from "@/components/panels/EditorContextMenu";
 import { ProtocolLegend } from "@/components/panels/ProtocolLegend";
 import { NodeDetailPopup } from "@/components/panels/NodeDetailPopup";
 import { CanvasStatusBar } from "@/components/panels/CanvasStatusBar";
@@ -48,6 +44,7 @@ import {
   Plus,
   Presentation,
   Route,
+  Sparkles,
 } from "lucide-react";
 import { useSimulationAnimation } from "@/hooks/useSimulationAnimation";
 import { useDestroyAnimation } from "@/hooks/useDestroyAnimation";
@@ -105,6 +102,7 @@ function createPaletteNode(type: PaletteNodeType, position: { x: number; y: numb
   return node;
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 595 lines (limit 200); split into smaller units
 export function DiagramEditor() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null!);
   const { screenToFlowPosition, zoomIn, zoomOut, getZoom, getIntersectingNodes } = useReactFlow();
@@ -158,6 +156,25 @@ export function DiagramEditor() {
     bringNodeToFront,
     sendNodeToBack,
   } = useDiagramStore();
+  const aiRunning = useAiDesignStore((state) => state.running);
+
+  // "Design with AI" shows the design panel in the right-hand slot. Selection gives the slot to the
+  // inspector, so opening the panel clears it.
+  const designPanelShown = useUIStore((state) => state.designPanelOpen && state.rightPanelVisible);
+  const hasSelection = useDiagramStore(
+    (state) => state.selectedNodeId !== null || state.selectedEdgeId !== null,
+  );
+  const openDesignPanel = useCallback(() => {
+    setSelectedNode(null);
+    useUIStore.getState().openDesignPanel();
+  }, [setSelectedNode]);
+  const toggleDesignPanel = () => {
+    if (designPanelShown && !hasSelection) {
+      useUIStore.getState().closeDesignPanel();
+    } else {
+      openDesignPanel();
+    }
+  };
 
   // Display graph — children of collapsed groups hidden, boundary edges
   // aggregated into synthetic rollup edges. The store keeps the real graph;
@@ -286,6 +303,8 @@ export function DiagramEditor() {
     },
     [setSelectedEdge],
   );
+
+  const closeContextMenu = useCallback(() => setContextMenu({ x: 0, y: 0, show: false }), []);
 
   // Handle pane click (deselect)
   const onPaneClick = useCallback(() => {
@@ -476,366 +495,298 @@ export function DiagramEditor() {
       className="flex-1 relative bg-white dark:bg-zinc-950 overflow-hidden"
       data-onboarding-pulse={onboardingActiveStep === "connect-nodes" ? "connect-nodes" : undefined}
     >
-      {/* Grid Background */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-50 dark:opacity-60 pointer-events-none z-0" />
+      {/* The canvas is inert while an AI run edits the diagram. */}
+      {/* Panels that must stay usable during a run render as siblings of this wrapper. */}
+      <div className="absolute inset-0 overflow-hidden" inert={aiRunning}>
+        {/* Grid Background */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-50 dark:opacity-60 pointer-events-none z-0" />
 
-      {/* Context Menu */}
-      {contextMenu.show && (
-        <>
-          <button
-            type="button"
-            aria-label="Close context menu"
-            className="fixed inset-0 z-40"
-            onClick={() => setContextMenu({ x: 0, y: 0, show: false })}
+        {/* Context Menu */}
+        {contextMenu.show && (
+          <EditorContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            nodes={nodes}
+            hasClipboardContent={hasClipboardContent()}
+            onClose={closeContextMenu}
+            onCopy={handleCopy}
+            onPaste={handlePaste}
+            onBringToFront={bringNodeToFront}
+            onSendToBack={sendNodeToBack}
+            onExportSvg={handleExportSelectedSvg}
+            onExportPng={handleExportSelectedPng}
           />
-          <div
-            data-editor-shortcuts="blocked"
-            className="fixed z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden animate-slide-in min-w-48"
-            style={{
-              left: `${contextMenu.x}px`,
-              top: `${contextMenu.y}px`,
-            }}
-          >
-            <div className="p-1">
-              {/* Copy/Paste Section */}
-              {nodes.filter((n) => n.selected).length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                >
-                  <DocumentDuplicateIcon className="w-3.5 h-3.5" />
-                  Copy
-                  <span className="ml-auto text-zinc-400 dark:text-zinc-500">Ctrl+C</span>
-                </button>
-              )}
-              {hasClipboardContent() && (
-                <button
-                  type="button"
-                  onClick={handlePaste}
-                  className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                >
-                  <ClipboardDocumentIcon className="w-3.5 h-3.5" />
-                  Paste
-                  <span className="ml-auto text-zinc-400 dark:text-zinc-500">Ctrl+V</span>
-                </button>
-              )}
-              {/* Divider */}
-              {nodes.filter((n) => n.selected).length > 0 && (
-                <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-              )}
-              {/* Layer Order Section - only for single selected group */}
-              {nodes.filter((n) => n.selected && n.type === "group").length === 1 &&
-                (() => {
-                  const groupNode = nodes.find((n) => n.selected && n.type === "group")!;
-                  return (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          bringNodeToFront(groupNode.id);
-                          setContextMenu({ x: 0, y: 0, show: false });
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                      >
-                        <ArrowUpCircleIcon className="w-3.5 h-3.5" />
-                        Bring to Front
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sendNodeToBack(groupNode.id);
-                          setContextMenu({ x: 0, y: 0, show: false });
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                      >
-                        <ArrowDownCircleIcon className="w-3.5 h-3.5" />
-                        Send to Back
-                      </button>
-                      <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                    </>
-                  );
-                })()}
-              {/* Export Section */}
-              {nodes.filter((n) => n.selected).length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleExportSelectedSvg();
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                  >
-                    <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                    Export Selection as SVG
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleExportSelectedPng();
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white rounded-md flex items-center gap-2"
-                  >
-                    <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                    Export Selection as PNG
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+        )}
 
-      {/*
+        {/*
         Top bar: diagram card, toolbar and legend share one row so they can never overlap.
         Equal flexible side slots keep the toolbar centered while space allows; on a narrow
         canvas the toolbar wraps to a second line instead of running off the edge.
       */}
-      <div className="@container absolute top-4 inset-x-4 z-20 flex flex-wrap items-start gap-x-3 gap-y-2 pointer-events-none">
-        <div className="flex flex-1 basis-0 justify-start">
-          <DiagramInfoCard />
-        </div>
-        {/* Toolbar: tools, zoom, then actions. Every control names itself and its shortcut. */}
-        <div className="pointer-events-auto shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border border-zinc-200 dark:border-zinc-800 rounded-full p-1.5 flex items-center gap-1 shadow-lg shadow-black/20 dark:shadow-black/50">
-          <ToolbarButton
-            label="Select"
-            shortcut="V"
-            active={!panMode && !laserMode}
-            onClick={() => {
-              setPanMode(false);
-              setLaserMode(false);
-            }}
-          >
-            <MousePointer2 className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarButton
-            label="Pan"
-            shortcut="H"
-            active={panMode}
-            onClick={() => {
-              setPanMode(true);
-              setLaserMode(false);
-            }}
-          >
-            <Hand className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarButton
-            className={PHONE_HIDDEN}
-            label="Laser pointer for presenting"
-            shortcut="`"
-            active={laserMode}
-            onClick={() => {
-              setLaserMode(!laserMode);
-              setPanMode(false);
-            }}
-          >
-            <Presentation className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarDivider className={PHONE_HIDDEN} />
-          <ToolbarButton
-            className={PHONE_HIDDEN}
-            label="Zoom out"
-            shortcut="−"
-            onClick={() => void zoomOut()}
-          >
-            <Minus className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <span
-            className={cn(
-              "text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1",
-              PHONE_HIDDEN,
-            )}
-          >
-            {zoom}%
-          </span>
-          <ToolbarButton
-            className={PHONE_HIDDEN}
-            label="Zoom in"
-            shortcut="+"
-            onClick={() => void zoomIn()}
-          >
-            <Plus className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarDivider />
-          <ToolbarButton
-            className={PHONE_HIDDEN}
-            label="Import diagram"
-            onClick={() => setShowImportDialog(true)}
-          >
-            <FileUp className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
-            <LayoutTemplate className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarDivider />
-          <ToolbarButton
-            label="Simulate requests and failures"
-            showLabel="Simulate"
-            shortcut="⇧S"
-            active={showSimulationPanel}
-            className={cn(
-              onboardingActiveStep === "run-flow-sim" &&
-                "onboarding-pulse text-amber-600 dark:text-amber-400",
-            )}
-            onClick={() => {
-              setShowSimulationPanel((v) => !v);
-              simulationSetMode(showSimulationPanel ? "idle" : "traffic");
-            }}
-          >
-            <Activity className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarButton
-            label="Saved request flows"
-            active={showFlowsPanel}
-            onClick={() => setShowFlowsPanel((v) => !v)}
-          >
-            <Route className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-          <ToolbarButton
-            className={PHONE_HIDDEN}
-            label="Keyboard shortcuts"
-            shortcut="?"
-            onClick={() => setShowShortcuts(true)}
-          >
-            <Keyboard className="size-4" aria-hidden="true" />
-          </ToolbarButton>
-        </div>
-        <div className="flex flex-1 basis-0 justify-end">
-          <ProtocolLegend />
-        </div>
-      </div>
-
-      {/* Import Dialog */}
-      <ImportDialog isOpen={showImportDialog} onClose={() => setShowImportDialog(false)} />
-      {/* Starter template gallery */}
-      <TemplateGalleryDialog
-        isOpen={showTemplateGallery}
-        onClose={() => setShowTemplateGallery(false)}
-      />
-      {/* Shortcuts Help Modal */}
-      {showShortcuts && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <button
-            type="button"
-            aria-label="Close keyboard shortcuts"
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowShortcuts(false)}
-          />
-          <dialog
-            open
-            aria-modal="true"
-            aria-label="Keyboard shortcuts"
-            className="relative border-0 bg-transparent p-0"
-          >
-            <ShortcutsHelp onClose={() => setShowShortcuts(false)} />
-          </dialog>
-        </div>
-      )}
-
-      {/* React Flow Canvas */}
-      <div ref={reactFlowWrapper} className={cn("w-full h-full", laserMode && "cursor-none")}>
-        <LaserPointer active={laserMode} containerRef={reactFlowWrapper} />
-        <ReactFlow
-          nodes={displayNodes}
-          edges={displayEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
-          onPaneClick={onPaneClick}
-          onMoveEnd={onMoveEnd}
-          onNodeDragStop={onNodeDragStop}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          defaultEdgeOptions={{
-            type: "architecture",
-          }}
-          fitView
-          snapToGrid
-          snapGrid={[10, 10]}
-          proOptions={{ hideAttribution: true }}
-          style={{ background: "transparent" }}
-          selectionOnDrag={!panMode}
-          panOnDrag={panMode ? true : [1, 2]}
-          panOnScroll
-          zoomOnScroll={false}
-          zoomOnPinch
-          multiSelectionKeyCode="Shift"
-          deleteKeyCode={null}
-        >
-          <MiniMap
-            pannable
-            zoomable
-            nodeStrokeWidth={2}
-            maskColor="rgb(9 9 11 / 0.6)"
-            className="bg-white/90! dark:bg-zinc-900/80! backdrop-blur-md border! border-zinc-200! dark:border-zinc-800! rounded-lg! shadow-lg right-4! bottom-4!"
-            style={{ width: 180, height: 120 }}
-            nodeColor={(node) => {
-              if (node.type === "group") {
-                return "rgb(82 82 91 / 0.4)";
-              }
-              if (node.type === "comment") {
-                return "#fbbf24";
-              }
-              const t = (node.data as { type?: string } | undefined)?.type;
-              return (t && MINIMAP_NODE_COLORS[t]) || "#3f3f46";
-            }}
-          />
-        </ReactFlow>
-      </div>
-
-      {/* Canvas overlays — diagram info, protocol legend, node detail, status bar */}
-      <NodeDetailPopup />
-      <CanvasStatusBar />
-      <SpotlightSearch />
-
-      {/* Animation overlay for shatter/destroy effects */}
-      <div id="animation-overlay" className="fixed inset-0 pointer-events-none z-100" />
-
-      {/* Simulation floating panel */}
-      {showSimulationPanel && (
-        <SimulationPanel
-          onClose={() => {
-            setShowSimulationPanel(false);
-            simulationSetMode("idle");
-          }}
-        />
-      )}
-
-      {/* Saved flows sidebar (anchored to the canvas right edge) */}
-      {showFlowsPanel && (
-        <div className="absolute top-0 right-0 h-full z-30">
-          <FlowsPanel onClose={() => setShowFlowsPanel(false)} />
-        </div>
-      )}
-
-      {/* Empty-canvas call to action */}
-      {nodes.length === 0 && !showTemplateGallery && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto text-center px-8 py-7 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm">
-            <Squares2X2Icon className="w-6 h-6 mx-auto text-zinc-400 dark:text-zinc-600" />
-            <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Blank canvas
-            </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 max-w-57.5">
-              Start from a pre-designed architecture, or drag components from the left palette.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowTemplateGallery(true)}
-              className="mt-4 text-xs font-medium px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+        <div className="@container absolute top-4 inset-x-4 z-20 flex flex-wrap items-start gap-x-3 gap-y-2 pointer-events-none">
+          <div className="flex flex-1 basis-0 justify-start">
+            <DiagramInfoCard />
+          </div>
+          {/* Toolbar: tools, zoom, then actions. Every control names itself and its shortcut. */}
+          <div className="pointer-events-auto shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border border-zinc-200 dark:border-zinc-800 rounded-full p-1.5 flex items-center gap-1 shadow-lg shadow-black/20 dark:shadow-black/50">
+            <ToolbarButton
+              label="Select"
+              shortcut="V"
+              active={!panMode && !laserMode}
+              onClick={() => {
+                setPanMode(false);
+                setLaserMode(false);
+              }}
             >
-              Browse starter templates
-            </button>
+              <MousePointer2 className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Pan"
+              shortcut="H"
+              active={panMode}
+              onClick={() => {
+                setPanMode(true);
+                setLaserMode(false);
+              }}
+            >
+              <Hand className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              className={PHONE_HIDDEN}
+              label="Laser pointer for presenting"
+              shortcut="`"
+              active={laserMode}
+              onClick={() => {
+                setLaserMode(!laserMode);
+                setPanMode(false);
+              }}
+            >
+              <Presentation className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarDivider className={PHONE_HIDDEN} />
+            <ToolbarButton
+              className={PHONE_HIDDEN}
+              label="Zoom out"
+              shortcut="−"
+              onClick={() => void zoomOut()}
+            >
+              <Minus className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <span
+              className={cn(
+                "text-xs font-medium text-muted-foreground tabular-nums flex items-center px-1",
+                PHONE_HIDDEN,
+              )}
+            >
+              {zoom}%
+            </span>
+            <ToolbarButton
+              className={PHONE_HIDDEN}
+              label="Zoom in"
+              shortcut="+"
+              onClick={() => void zoomIn()}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarDivider />
+            <ToolbarButton
+              className={PHONE_HIDDEN}
+              label="Import diagram"
+              onClick={() => setShowImportDialog(true)}
+            >
+              <FileUp className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton label="Starter templates" onClick={() => setShowTemplateGallery(true)}>
+              <LayoutTemplate className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Design with AI"
+              showLabel="Design with AI"
+              active={designPanelShown && !hasSelection}
+              onClick={toggleDesignPanel}
+            >
+              <Sparkles className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarDivider />
+            <ToolbarButton
+              label="Simulate requests and failures"
+              showLabel="Simulate"
+              shortcut="⇧S"
+              active={showSimulationPanel}
+              className={cn(
+                onboardingActiveStep === "run-flow-sim" &&
+                  "onboarding-pulse text-amber-600 dark:text-amber-400",
+              )}
+              onClick={() => {
+                setShowSimulationPanel((v) => !v);
+                simulationSetMode(showSimulationPanel ? "idle" : "traffic");
+              }}
+            >
+              <Activity className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              label="Saved request flows"
+              active={showFlowsPanel}
+              onClick={() => setShowFlowsPanel((v) => !v)}
+            >
+              <Route className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+            <ToolbarButton
+              className={PHONE_HIDDEN}
+              label="Keyboard shortcuts"
+              shortcut="?"
+              onClick={() => setShowShortcuts(true)}
+            >
+              <Keyboard className="size-4" aria-hidden="true" />
+            </ToolbarButton>
+          </div>
+          <div className="flex flex-1 basis-0 justify-end">
+            <ProtocolLegend />
           </div>
         </div>
-      )}
 
-      {/* Getting-started onboarding checklist (hidden while the sim bar is up) */}
-      <GettingStartedChecklist hidden={showSimulationPanel} />
+        {/* Import Dialog */}
+        <ImportDialog isOpen={showImportDialog} onClose={() => setShowImportDialog(false)} />
+        {/* Starter template gallery */}
+        <TemplateGalleryDialog
+          isOpen={showTemplateGallery}
+          onClose={() => setShowTemplateGallery(false)}
+        />
+        {/* Shortcuts Help Modal */}
+        {showShortcuts && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <button
+              type="button"
+              aria-label="Close keyboard shortcuts"
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowShortcuts(false)}
+            />
+            <dialog
+              open
+              aria-modal="true"
+              aria-label="Keyboard shortcuts"
+              className="relative border-0 bg-transparent p-0"
+            >
+              <ShortcutsHelp onClose={() => setShowShortcuts(false)} />
+            </dialog>
+          </div>
+        )}
+
+        {/* React Flow Canvas */}
+        <div ref={reactFlowWrapper} className={cn("w-full h-full", laserMode && "cursor-none")}>
+          <LaserPointer active={laserMode} containerRef={reactFlowWrapper} />
+          <ReactFlow
+            nodes={displayNodes}
+            edges={displayEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onPaneClick={onPaneClick}
+            onMoveEnd={onMoveEnd}
+            onNodeDragStop={onNodeDragStop}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            defaultEdgeOptions={{
+              type: "architecture",
+            }}
+            fitView
+            snapToGrid
+            snapGrid={[10, 10]}
+            proOptions={{ hideAttribution: true }}
+            style={{ background: "transparent" }}
+            selectionOnDrag={!panMode}
+            panOnDrag={panMode ? true : [1, 2]}
+            panOnScroll
+            zoomOnScroll={false}
+            zoomOnPinch
+            multiSelectionKeyCode="Shift"
+            deleteKeyCode={null}
+          >
+            <MiniMap
+              pannable
+              zoomable
+              nodeStrokeWidth={2}
+              maskColor="rgb(9 9 11 / 0.6)"
+              className="bg-white/90! dark:bg-zinc-900/80! backdrop-blur-md border! border-zinc-200! dark:border-zinc-800! rounded-lg! shadow-lg right-4! bottom-4!"
+              style={{ width: 180, height: 120 }}
+              nodeColor={(node) => {
+                if (node.type === "group") {
+                  return "rgb(82 82 91 / 0.4)";
+                }
+                if (node.type === "comment") {
+                  return "#fbbf24";
+                }
+                const t = (node.data as { type?: string } | undefined)?.type;
+                return (t && MINIMAP_NODE_COLORS[t]) || "#3f3f46";
+              }}
+            />
+          </ReactFlow>
+        </div>
+
+        {/* Canvas overlays — diagram info, protocol legend, node detail, status bar */}
+        <NodeDetailPopup />
+        <CanvasStatusBar />
+        <SpotlightSearch />
+
+        {/* Animation overlay for shatter/destroy effects */}
+        <div id="animation-overlay" className="fixed inset-0 pointer-events-none z-100" />
+
+        {/* Simulation floating panel */}
+        {showSimulationPanel && (
+          <SimulationPanel
+            onClose={() => {
+              setShowSimulationPanel(false);
+              simulationSetMode("idle");
+            }}
+          />
+        )}
+
+        {/* Saved flows sidebar (anchored to the canvas right edge) */}
+        {showFlowsPanel && (
+          <div className="absolute top-0 right-0 h-full z-30">
+            <FlowsPanel onClose={() => setShowFlowsPanel(false)} />
+          </div>
+        )}
+
+        {/* Empty-canvas call to action */}
+        {nodes.length === 0 && !showTemplateGallery && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto text-center px-8 py-7 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm">
+              <Squares2X2Icon className="w-6 h-6 mx-auto text-zinc-400 dark:text-zinc-600" />
+              <p className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Blank canvas
+              </p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 max-w-57.5">
+                Start from a pre-designed architecture, or drag components from the left palette.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateGallery(true)}
+                  className="text-xs font-medium px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+                >
+                  Browse starter templates
+                </button>
+                <button
+                  type="button"
+                  onClick={openDesignPanel}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <Sparkles className="size-3.5" aria-hidden="true" />
+                  Design with AI
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Getting-started onboarding checklist (hidden while the sim bar is up) */}
+        <GettingStartedChecklist hidden={showSimulationPanel} />
+      </div>
     </div>
   );
 }
