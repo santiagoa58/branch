@@ -7,6 +7,7 @@ import { WorkspaceDeleteDialog } from "@/components/workspace/WorkspaceDeleteDia
 import { diagramsApi } from "@/services/api";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { workspaceQuery } from "@/services/workspaceQuery";
+import { deleteDiagramFromWorkspace } from "@/services/workspaceDeletion";
 import { notify } from "@/services/notify";
 import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
@@ -36,15 +37,12 @@ export function EditorDiagramMenu({ projectId, diagramId, diagramName }: Props) 
   const blocked = cloud.locked || cloud.status === "loading" || aiRunning || pendingDeletions;
 
   const deleteMutation = useMutation({
-    mutationFn: () => cloudWorkspace.runTransition(() => diagramsApi.delete(diagramId)),
+    mutationFn: () =>
+      deleteDiagramFromWorkspace(queryClient, projectId, diagramId, () =>
+        cloudWorkspace.deleteCurrent(() => diagramsApi.delete(diagramId)),
+      ),
     onSuccess: () => {
-      // A deleted document must never be saved again during the subsequent route transition.
-      cloudWorkspace.reset();
-      queryClient.removeQueries({ queryKey: ["diagrams", diagramId], exact: true });
-      void queryClient.invalidateQueries({
-        queryKey: workspaceQuery.diagrams(projectId).queryKey,
-      });
-      void queryClient.invalidateQueries({ queryKey: workspaceQuery.root().queryKey });
+      setConfirmDelete(false);
       const next = diagrams.find((item) => item.id !== diagramId);
       void navigate(
         next ? `/projects/${projectId}/diagrams/${next.id}` : `/projects/${projectId}`,
@@ -144,6 +142,8 @@ export function EditorDiagramMenu({ projectId, diagramId, diagramName }: Props) 
       <WorkspaceDeleteDialog
         target={confirmDelete ? { kind: "diagram", id: diagramId, name: diagramName } : null}
         onCancel={() => setConfirmDelete(false)}
+        pending={deleteMutation.isPending}
+        errorMessage={deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined}
         onDelete={(target) => {
           if (target.kind === "diagram" && target.id === diagramId) {
             deleteMutation.mutate();

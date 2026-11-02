@@ -6,7 +6,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, TrashIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon } from "@heroicons/react/24/solid";
-import { diagramsApi, type ApiDiagramSummary } from "@/services/api";
+import type { ApiDiagramSummary } from "@/services/api";
+import { deleteDiagramFromWorkspace } from "@/services/workspaceDeletion";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
 import {
@@ -38,11 +39,8 @@ export function ProjectPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: diagramsApi.delete,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] });
-      void queryClient.invalidateQueries({ queryKey: ["projects", "workspace"] });
-    },
+    mutationFn: (id: string) => deleteDiagramFromWorkspace(queryClient, projectId!, id),
+    onSuccess: () => setDeleteTarget(null),
   });
 
   return (
@@ -189,6 +187,8 @@ export function ProjectPage() {
         target={deleteTarget}
         onCancel={() => setDeleteTarget(null)}
         onDelete={(item) => deleteMutation.mutate(item.id)}
+        pending={deleteMutation.isPending}
+        errorMessage={deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined}
       />
     </div>
   );
