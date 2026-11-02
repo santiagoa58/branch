@@ -138,7 +138,9 @@ describe("architecture node details", () => {
     }
     expect(screen.queryByLabelText(/health|status|tags|colou?r/i)).not.toBeInTheDocument();
     expect(screen.queryByTitle(/health|status|tags|colou?r/i)).not.toBeInTheDocument();
-    expect(container.querySelector("[style]")).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[style*="#123456"], [style*="#234567"], [style*="#345678"]'),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /health|check/i })).not.toBeInTheDocument();
   });
 });

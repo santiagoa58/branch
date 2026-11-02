@@ -22,9 +22,9 @@ export function nearestSides(
   const dy = target.y + target.height / 2 - source.y - source.height / 2;
   const horizontalGap = Math.max(0, Math.abs(dx) - (source.width + target.width) / 2);
   const verticalGap = Math.max(0, Math.abs(dy) - (source.height + target.height) / 2);
-  const horizontal = horizontalGap > 0 && (verticalGap === 0 || Math.abs(dx) >= Math.abs(dy));
-  const vertical = verticalGap > 0 && !horizontal;
-  if (horizontal || (!vertical && Math.abs(dx) >= Math.abs(dy))) {
+  // Prefer a short horizontal route across layout columns. Vertical ports are better when
+  // columns overlap and one box sits clearly above or below the other.
+  if (horizontalGap > 0 || (verticalGap === 0 && Math.abs(dx) >= Math.abs(dy))) {
     if (dx >= 0) {
       return { source: "right", target: "left" };
     }
