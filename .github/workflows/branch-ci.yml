@@ -20,6 +20,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
+      - run: pnpm exec vp fmt . --write && git diff -- scripts/check-native-dialogs.mjs src/components/ui/TemplateGalleryLoading.test.tsx src/templates/index.ts
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build
