@@ -31,6 +31,7 @@ import { copyShareableLink } from "@/utils/export";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { AccountControls } from "@/components/CloudAuth";
 import { Brand } from "@/components/Brand";
+import { EditorDiagramMenu } from "@/components/workspace/EditorDiagramMenu";
 import { notify } from "@/services/notify";
 import { VersionsPanel } from "@/components/panels/VersionsPanel";
 import { AiRunIndicator } from "@/components/panels/design/RunStatus";
@@ -167,12 +168,15 @@ export function Navbar() {
               </button>
             </span>
           )}
-          {diagram && (
+          {diagram?.id === diagramId && projectId && (
             <>
               <ChevronRightIcon className="w-3 h-3 shrink-0 text-zinc-400" />
-              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400 sm:max-w-40">
-                {diagram.name}
-              </span>
+              <EditorDiagramMenu
+                key={diagramId}
+                projectId={projectId}
+                diagramId={diagramId}
+                diagramName={diagram.name}
+              />
             </>
           )}
         </nav>
