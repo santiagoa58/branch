@@ -27,6 +27,7 @@ import {
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
+import { ConnectionPortsEditor } from "./ConnectionPortsEditor";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { InspectorFields } from "./InspectorFields";
 import { DecisionInspector } from "./DecisionInspector";
@@ -541,6 +542,11 @@ export function PropertiesPanel() {
                   <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
                 </div>
               </div>
+
+              <ConnectionPortsEditor
+                data={edgeData}
+                onChange={(patch) => updateEdgeData(selectedEdge.id, patch)}
+              />
 
               {/* HTTP Method */}
               {(edgeData.protocol === "http" || !edgeData.protocol) && (

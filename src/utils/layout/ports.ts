@@ -1,20 +1,41 @@
 import type { Edge, Node } from "@xyflow/react";
-import { absoluteRects } from "./geometry";
+import { absoluteRects, type Rect } from "./geometry";
 
-/** Named ports for a connection between stacked nodes; every other edge uses the side ports. */
-const STACKED_PORTS = { sourceHandle: "bottom", targetHandle: "top" } as const;
+export type ConnectionSide = "left" | "right" | "top" | "bottom";
+export type PortPreference = "auto" | ConnectionSide;
 
-function withoutPorts(edge: Edge): Edge {
-  const { sourceHandle: _source, targetHandle: _target, ...rest } = edge;
-  return rest;
+const SIDES: ConnectionSide[] = ["left", "right", "top", "bottom"];
+
+function sidePreference(value: unknown): ConnectionSide | undefined {
+  return SIDES.find((side) => side === value);
 }
 
-/**
- * Pick each connection's ports from where layout put its endpoints, matching the left-to-right
- * flow: out of the right side and into the left (the default, unnamed ports) when the target is
- * further right, and bottom to top only when the target sits below without being to the right.
- * Edges that already use the right ports, and the array itself when nothing changes, are kept.
- */
+/** Select the facing pair with the shortest directional approach, in either direction. */
+export function nearestSides(source: Rect, target: Rect): {
+  source: ConnectionSide;
+  target: ConnectionSide;
+} {
+  const dx = target.x + target.width / 2 - source.x - source.width / 2;
+  const dy = target.y + target.height / 2 - source.y - source.height / 2;
+  const horizontalGap = Math.max(0, Math.abs(dx) - (source.width + target.width) / 2);
+  const verticalGap = Math.max(0, Math.abs(dy) - (source.height + target.height) / 2);
+  const horizontal = horizontalGap > 0 && (verticalGap === 0 || Math.abs(dx) >= Math.abs(dy));
+  const vertical = verticalGap > 0 && !horizontal;
+  if (horizontal || (!vertical && Math.abs(dx) >= Math.abs(dy))) {
+    return dx >= 0
+      ? { source: "right", target: "left" }
+      : { source: "left", target: "right" };
+  }
+  return dy >= 0
+    ? { source: "bottom", target: "top" }
+    : { source: "top", target: "bottom" };
+}
+
+/** React Flow's default output is right and its default input is left. */
+const sourceHandle = (side: ConnectionSide) => (side === "right" ? undefined : side);
+const targetHandle = (side: ConnectionSide) => (side === "left" ? undefined : side);
+
+/** Derived geometry, overridden per endpoint by persistent user-selected preferences. */
 export function assignPorts(nodes: Node[], edges: Edge[]): Edge[] {
   const rects = absoluteRects(nodes);
   let changed = false;
@@ -24,23 +45,19 @@ export function assignPorts(nodes: Node[], edges: Edge[]): Edge[] {
     if (!source || !target || edge.source === edge.target) {
       return edge;
     }
-    const forward = target.x >= source.x + source.width;
-    const stacked = !forward && target.y >= source.y + source.height;
-    if (stacked) {
-      if (
-        edge.sourceHandle === STACKED_PORTS.sourceHandle &&
-        edge.targetHandle === STACKED_PORTS.targetHandle
-      ) {
-        return edge;
-      }
-      changed = true;
-      return { ...edge, ...STACKED_PORTS };
-    }
-    if (edge.sourceHandle === undefined && edge.targetHandle === undefined) {
+    const facing = nearestSides(source, target);
+    const s = sourceHandle(sidePreference(edge.data?.["sourceSide"]) ?? facing.source);
+    const t = targetHandle(sidePreference(edge.data?.["targetSide"]) ?? facing.target);
+    if (edge.sourceHandle === s && edge.targetHandle === t) {
       return edge;
     }
     changed = true;
-    return withoutPorts(edge);
+    const { sourceHandle: _source, targetHandle: _target, ...rest } = edge;
+    return {
+      ...rest,
+      ...(s === undefined ? {} : { sourceHandle: s }),
+      ...(t === undefined ? {} : { targetHandle: t }),
+    };
   });
   return changed ? result : edges;
 }

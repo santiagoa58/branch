@@ -1,3 +1,4 @@
+import { assignPorts } from "@/utils/layout/ports";
 // oxlint-disable max-lines -- debt: 885 lines (limit 450); split the module
 import { create } from "zustand";
 import {
@@ -276,11 +277,17 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
       data: {
         protocol: defaultProtocol,
         animated: false,
+        ...(connection.sourceHandle && connection.sourceHandle !== "right"
+          ? { sourceSide: connection.sourceHandle }
+          : {}),
+        ...(connection.targetHandle && connection.targetHandle !== "left"
+          ? { targetSide: connection.targetHandle }
+          : {}),
       },
     };
 
     setIfEditable((current) => ({
-      edges: addEdge(newEdge, current.edges),
+      edges: addEdge(assignPorts(current.nodes, [newEdge])[0]!, current.edges),
     }));
 
     get().saveToHistory();
@@ -863,7 +870,9 @@ export const useDiagramStore = create<DiagramStore>((set, get) => ({
   updateEdgeData: (id, data) => {
     setIfEditable((state) => ({
       edges: state.edges.map((edge) =>
-        edge.id === id ? { ...edge, data: mergeDataPatch(edge.data ?? {}, data) } : edge,
+        edge.id === id
+          ? assignPorts(state.nodes, [{ ...edge, data: mergeDataPatch(edge.data ?? {}, data) }])[0]!
+          : edge,
       ),
     }));
     get().saveToHistory();

@@ -141,6 +141,8 @@ const dataContractSchema = z
 
 export const architectureEdgeDataSchema = z
   .object({
+    sourceSide: z.enum(["auto", "left", "right", "top", "bottom"]).exactOptional(),
+    targetSide: z.enum(["auto", "left", "right", "top", "bottom"]).exactOptional(),
     label: z.string().exactOptional(),
     protocol: edgeProtocolSchema.exactOptional(),
     method: httpMethodSchema.exactOptional(),

@@ -203,6 +203,8 @@ export interface DataContract {
 
 // Data structure for architecture edges
 export type ArchitectureEdgeData = {
+  sourceSide?: "auto" | "left" | "right" | "top" | "bottom";
+  targetSide?: "auto" | "left" | "right" | "top" | "bottom";
   label?: string;
   protocol?: EdgeProtocol;
   method?: HttpMethod;
