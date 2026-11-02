@@ -455,6 +455,18 @@ describe("node properties", () => {
 describe("group and connection properties", () => {
   it("pins connection endpoints and persists manual sides across hydration", () => {
     selectEdge();
+    useDiagramStore.setState((state) => ({
+      nodes: [
+        ...state.nodes,
+        {
+          id: "target",
+          type: "architecture",
+          position: { x: 300, y: 0 },
+          data: { label: "Target", type: "service" },
+        },
+      ],
+      edges: state.edges.map((edge) => ({ ...edge, target: "target" })),
+    }));
     render(<PropertiesPanel />);
     expect(screen.getByRole("combobox", { name: "Source side" })).toHaveValue("auto");
     expect(screen.getByRole("combobox", { name: "Target side" })).toHaveValue("auto");
