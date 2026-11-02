@@ -35,12 +35,11 @@ function setup() {
 }
 function deferred() {
   let resolve!: () => void;
-  let reject!: (reason: Error) => void;
-  const promise = new Promise<void>((yes, no) => {
+
+  const promise = new Promise<void>((yes) => {
     resolve = yes;
-    reject = no;
   });
-  return { promise, resolve, reject };
+  return { promise, resolve };
 }
 
 afterEach(() => {
@@ -54,13 +53,19 @@ describe("confirmed workspace deletions", () => {
     const api = vi.spyOn(diagramsApi, "delete").mockReturnValue(request.promise);
     const deleting = deleteDiagramFromWorkspace(client, "p1", "d1");
 
-    expect(client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams).toHaveLength(2);
-    expect(client.getQueryData<ApiDiagramSummary[]>(workspaceQuery.diagrams("p1").queryKey)).toHaveLength(2);
+    expect(
+      client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams,
+    ).toHaveLength(2);
+    expect(
+      client.getQueryData<ApiDiagramSummary[]>(workspaceQuery.diagrams("p1").queryKey),
+    ).toHaveLength(2);
 
     request.resolve();
     await deleting;
     expect(api).toHaveBeenCalledExactlyOnceWith("d1");
-    expect(client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams).toEqual([other]);
+    expect(
+      client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams,
+    ).toEqual([other]);
     expect(client.getQueryData(workspaceQuery.diagrams("p1").queryKey)).toEqual([other]);
     expect(client.getQueryData(["diagrams", "d1"])).toBeUndefined();
     client.clear();
@@ -70,8 +75,13 @@ describe("confirmed workspace deletions", () => {
     const client = setup();
     vi.spyOn(diagramsApi, "delete").mockRejectedValue(new Error("Offline"));
     await expect(deleteDiagramFromWorkspace(client, "p1", "d1")).rejects.toThrow("Offline");
-    expect(client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams).toEqual([item, other]);
-    expect(client.getQueryData(workspaceQuery.diagrams("p1").queryKey)).toEqual([item, other]);
+    expect(
+      client.getQueryData<ApiWorkspaceProject[]>(workspaceQuery.root().queryKey)?.[0]?.diagrams,
+    ).toEqual([item, other]);
+    expect(client.getQueryData(workspaceQuery.diagrams("p1").queryKey)).toEqual([
+      item,
+      other,
+    ]);
     client.clear();
   });
 

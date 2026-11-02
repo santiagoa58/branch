@@ -18,7 +18,9 @@ import { preloadEditor } from "@/lib/editorRoute";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 function diagramParentId(projects: ApiWorkspaceProject[], diagramId: string): string {
-  const project = projects.find((item) => item.diagrams.some((diagram) => diagram.id === diagramId));
+  const project = projects.find((item) =>
+    item.diagrams.some((diagram) => diagram.id === diagramId),
+  );
   if (!project) {
     throw new Error("The diagram is not in the current workspace.");
   }
