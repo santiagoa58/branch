@@ -49,6 +49,35 @@ describe("ConfirmDialog", () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps confirmation visible and actions disabled while deleting, then shows an inline failure", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn<() => void>();
+    const onOpenChange = vi.fn<(open: boolean) => void>();
+    const props = {
+      open: true,
+      title: "Delete diagram?",
+      description: "Delete the diagram?",
+      confirmLabel: "Delete diagram",
+      onOpenChange,
+      onConfirm,
+    };
+    const { rerender } = render(<ConfirmDialog {...props} />);
+    await user.click(screen.getByRole("button", { name: "Delete diagram" }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+
+    rerender(<ConfirmDialog {...props} pending />);
+    const dialog = screen.getByRole("dialog", { name: "Delete diagram?" });
+    expect(within(dialog).getByRole("button", { name: "Deleting…" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    rerender(<ConfirmDialog {...props} errorMessage="Delete failed. Try again." />);
+    expect(within(dialog).getByText("Delete failed. Try again.")).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "Delete diagram" }));
+    expect(onConfirm).toHaveBeenCalledTimes(2);
+  });
+
   it("treats Escape as cancellation", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn<() => void>();
