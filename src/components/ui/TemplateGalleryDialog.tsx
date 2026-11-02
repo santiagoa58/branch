@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useReactFlow } from "@xyflow/react";
+import { useReactFlow, type FitView } from "@xyflow/react";
 import {
   XMarkIcon,
   PlusIcon,
@@ -43,6 +43,40 @@ function countFor(category: CategoryFilter) {
     : DIAGRAM_TEMPLATES.filter((template) => template.category === category).length;
 }
 
+function applyTemplate(
+  template: DiagramTemplate,
+  mode: LoadMode,
+  onClose: () => void,
+  fitView: FitView,
+) {
+    if (editBlockReason() !== null) {
+   notify.error({
+     title: "Cannot load template",
+     message: "The diagram is busy. Try again after the current operation finishes.",
+   });
+   return;
+    }
+    const { exportDiagram, importDiagram } = useDiagramStore.getState();
+    const instance = instantiateTemplate(template);
+    let finalData = instance;
+    if (mode === "add") {
+   finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
+    }
+    importDiagram(finalData);
+    notify.success({
+   title: mode === "add" ? "Template added" : "Template loaded",
+   message: `${template.name}: ${instance.nodes.length} components, ${instance.edges.length} connections`,
+   duration: 3000,
+    });
+    onClose();
+    // The gallery unmounts on close; fit the canvas after React Flow measures the new nodes.
+    requestAnimationFrame(() => {
+   requestAnimationFrame(() => {
+     void fitView({ padding: 0.2, maxZoom: 1 });
+   });
+    });
+}
+
 export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialogProps) {
   if (!isOpen) {
     return null;
@@ -80,35 +114,6 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     [],
   );
 
-  const applyTemplate = (template: DiagramTemplate, mode: LoadMode) => {
-    if (editBlockReason() !== null) {
-      notify.error({
-        title: "Cannot load template",
-        message: "The diagram is busy. Try again after the current operation finishes.",
-      });
-      return;
-    }
-    const { exportDiagram, importDiagram } = useDiagramStore.getState();
-    const instance = instantiateTemplate(template);
-    let finalData = instance;
-    if (mode === "add") {
-      finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
-    }
-    importDiagram(finalData);
-    notify.success({
-      title: mode === "add" ? "Template added" : "Template loaded",
-      message: `${template.name}: ${instance.nodes.length} components, ${instance.edges.length} connections`,
-      duration: 3000,
-    });
-    onClose();
-    // The gallery unmounts on close; fit the canvas after React Flow measures the new nodes.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        void fitView({ padding: 0.2, maxZoom: 1 });
-      });
-    });
-  };
-
   const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
     if (loadingRef.current || editBlockReason() !== null) {
       return;
@@ -119,7 +124,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     layoutTemplate(template)
       .then((laidOut) => {
         if (open.current && cloudWorkspace.getState().diagram?.id === diagramId) {
-          applyTemplate(laidOut, mode);
+          applyTemplate(laidOut, mode, onClose, fitView);
         }
       })
       .catch(() => {
