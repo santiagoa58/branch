@@ -68,7 +68,12 @@ describe("browser ELK worker", () => {
     );
     await vi.advanceTimersByTimeAsync(12_001);
     expect(worker.layout).toHaveBeenCalledOnce();
-    expect(await settled).toMatchObject({ message: expect.stringMatching(/layout timed out/i) });
+    const outcome: unknown = await settled;
+    expect(outcome).toBeInstanceOf(Error);
+    if (!(outcome instanceof Error)) {
+      throw new Error("Expected a stalled ELK worker to reject.");
+    }
+    expect(outcome.message).toMatch(/layout timed out/i);
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
 });
