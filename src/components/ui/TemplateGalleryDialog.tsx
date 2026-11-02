@@ -19,7 +19,7 @@ import {
 } from "@/templates";
 import { appendDiagramData } from "@/utils/import";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
-import { TemplateThumbnail } from "@/components/ui/TemplateThumbnail";
+
 import { notify } from "@/services/notify";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { editBlockReason, useEditBlocked } from "@/store/editLock";
@@ -267,7 +267,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                         )}
                       >
                         <span className="block h-28 border-b border-border bg-background p-2 text-muted-foreground">
-                          <TemplateThumbnail template={template} />
+                          <TemplatePreview template={template} compact />
                         </span>
                         <span className="flex flex-col gap-1 p-3">
                           <span className="flex items-center gap-2">

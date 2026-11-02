@@ -33,6 +33,14 @@ afterEach(() => {
 });
 
 describe("TemplateGalleryDialog", () => {
+  it("renders every card thumbnail immediately without waiting for ELK", () => {
+    mount();
+    const grid = screen.getByRole("region", { name: "Templates" });
+    const thumbnails = grid.querySelectorAll("svg");
+    expect(thumbnails.length).toBeGreaterThan(20);
+    expect(thumbnails[0]?.querySelectorAll("rect").length).toBeGreaterThan(0);
+  });
+
   it("finds an app by name, selects it and loads it onto an empty canvas", async () => {
     const onClose = mount();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search templates" }), {

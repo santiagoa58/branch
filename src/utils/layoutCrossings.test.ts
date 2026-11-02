@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { canvasCrossings } from "@/test/canvasRoutes";
-import { DIAGRAM_TEMPLATES, layoutTemplate } from "@/templates";
+import { DIAGRAM_TEMPLATES, instantiateTemplate, layoutTemplate } from "@/templates";
+import { diagramDataSchema } from "@/schemas/diagram";
 import { autoLayoutDiagram } from "./layout";
 import { countCrossings } from "./layout/crossings";
 import { collaborativeDocsDesign } from "./layout/layoutFixtures";
@@ -63,6 +64,16 @@ describe("crossing regression", () => {
     let total = 0;
     for (const template of DIAGRAM_TEMPLATES) {
       const { data } = await layoutTemplate(template);
+      const instance = diagramDataSchema.parse(instantiateTemplate({ ...template, data }));
+      expect(instance.nodes.length, template.id).toBe(data.nodes.length);
+      const keys = new Set(instance.nodes.map((node) => node.id));
+      for (const edge of instance.edges) {
+        expect(keys.has(edge.source), template.id).toBe(true);
+        expect(keys.has(edge.target), template.id).toBe(true);
+      }
+      for (const flow of instance.flows ?? []) {
+        expect(keys.has(flow.sourceNodeId), template.id).toBe(true);
+      }
       total += canvasCrossings(data.nodes, data.edges);
     }
     expect(total).toBeLessThanOrEqual(70);
