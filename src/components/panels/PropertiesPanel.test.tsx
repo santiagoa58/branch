@@ -64,6 +64,7 @@ const decisionInputs = [
 const addButtons = ["Add gain", "Add cost", "Add option", "Add revisit trigger"];
 
 function fillDecision() {
+  enterEditMode();
   for (const name of addButtons) {
     fireEvent.click(screen.getByRole("button", { name }));
   }
@@ -73,6 +74,7 @@ function fillDecision() {
 }
 
 function expectDecisionInputs() {
+  enterEditMode();
   for (const [name, value] of decisionInputs) {
     expect(screen.getByRole("textbox", { name })).toHaveValue(value);
   }
@@ -87,6 +89,13 @@ const legacyFields = {
   accentColor: "#234567",
   backgroundColor: "#345678",
 };
+
+function enterEditMode() {
+  const edit = screen.queryByRole("button", { name: "Edit decision" });
+  if (edit) {
+    fireEvent.click(edit);
+  }
+}
 
 function chooseSection(name: string) {
   fireEvent.click(screen.getByRole("button", { name }));
@@ -150,6 +159,10 @@ describe("node properties", () => {
       "aria-pressed",
       "true",
     );
+    expect(screen.getByText("No decision documented yet.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit decision" })).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
+    enterEditMode();
     for (const name of ["Chosen approach", "Why"]) {
       expect(screen.getByRole("textbox", { name })).toBeVisible();
     }
@@ -212,6 +225,7 @@ describe("node properties", () => {
       ],
     }));
     render(<PropertiesPanel />);
+    enterEditMode();
     fireEvent.change(screen.getByLabelText("Chosen approach"), {
       target: { value: decision.choice },
     });
@@ -222,6 +236,8 @@ describe("node properties", () => {
       "true",
     );
     chooseSection("Decision");
+    expect(screen.getByText(decision.choice)).toBeVisible();
+    enterEditMode();
     expect(screen.getByLabelText("Chosen approach")).toHaveValue(decision.choice);
     chooseSection("Component");
 
@@ -230,7 +246,8 @@ describe("node properties", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByLabelText("Chosen approach")).toHaveValue("Use Postgres");
+    expect(screen.getByText("Use Postgres")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Component name")).not.toBeInTheDocument();
     expect(useDiagramStore.getState().nodes[0]?.data).toMatchObject({
       label: "Read API",
@@ -240,6 +257,7 @@ describe("node properties", () => {
 
   it("edits and removes structured attributes with separate values and units", () => {
     render(<PropertiesPanel />);
+    enterEditMode();
     addAttribute("Cache TTL", "60", "s");
     expect(useDiagramStore.getState().nodes[0]?.data).toMatchObject({
       attributes: [{ name: "Cache TTL", value: "60", unit: "s" }],
@@ -264,6 +282,7 @@ describe("node properties", () => {
 
   it("requires units for new numeric attributes and preserves valid state on invalid edits", () => {
     render(<PropertiesPanel />);
+    enterEditMode();
     addAttribute("Replicas", "3");
     expect(screen.getByRole("alert")).toHaveTextContent("Choose an explicit unit");
     expect(useDiagramStore.getState().nodes[0]?.data["attributes"]).toBeUndefined();
@@ -314,6 +333,7 @@ describe("node properties", () => {
 
   it("records chosen-approach edits in undo history", () => {
     render(<PropertiesPanel />);
+    enterEditMode();
     fireEvent.change(screen.getByLabelText("Chosen approach"), { target: { value: "Redis" } });
     fireEvent.change(screen.getByLabelText("Chosen approach"), { target: { value: "Postgres" } });
     act(() => useDiagramStore.getState().undo());
@@ -419,7 +439,8 @@ describe("group and connection properties", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByLabelText("Chosen approach")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit decision" })).toBeVisible();
+    enterEditMode();
     fireEvent.change(screen.getByLabelText("Chosen approach"), {
       target: { value: "Isolate private workloads" },
     });

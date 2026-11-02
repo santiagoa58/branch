@@ -51,6 +51,13 @@ function hydrate(node: Node, brief: DesignBrief | null) {
   useDiagramStore.getState().hydrateDiagram({ nodes: [node], edges: [], ...(brief && { brief }) });
 }
 
+function enterEditMode() {
+  const edit = screen.queryByRole("button", { name: "Edit decision" });
+  if (edit) {
+    fireEvent.click(edit);
+  }
+}
+
 function requirementTexts(): string[] {
   return (useDiagramStore.getState().brief?.inputs.requirements ?? []).map((line) => line.text);
 }
@@ -94,7 +101,8 @@ describe.each([
   it("shows the items as assumptions with Make this a requirement only when a brief exists", () => {
     hydrate(node, null);
     const { unmount } = renderPanel();
-    expect(screen.getByRole("textbox", { name: "Revisit when 1" })).toHaveValue(ASSUMPTION);
+    enterEditMode();
+    expect(screen.getByRole("textbox", { name: "Revisit when 1" }).toHaveValue(ASSUMPTION);
     expect(screen.queryByRole("button", { name: /Make this a requirement/ })).toBeNull();
     unmount();
 
@@ -103,6 +111,7 @@ describe.each([
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
     renderPanel();
+    enterEditMode();
     expect(screen.getByRole("group", { name: "Assumes" })).toHaveAccessibleDescription(
       /Make one a requirement/,
     );
@@ -123,6 +132,7 @@ describe.each([
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
     renderPanel();
+    enterEditMode();
 
     fireEvent.click(screen.getByRole("button", { name: `Make this a requirement: ${ASSUMPTION}` }));
 
@@ -152,6 +162,7 @@ describe.each([
       ),
     );
     renderPanel();
+    enterEditMode();
 
     expect(screen.getAllByText("Required")).toHaveLength(1);
     expect(
@@ -171,6 +182,7 @@ describe.each([
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
     renderPanel();
+    enterEditMode();
 
     fireEvent.click(screen.getByRole("button", { name: "Regenerate reasoning" }));
 
@@ -190,6 +202,7 @@ describe.each([
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
     renderPanel();
+    enterEditMode();
     // Selection is locked during a run, so the run starts after the inspector is open.
     act(() => useAiDesignStore.setState({ running: true }));
 
