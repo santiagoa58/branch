@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
 import type { Edge, Node } from "@xyflow/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { useAiDesignStore } from "@/store/aiDesignStore";
