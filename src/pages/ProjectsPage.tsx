@@ -6,7 +6,10 @@ import { Link, useNavigation } from "react-router-dom";
 import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, FolderIcon } from "@heroicons/react/24/solid";
 import { projectsApi, type ApiProject, type ApiWorkspaceProject } from "@/services/api";
-import { deleteDiagramFromWorkspace, deleteProjectFromWorkspace } from "@/services/workspaceDeletion";
+import {
+  deleteDiagramFromWorkspace,
+  deleteProjectFromWorkspace,
+} from "@/services/workspaceDeletion";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
