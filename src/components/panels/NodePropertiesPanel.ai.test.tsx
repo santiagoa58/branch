@@ -23,7 +23,7 @@ vi.mock("@/hooks/useDesignPipeline", () => ({ useDesignPipeline: () => pipeline 
 vi.mock("@iconify/react", () => ({ Icon: () => <svg aria-hidden="true" /> }));
 
 const NEW_ID = "00000000-0000-4000-8000-000000000000";
-const CONDITION = "Writes outgrow a single primary";
+const ASSUMPTION = "Writes fit on a single primary";
 
 const decision = {
   choice: "Postgres as the system of record",
@@ -31,7 +31,7 @@ const decision = {
   benefits: [],
   drawbacks: [],
   considered: [],
-  revisitWhen: [CONDITION, "  ", "Reads need global replicas"],
+  revisitWhen: [ASSUMPTION, "  ", "Reads come from one region"],
 };
 
 const serviceNode: Node = {
@@ -90,12 +90,12 @@ afterEach(() => {
 describe.each([
   ["node", serviceNode, renderNodePanel],
   ["group", groupNode, renderGroupPanel],
-] as const)("%s inspector revisit conditions", (_name, node, renderPanel) => {
-  it("shows Require this on revisit-when items only when a brief exists", () => {
+] as const)("%s inspector decision assumptions", (_name, node, renderPanel) => {
+  it("shows the items as assumptions with Make this a requirement only when a brief exists", () => {
     hydrate(node, null);
     const { unmount } = renderPanel();
-    expect(screen.getByRole("textbox", { name: "Revisit when 1" })).toHaveValue(CONDITION);
-    expect(screen.queryByRole("button", { name: /Require this/ })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Revisit when 1" })).toHaveValue(ASSUMPTION);
+    expect(screen.queryByRole("button", { name: /Make this a requirement/ })).toBeNull();
     unmount();
 
     hydrate(
@@ -103,42 +103,50 @@ describe.each([
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
     renderPanel();
-    // The blank row has nothing to require.
-    expect(screen.getAllByRole("button", { name: /Require this/ })).toHaveLength(2);
-    expect(screen.getByRole("button", { name: `Require this: ${CONDITION}` })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Assumes" })).toHaveAccessibleDescription(
+      /Make one a requirement/,
+    );
+    expect(screen.getByRole("textbox", { name: "Assumes 1" })).toHaveValue(ASSUMPTION);
+    // The blank row has nothing to make a requirement.
+    expect(screen.getAllByRole("button", { name: /Make this a requirement/ })).toHaveLength(2);
     expect(
-      screen.getByRole("button", { name: "Require this: Reads need global replicas" }),
+      screen.getByRole("button", { name: `Make this a requirement: ${ASSUMPTION}` }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Make this a requirement: Reads come from one region" }),
     ).toBeVisible();
   });
 
-  it("Require this adds the condition as a requirement line and marks it Required", () => {
+  it("Make this a requirement adds the assumption as a requirement line and marks it Required", () => {
     hydrate(
       node,
       createBrief("Design a database", "backend", [], [], () => NEW_ID),
     );
     renderPanel();
 
-    fireEvent.click(screen.getByRole("button", { name: `Require this: ${CONDITION}` }));
+    fireEvent.click(screen.getByRole("button", { name: `Make this a requirement: ${ASSUMPTION}` }));
 
     expect(useDiagramStore.getState().brief?.inputs.requirements).toEqual([
-      { id: NEW_ID, kind: "functional", text: CONDITION },
+      { id: NEW_ID, kind: "functional", text: ASSUMPTION },
     ]);
-    expect(screen.queryByRole("button", { name: `Require this: ${CONDITION}` })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: `Make this a requirement: ${ASSUMPTION}` }),
+    ).toBeNull();
     expect(screen.getAllByText("Required")).toHaveLength(1);
     // The button was replaced by the tag; focus moves there rather than falling to the page.
     expect(screen.getByText("Required")).toHaveFocus();
     expect(
-      screen.getByRole("button", { name: "Require this: Reads need global replicas" }),
+      screen.getByRole("button", { name: "Make this a requirement: Reads come from one region" }),
     ).toBeVisible();
   });
 
-  it("shows Required for a condition already in the requirements, ignoring case and spacing", () => {
+  it("shows Required for an assumption already in the requirements, ignoring case and spacing", () => {
     hydrate(
       node,
       createBrief(
         "Design a database",
         "backend",
-        [{ kind: "functional", text: `  ${CONDITION.toUpperCase()} ` }],
+        [{ kind: "functional", text: `  ${ASSUMPTION.toUpperCase()} ` }],
         [],
         () => NEW_ID,
       ),
@@ -146,7 +154,9 @@ describe.each([
     renderPanel();
 
     expect(screen.getAllByText("Required")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: `Require this: ${CONDITION}` })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: `Make this a requirement: ${ASSUMPTION}` }),
+    ).toBeNull();
     expect(requirementTexts()).toHaveLength(1);
   });
 });

@@ -11,11 +11,13 @@ interface Props {
   value: DesignDecision | undefined;
   onChange: (value: DesignDecision) => void;
   /**
-   * Turns a "Revisit when" item into a requirement. Each non-blank item then shows "Require this",
-   * or a "Required" tag once `isConditionRequired` says it already is. Omit both for a plain editor.
+   * For a decision in an AI design: its `revisitWhen` items are the assumptions the choice rests
+   * on, shown as "Assumes", and each non-blank one offers "Make this a requirement", or a
+   * "Required" tag once `isRequirement` says it already is one. Omit both for a plain editor,
+   * which keeps "Revisit when".
    */
-  onRequireCondition?: (text: string) => void;
-  isConditionRequired?: (text: string) => boolean;
+  onMakeRequirement?: (text: string) => void;
+  isRequirement?: (text: string) => boolean;
 }
 
 // Short limits keep each entry scannable instead of growing into paragraphs.
@@ -45,6 +47,15 @@ const listFields: Record<
     hint: "Changes that would make you reconsider.",
     placeholder: "Writes outgrow a single primary",
   },
+};
+
+// The same `revisitWhen` field in an AI design, where the decisions stage writes the assumptions
+// the choice rests on. Requirements are the user's own lines; assumptions are the AI's.
+const assumptionsField = {
+  label: "Assumes",
+  item: "assumption",
+  hint: "What this choice takes for granted. Make one a requirement to hold the design to it.",
+  placeholder: "Writes fit on a single primary",
 };
 
 const inputClassName =
@@ -261,14 +272,14 @@ function ConsideredList({
   );
 }
 
-function RequireCondition({
+function MakeRequirement({
   text,
   required,
-  onRequire,
+  onMake,
 }: {
   text: string;
   required: boolean;
-  onRequire: (text: string) => void;
+  onMake: (text: string) => void;
 }) {
   const tag = useRef<HTMLSpanElement>(null);
   const requestedHere = useRef(false);
@@ -296,47 +307,44 @@ function RequireCondition({
       type="button"
       variant="outline"
       size="xs"
-      aria-label={`Require this: ${text}`}
+      aria-label={`Make this a requirement: ${text}`}
       onClick={() => {
         requestedHere.current = true;
-        onRequire(text);
+        onMake(text);
       }}
       {...keyboardSafety}
     >
-      Require this
+      Make this a requirement
     </Button>
   );
 }
 
-export function DesignDecisionEditor({
-  value,
-  onChange,
-  onRequireCondition,
-  isConditionRequired,
-}: Props) {
+export function DesignDecisionEditor({ value, onChange, onMakeRequirement, isRequirement }: Props) {
   const id = useId();
   const view = getDesignDecision(value);
   const update = (patch: Partial<DesignDecisionView>) =>
     onChange(toDesignDecision({ ...view, ...patch }));
-  const renderRequireAction = onRequireCondition
+  const renderRequirementAction = onMakeRequirement
     ? (item: string) => {
         const text = item.trim();
         return text ? (
-          <RequireCondition
+          <MakeRequirement
             text={text}
-            required={isConditionRequired?.(text) ?? false}
-            onRequire={onRequireCondition}
+            required={isRequirement?.(text) ?? false}
+            onMake={onMakeRequirement}
           />
         ) : null;
       }
     : undefined;
+  const fieldsFor = (key: ListKey) =>
+    key === "revisitWhen" && onMakeRequirement ? assumptionsField : listFields[key];
   const renderList = (key: ListKey) => (
     <ItemList
       id={`${id}-${key}`}
-      {...listFields[key]}
+      {...fieldsFor(key)}
       items={view[key]}
       onChange={(items) => update({ [key]: items })}
-      renderAction={key === "revisitWhen" ? renderRequireAction : undefined}
+      renderAction={key === "revisitWhen" ? renderRequirementAction : undefined}
     />
   );
 

@@ -130,6 +130,12 @@ describe("stage prompts", () => {
     expect(prompt).toContain("Owns lists and items");
     expect(system).toContain(urlShortenerExample.decision.output.reason);
   });
+  it("decisions prompt asks for the assumptions the choice rests on, keeping the field name", () => {
+    const { system } = buildDecisionsPrompt(decisionsInput);
+    expect(system).toMatch(/revisitWhen: the assumptions this choice rests on/);
+    expect(system).toContain("Assumes");
+    expect(system).not.toMatch(/conditions under which/);
+  });
   it("api prompt lists the graph and includes the example API", () => {
     const { system, prompt } = buildApiPrompt(apiInput);
     expect(prompt).toContain("mobile -> lists-service");

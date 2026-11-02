@@ -24,7 +24,7 @@ import {
   removeDerivedRequirement,
   removeOutOfScopeLine,
   removeRequirementLine,
-  requireCondition,
+  makeRequirement,
   requirementsInput,
   type StageDesign,
 } from "./inputs";
@@ -242,12 +242,12 @@ describe("derived items", () => {
     expect(outputsOf(next)).toEqual(outputsOf(base));
   });
 
-  it("requireCondition adds the condition as a functional requirement line", () => {
+  it("makeRequirement adds a decision's assumption as a functional requirement line", () => {
     const base = withOutputs();
-    const next = requireCondition(base, "Traffic exceeds 1M users", ids());
+    const next = makeRequirement(base, "Writes fit on a single primary", ids());
     expect(next.inputs.requirements).toEqual([
       ...base.inputs.requirements,
-      { id: "id-1", kind: "functional", text: "Traffic exceeds 1M users" },
+      { id: "id-1", kind: "functional", text: "Writes fit on a single primary" },
     ]);
     expect(outputsOf(next)).toEqual(outputsOf(base));
   });

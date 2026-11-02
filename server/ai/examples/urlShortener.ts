@@ -142,7 +142,8 @@ const decision: { key: string; output: DecisionsOutput } = {
     gains: ["Fast key lookups at any scale"],
     costs: ["Hard to query links by owner without extra indexes"],
     considered: [{ option: "PostgreSQL", whyNot: "Redirect volume needs replicas and sharding" }],
-    revisitWhen: ["Links need rich querying"],
+    // The assumption behind the template's trigger "Links need rich querying".
+    revisitWhen: ["Links are only looked up by their short code"],
   },
 };
 

@@ -269,7 +269,8 @@ export function bringIntoScope(brief: DesignBrief, index: number, newId: NewId):
   return addRequirementLine(brief, "functional", text, newId);
 }
 
-export function requireCondition(brief: DesignBrief, text: string, newId: NewId): DesignBrief {
+/** "Make this a requirement" on an assumption a decision rests on (its `revisitWhen` item). */
+export function makeRequirement(brief: DesignBrief, text: string, newId: NewId): DesignBrief {
   return addRequirementLine(brief, "functional", text, newId);
 }
 

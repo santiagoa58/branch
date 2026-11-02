@@ -57,6 +57,45 @@ describe("DesignDecisionEditor", () => {
     expect(screen.getByRole("group", { name: "Considered instead" })).toBeVisible();
   });
 
+  it("keeps Revisit when for a decision outside an AI design", () => {
+    mount();
+    expect(screen.getByRole("group", { name: "Revisit when" })).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Assumes" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Make this a requirement/ })).toBeNull();
+  });
+
+  it("shows an AI design's items as assumptions that can be made requirements", async () => {
+    const user = userEvent.setup();
+    const onMakeRequirement = vi.fn<(text: string) => void>();
+    render(
+      <DesignDecisionEditor
+        value={{
+          ...decision,
+          revisitWhen: ["Reads tolerate a minute of staleness", "Lists stay small"],
+        }}
+        onChange={() => {}}
+        onMakeRequirement={onMakeRequirement}
+        isRequirement={(text) => text === "Lists stay small"}
+      />,
+    );
+    const assumes = screen.getByRole("group", { name: "Assumes" });
+    expect(assumes).toHaveAccessibleDescription(/Make one a requirement/);
+    expect(screen.queryByRole("group", { name: "Revisit when" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Assumes 1" })).toHaveValue(
+      "Reads tolerate a minute of staleness",
+    );
+    expect(screen.getByText("Required")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Make this a requirement: Reads tolerate a minute of staleness",
+      }),
+    );
+    expect(onMakeRequirement).toHaveBeenCalledExactlyOnceWith(
+      "Reads tolerate a minute of staleness",
+    );
+    expect(screen.getByRole("button", { name: "Add assumption" })).toBeVisible();
+  });
+
   it("caps each field at the short-entry limits", () => {
     mount();
     expect(screen.getByLabelText("Chosen approach")).toHaveAttribute(

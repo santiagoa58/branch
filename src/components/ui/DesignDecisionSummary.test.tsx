@@ -43,6 +43,14 @@ describe("DesignDecisionSummary", () => {
     },
   );
 
+  it("shows an AI design's items as what the choice assumes", () => {
+    render(<DesignDecisionSummary value={decision} assumptions />);
+    expect(screen.queryByRole("region", { name: "Revisit when" })).toBeNull();
+    expect(
+      within(screen.getByRole("region", { name: "Assumes" })).getByRole("listitem"),
+    ).toHaveTextContent("Reads must always be current");
+  });
+
   it("colours gains and costs only through the tradeoff tokens", () => {
     const { container } = render(<DesignDecisionSummary value={decision} />);
     const classes = Array.from(container.querySelectorAll("[class]"), (el) => el.className);

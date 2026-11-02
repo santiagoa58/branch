@@ -74,14 +74,19 @@ describe("urlShortenerExample", () => {
     const { key, output } = urlShortenerExample.decision;
     const node = nodes.find((candidate) => candidate.id === key);
     const decision = designDecisionSchema.parse(node?.data["decision"]);
-    expect(output).toEqual({
+    // The template's "revisit when" triggers read as triggers in a hand-made diagram; in an AI
+    // design the same field holds the assumptions the choice rests on, so the example states the
+    // template's trigger ("Links need rich querying") as the assumption it negates.
+    const { revisitWhen, ...rest } = output;
+    expect(rest).toEqual({
       choice: decision.choice,
       reason: decision.reason,
       gains: decision.benefits,
       costs: decision.drawbacks,
       considered: decision.considered,
-      revisitWhen: decision.revisitWhen,
     });
+    expect(decision.revisitWhen).toEqual(["Links need rich querying"]);
+    expect(revisitWhen).toEqual(["Links are only looked up by their short code"]);
   });
 
   it("creates links with the template's request and response contract", () => {

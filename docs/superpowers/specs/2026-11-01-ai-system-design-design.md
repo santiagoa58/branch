@@ -96,7 +96,11 @@ panel is an edit to the inputs:
 | Change an assumption                            | Add the edited text as a requirement line         |
 | Remove a derived requirement                    | Add its text as an out-of-scope line              |
 | Bring a derived out-of-scope item into scope    | Add its text as a requirement line                |
-| Require a "revisit when" condition              | Add the condition as a requirement line           |
+| Make a decision's assumption a requirement      | Add the assumption as a requirement line          |
+
+**Requirements and assumptions.** Requirements are the user's own lines; assumptions are the AI's.
+Both the brief's assumptions and the assumptions behind each decision (below) can be promoted to a
+requirement, which is then the user's line.
 
 User lines are always displayed verbatim. Stage 1 never restates them; it adds derived items around
 them.
@@ -256,9 +260,15 @@ output: {
   gains: string[];                                   // ≥1: without a gain and a cost there is no tradeoff to show
   costs: string[];                                   // ≥1
   considered: { option: string; whyNot: string }[];  // ≥1: a justification needs an alternative
-  revisitWhen: string[];
+  revisitWhen: string[];                             // the assumptions the choice rests on
 }
 ```
+
+- **Assumptions.** `revisitWhen` keeps its name, in the stage schema and in saved decisions, but
+  the prompt asks for the assumptions the choice rests on: short statements that hold today, such
+  as "Links are only looked up by their short code", which would change the choice if they stopped
+  holding. In an AI design the UI shows them as "Assumes" (section 9.4). Hand-made diagrams and
+  templates keep "Revisit when", since their items are written as triggers.
 
 - **Where it runs.** Stage 3 runs for every architecture node and group node. Calls run
   concurrently. The concurrency level, or batching several nodes per call, is configuration tuned
@@ -544,7 +554,10 @@ On the Design tab:
 
 - The tradeoff presentation below.
 - **Regenerate reasoning**.
-- When the diagram has a brief, each "Revisit when" item has **Require this**.
+- When the diagram has a brief, the decision's `revisitWhen` items are headed **Assumes**, and each
+  has **Make this a requirement**, or a "Required" tag once a requirement line has its text. The
+  node detail popup uses the same heading. Without a brief the list stays "Revisit when", with no
+  action.
 
 ### 9.5 Tradeoff presentation
 
@@ -560,7 +573,7 @@ Used in the inspector and the Design tab.
 - **Shape as well as colour.** Gains use a `+` marker and costs a `−` marker, so meaning never
   depends on colour alone.
 - **Layout.** Side by side when there is room, stacked when narrow. "Considered instead" and
-  "Revisit when" follow.
+  "Assumes" ("Revisit when" without a brief) follow.
 
 ## 10. Error handling
 
@@ -623,7 +636,7 @@ Then:
 - The update bar's content.
 - Progress, cancel and retry.
 - Tradeoff rendering.
-- **Require this**.
+- **Make this a requirement**, and the "Assumes" labels.
 
 **Prompt evaluation**
 
@@ -702,7 +715,7 @@ The graph is applied and laid out. The graph fingerprint is `g1`.
   - **Gains:** sub-second updates; a stateless lists API.
   - **Costs:** many open connections; reconnects must catch up.
   - **Considered:** polling; server-sent events.
-  - **Revisit when:** "Members need the list without signal in the store".
+  - **Assumes:** "Members have signal while shopping".
 - Stage 4 returns:
   - Endpoints: `POST /households/{id}/lists`, `PATCH /lists/{listId}/items/{itemId}` (with a
     version number and a 409 on conflict), and `GET /households/{id}/stream` (realtime).
@@ -710,12 +723,13 @@ The graph is applied and laid out. The graph fingerprint is `g1`.
 
 ### A.2 Iteration
 
-**Step 7. The user adds offline support.** On the sync service they press **Require this** on
-"Members need the list without signal in the store". This adds a requirement line, and the inputs
-fingerprint becomes `i3`. Every stage is now out of date. The update bar reads "Requirements,
-components, reasoning and API will update".
+**Step 7. The user adds offline support.** The sync service's decision assumes "Members have
+signal while shopping", which is wrong for them. They press **Edit all** in the Brief tab, add the
+functional line "Members use the list without signal in the store", and press **Update design**.
+(Pressing **Make this a requirement** on the assumption would instead hold the design to it.) The
+inputs fingerprint becomes `i3`, so every stage is out of date and the update runs them all.
 
-**Step 8. The user presses Update design.** Stage 1 re-runs and asks nothing:
+**Step 8. Stage 1 re-runs and asks nothing:**
 
 - "Online only" is no longer assumed, because it contradicts a user line.
 - It assumes "Last write wins when two members change the same item offline" and lists it with

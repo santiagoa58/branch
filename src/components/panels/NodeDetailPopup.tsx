@@ -12,6 +12,7 @@ import { hasBlockingEditorOverlay, isTextEditingEvent } from "@/utils/keyboardCo
 export function NodeDetailPopup() {
   const selectedNodeId = useDiagramStore((state) => state.selectedNodeId);
   const nodes = useDiagramStore((state) => state.nodes);
+  const aiDesign = useDiagramStore((state) => state.brief !== null);
   const [dismissedNodeId, setDismissedNodeId] = useState<string | null>(null);
   const dismissed = dismissedNodeId === selectedNodeId;
 
@@ -79,7 +80,7 @@ export function NodeDetailPopup() {
         {data.description && (
           <p className="text-sm text-muted-foreground text-pretty">{data.description}</p>
         )}
-        <DesignDecisionSummary value={data.decision} compact />
+        <DesignDecisionSummary value={data.decision} compact assumptions={aiDesign} />
         {attributes.length > 0 && (
           <section aria-label="Architecture attributes" className="space-y-2">
             <h3 className="text-xs font-semibold text-muted-foreground">Architecture attributes</h3>

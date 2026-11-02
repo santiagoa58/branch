@@ -28,7 +28,7 @@ import {
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
 import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
-import { useRequireCondition } from "./useRequireCondition";
+import { useMakeRequirement } from "./useMakeRequirement";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { InspectorFields } from "./InspectorFields";
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
@@ -68,7 +68,7 @@ export function PropertiesPanel() {
 
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
-  const requireProps = useRequireCondition();
+  const requireProps = useMakeRequirement();
   // The contract editor is not a form control, so the inspector's fieldset cannot disable it.
   const editBlocked = useEditBlocked();
 

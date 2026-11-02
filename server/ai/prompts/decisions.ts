@@ -59,7 +59,7 @@ const SYSTEM = joinSections(
 - reason: one sentence tying the choice to the requirements.
 - gains and costs: short phrases. Include only the most significant, usually one or two each.
 - considered: the main alternatives. Every option has a whyNot, a short phrase.
-- revisitWhen: conditions under which you would change this choice. Short phrases.`,
+- revisitWhen: the assumptions this choice rests on, which the user sees as "Assumes: ..." and can make requirements. Each is a short statement that holds today, such as "Links are only looked up by their short code"; if one stopped holding, you would change this choice. State what you assume, not the change that would break it.`,
   example(exampleInput(), urlShortenerExample.decision.output),
 );
 

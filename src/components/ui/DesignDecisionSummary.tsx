@@ -6,16 +6,22 @@ import { consideredKey, getDocumentedDecision, hasDesignDecision } from "@/utils
 interface Props {
   value: DesignDecision | undefined;
   compact?: boolean;
+  /**
+   * In an AI design the `revisitWhen` items are the assumptions the choice rests on, so they are
+   * headed "Assumes" instead of "Revisit when".
+   */
+  assumptions?: boolean;
 }
 
 const textClassName = "whitespace-pre-wrap wrap-anywhere text-pretty";
 
-export function DesignDecisionSummary({ value, compact = false }: Props) {
+export function DesignDecisionSummary({ value, compact = false, assumptions = false }: Props) {
   if (!hasDesignDecision(value)) {
     return <p className="text-sm text-muted-foreground">No decision documented yet.</p>;
   }
   const { choice, reason, benefits, drawbacks, considered, revisitWhen } =
     getDocumentedDecision(value);
+  const revisitLabel = assumptions ? "Assumes" : "Revisit when";
 
   return (
     <section
@@ -56,8 +62,8 @@ export function DesignDecisionSummary({ value, compact = false }: Props) {
         </section>
       )}
       {revisitWhen.length > 0 && (
-        <section aria-label="Revisit when" className="min-w-0">
-          <h4 className="mb-1 text-xs font-semibold text-muted-foreground">Revisit when</h4>
+        <section aria-label={revisitLabel} className="min-w-0">
+          <h4 className="mb-1 text-xs font-semibold text-muted-foreground">{revisitLabel}</h4>
           <ul className="flex list-disc flex-col gap-1 pl-5">
             {revisitWhen.map((item) => (
               <li key={item} className={cn(textClassName, "text-sm")}>

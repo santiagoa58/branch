@@ -19,7 +19,7 @@ import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor
 import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { RegenerateReasoningButton } from "./RegenerateReasoningButton";
-import { useRequireCondition } from "./useRequireCondition";
+import { useMakeRequirement } from "./useMakeRequirement";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
 import { InspectorFields } from "./InspectorFields";
 
@@ -39,7 +39,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const { nodes, updateNodeData, setSelectedNode, addNodeToGroup, removeNodeFromGroup } =
     useDiagramStore();
   const requestDelete = useAnimationStore((state) => state.requestDelete);
-  const requireProps = useRequireCondition();
+  const requireProps = useMakeRequirement();
   const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
   const Icon = config.icon;
