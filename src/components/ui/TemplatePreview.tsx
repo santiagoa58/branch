@@ -19,6 +19,8 @@ const NODE_H = 90;
 interface TemplatePreviewProps {
   template: DiagramTemplate;
   className?: string;
+  /** Card thumbnails avoid triggering expensive ELK layout jobs. */
+  compact?: boolean;
 }
 
 function buildPreview(data: DiagramData) {
@@ -87,10 +89,29 @@ function buildPreview(data: DiagramData) {
   return { groups, blocks, lines, viewBox };
 }
 
-export function TemplatePreview({ template, className }: TemplatePreviewProps) {
-  // Templates are laid out on first use; the preview stays blank until then.
-  const data = useTemplateLayout(template);
-  const preview = useMemo(() => (data ? buildPreview(data) : null), [data]);
+/**
+ * A small schematic that needs no ELK calculation. Template definitions can have placeholder
+ * positions, so a preview grid gives cards visible content without laying out the entire catalog.
+ */
+function compactPreview(data: DiagramData) {
+  const components = data.nodes.filter((node) => node.type === "architecture").slice(0, 16);
+  const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(components.length))));
+  const nodes = components.map((node, index) => ({
+    ...node,
+    parentId: undefined,
+    position: { x: (index % columns) * 230, y: Math.floor(index / columns) * 140 },
+  }));
+  const ids = new Set(nodes.map((node) => node.id));
+  const edges = data.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
+  return buildPreview({ nodes, edges });
+}
+
+export function TemplatePreview({ template, className, compact = false }: TemplatePreviewProps) {
+  const data = useTemplateLayout(template, !compact);
+  const preview = useMemo(
+    () => (compact ? compactPreview(template.data) : data ? buildPreview(data) : null),
+    [compact, data, template],
+  );
   if (!preview) {
     return <svg className={cn("w-full h-full", className)} aria-hidden="true" />;
   }

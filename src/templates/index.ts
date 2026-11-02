@@ -60,14 +60,15 @@ export function instantiateTemplate(template: DiagramTemplate): DiagramData {
   return { nodes, edges, flows };
 }
 
-const laidOut = new Map<string, Promise<DiagramTemplate>>();
+// Cache by object identity so a revised template with the same id gets a fresh ELK layout.
+const laidOut = new WeakMap<DiagramTemplate, Promise<DiagramTemplate>>();
 
 /**
  * The template with positions, group sizes and ports from the shared auto formatter. Layout is
  * asynchronous, so it runs when a template is first shown or loaded, once per template.
  */
 export function layoutTemplate(template: DiagramTemplate): Promise<DiagramTemplate> {
-  let layout = laidOut.get(template.id);
+  let layout = laidOut.get(template);
   if (!layout) {
     layout = autoLayoutDiagram(template.data.nodes, template.data.edges).then(
       ({ nodes, edges }) => ({
@@ -75,11 +76,11 @@ export function layoutTemplate(template: DiagramTemplate): Promise<DiagramTempla
         data: diagramDataSchema.parse({ ...template.data, nodes, edges }),
       }),
       (error: unknown) => {
-        laidOut.delete(template.id);
+        laidOut.delete(template);
         throw error;
       },
     );
-    laidOut.set(template.id, layout);
+    laidOut.set(template, layout);
   }
   return layout;
 }
