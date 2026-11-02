@@ -29,7 +29,13 @@ const service: Node = {
   data: { label: "API", type: "service" },
 };
 const base: DesignBrief = {
-  inputs: { prompt: "A URL shortener", scope: "backend", requirements: [], outOfScope: [], answers: [] },
+  inputs: {
+    prompt: "A URL shortener",
+    scope: "backend",
+    requirements: [],
+    outOfScope: [],
+    answers: [],
+  },
   questions: [],
   requirements: [],
   assumptions: [],
@@ -42,7 +48,13 @@ function freshBrief(): DesignBrief {
   return {
     ...base,
     dataModel: { entities: [] },
-    ranFrom: { requirements: inputs, components: inputs, decisions: result, api: result, dataModel: result },
+    ranFrom: {
+      requirements: inputs,
+      components: inputs,
+      decisions: result,
+      api: result,
+      dataModel: result,
+    },
   };
 }
 const section = (label: string) =>
@@ -81,7 +93,11 @@ describe("one editor sidebar", () => {
 
   it("switches between inspect, API and data model without clearing selection", async () => {
     const user = userEvent.setup();
-    useDiagramStore.setState({ brief: { ...freshBrief(), summary: "A short design." }, nodes: [service], selectedNodeId: "api" });
+    useDiagramStore.setState({
+      brief: { ...freshBrief(), summary: "A short design." },
+      nodes: [service],
+      selectedNodeId: "api",
+    });
     render(<EditorRightPanel />, { wrapper: ReactFlowProvider });
     expect(screen.getByText("Inspector content")).toBeVisible();
     await user.click(section("Design"));

@@ -106,11 +106,17 @@ describe("Design with AI entry points", () => {
     const button = screen.getByRole("button", { name: "Design with AI" });
     expect(button).toHaveAttribute("aria-pressed", "false");
     await user.click(button);
-    expect(useUIStore.getState()).toMatchObject({ rightPanelTab: "brief", rightPanelVisible: true });
+    expect(useUIStore.getState()).toMatchObject({
+      rightPanelTab: "brief",
+      rightPanelVisible: true,
+    });
     expect(button).toHaveAttribute("aria-pressed", "true");
     // Clicking the shortcut twice never creates a second panel or hides the sidebar.
     await user.click(button);
-    expect(useUIStore.getState()).toMatchObject({ rightPanelTab: "brief", rightPanelVisible: true });
+    expect(useUIStore.getState()).toMatchObject({
+      rightPanelTab: "brief",
+      rightPanelVisible: true,
+    });
     expect(screen.getAllByRole("complementary", { name: "Editor sidebar" })).toHaveLength(1);
   });
 

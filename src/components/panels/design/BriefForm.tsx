@@ -8,7 +8,7 @@ import { ChoiceButton } from "./ChoiceButton";
 import { LINE_SECTIONS, LinesField } from "./LinesField";
 import { REPLACEMENT_NOTICE } from "./UpdateBar";
 
-export const SCOPES: readonly { value: Scope; label: string; help: string }[] = [
+const SCOPES: readonly { value: Scope; label: string; help: string }[] = [
   { value: "frontend", label: "Frontend", help: "Client side in detail; the backend is one box." },
   {
     value: "backend",

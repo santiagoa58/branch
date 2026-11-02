@@ -57,7 +57,10 @@ export function EditorRightPanel() {
           <X className="size-4" aria-hidden="true" />
         </button>
       </header>
-      <nav aria-label="Sidebar sections" className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-2 py-2">
+      <nav
+        aria-label="Sidebar sections"
+        className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-2 py-2"
+      >
         {SECTIONS.map((section) => (
           <button
             type="button"
@@ -73,13 +76,17 @@ export function EditorRightPanel() {
           >
             {section.label}
             {section.id === "inspect" && selected && (
-              <span aria-label="Selection available" className="ml-1 inline-block size-1.5 rounded-full bg-emerald-500" />
+              <span
+                aria-label="Selection available"
+                className="ml-1 inline-block size-1.5 rounded-full bg-emerald-500"
+              />
             )}
+            {staleTabs.has(section.id) && <span className="sr-only">(out of date)</span>}
             {staleTabs.has(section.id) && (
-              <span className="sr-only">(out of date)</span>
-            )}
-            {staleTabs.has(section.id) && (
-              <span aria-hidden="true" className="ml-1 inline-block size-1.5 rounded-full bg-attention" />
+              <span
+                aria-hidden="true"
+                className="ml-1 inline-block size-1.5 rounded-full bg-attention"
+              />
             )}
           </button>
         ))}

@@ -18,11 +18,7 @@ import {
   groupNodeDataSchema,
   architectureEdgeDataSchema,
 } from "@/schemas/diagram";
-import {
-  TrashIcon,
-  CursorArrowRippleIcon,
-  ChevronDownIcon,
-} from "@heroicons/react/24/outline";
+import { TrashIcon, CursorArrowRippleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";

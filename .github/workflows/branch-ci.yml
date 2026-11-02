@@ -20,7 +20,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
-      - run: pnpm exec vp check --fix; git diff -- src/components/panels/EditorRightPanel.tsx src/components/panels/PropertiesPanel.tsx src/components/panels/design/DesignPanel.test.tsx src/components/DiagramEditor.designWithAi.test.tsx
       - run: pnpm check
       - run: pnpm test:coverage
       - run: pnpm build
