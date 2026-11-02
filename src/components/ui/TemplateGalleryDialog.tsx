@@ -147,11 +147,14 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
           applyTemplate(laidOut, mode, onClose, fitView);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (open.current) {
           notify.error({
             title: "Could not load the template",
-            message: "Your diagram is unchanged. Try again.",
+            message:
+              error instanceof Error
+                ? error.message
+                : "The layout engine failed. Your diagram is unchanged. Try again.",
           });
         }
       })
