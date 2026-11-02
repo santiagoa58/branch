@@ -49,32 +49,32 @@ function applyTemplate(
   onClose: () => void,
   fitView: FitView,
 ) {
-    if (editBlockReason() !== null) {
-   notify.error({
-     title: "Cannot load template",
-     message: "The diagram is busy. Try again after the current operation finishes.",
-   });
-   return;
-    }
-    const { exportDiagram, importDiagram } = useDiagramStore.getState();
-    const instance = instantiateTemplate(template);
-    let finalData = instance;
-    if (mode === "add") {
-   finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
-    }
-    importDiagram(finalData);
-    notify.success({
-   title: mode === "add" ? "Template added" : "Template loaded",
-   message: `${template.name}: ${instance.nodes.length} components, ${instance.edges.length} connections`,
-   duration: 3000,
+  if (editBlockReason() !== null) {
+    notify.error({
+      title: "Cannot load template",
+      message: "The diagram is busy. Try again after the current operation finishes.",
     });
-    onClose();
-    // The gallery unmounts on close; fit the canvas after React Flow measures the new nodes.
+    return;
+  }
+  const { exportDiagram, importDiagram } = useDiagramStore.getState();
+  const instance = instantiateTemplate(template);
+  let finalData = instance;
+  if (mode === "add") {
+    finalData = appendDiagramData(exportDiagram(), instance, { x: 120, y: 120 });
+  }
+  importDiagram(finalData);
+  notify.success({
+    title: mode === "add" ? "Template added" : "Template loaded",
+    message: `${template.name}: ${instance.nodes.length} components, ${instance.edges.length} connections`,
+    duration: 3000,
+  });
+  onClose();
+  // The gallery unmounts on close; fit the canvas after React Flow measures the new nodes.
+  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-   requestAnimationFrame(() => {
-     void fitView({ padding: 0.2, maxZoom: 1 });
-   });
+      void fitView({ padding: 0.2, maxZoom: 1 });
     });
+  });
 }
 
 export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialogProps) {
