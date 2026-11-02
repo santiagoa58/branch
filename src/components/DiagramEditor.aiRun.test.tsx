@@ -19,6 +19,8 @@ const flow = vi.hoisted(() => ({
   props: {} as ReactFlowProps,
 }));
 
+// The zone layer reads React Flow internals that the stub below does not provide.
+vi.mock("@/components/canvas/ZoneBands", () => ({ ZoneBands: () => null }));
 // Keep React Flow's graph helpers real for the diagram store, but isolate canvas rendering.
 vi.mock("@xyflow/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@xyflow/react")>()),
