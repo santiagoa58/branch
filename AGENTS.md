@@ -28,8 +28,9 @@ The type unions live in `src/types/index.ts` (`ArchitectureNodeType`, `EdgeProto
    (style preset, label, description, Heroicon `icon`, search keywords), `GROUP_TYPES_CONFIG`,
    or `PROTOCOL_CONFIG` (label, group, colors, style, `requestResponse`, `defaultForNodes`).
 4. Node types: a palette category in `src/constants/nodeCategories.ts`.
-5. Protocols: an `<option>` in the hand-written protocol `<select>` in
-   `src/components/panels/PropertiesPanel.tsx`.
+5. Protocols: no `<option>` to add. The protocol `<select>` in
+   `src/components/panels/PropertiesPanel.tsx` is generated from `PROTOCOL_CONFIG`; a new
+   `group` needs a label in its `PROTOCOL_GROUP_LABELS` (a typed record, so TypeScript enforces it).
 6. If it applies, the role sets in `src/utils/designRules.ts` (`OUTSIDE_ACTORS`,
    `ENTRY_POINTS`, `DIRECT_PROTOCOLS`).
 7. Removing or renaming a node type: map the old name in `RETIRED_NODE_TYPES`
