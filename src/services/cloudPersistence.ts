@@ -14,7 +14,8 @@ export type SaveStatus =
   | "error"
   | "conflict"
   | "versioning"
-  | "restoring";
+  | "restoring"
+  | "deleting";
 /** Why a document could not be opened, which decides what the person can do next. */
 export type LoadFailure = "unreadable" | "missing" | "unavailable";
 
@@ -146,6 +147,52 @@ export class CloudPersistence {
     try {
       await this.flush();
       await run();
+    } finally {
+      this.transition = false;
+      this.set({});
+    }
+  };
+  /**
+   * Deleting a document is not versioning. Discard queued autosaves, wait for any write already
+   * submitted, then delete. If deletion fails, the pending draft remains recoverable.
+   */
+  deleteCurrent = async (remove: () => Promise<void>) => {
+    if (this.state.locked || !this.state.diagram) {
+      throw new Error("The active diagram is not ready to delete.");
+    }
+    const epoch = this.epoch;
+    const oldStatus = this.state.status;
+    const draft = this.pending;
+    this.transition = true;
+    this.cancelTimer();
+    this.pending = null;
+    this.set({ status: "deleting", dirty: false, message: null });
+    try {
+      // Do not send queued writes, but let a write already in flight finish before DELETE.
+      await this.saving?.catch(() => {});
+      if (epoch !== this.epoch) {
+        throw new Error("The active diagram changed during deletion.");
+      }
+      this.set({ status: "deleting", message: null });
+      await remove();
+      if (epoch === this.epoch) {
+        this.reset();
+      }
+    } catch (error) {
+      if (epoch === this.epoch) {
+        this.pending = draft;
+        this.set({
+          status: draft ? "pending" : oldStatus,
+          dirty: draft !== null,
+          message: null,
+        });
+        if (draft) {
+          this.timer = setTimeout(() => {
+            void this.flush().catch(() => {});
+          }, this.delay);
+        }
+      }
+      throw error;
     } finally {
       this.transition = false;
       this.set({});

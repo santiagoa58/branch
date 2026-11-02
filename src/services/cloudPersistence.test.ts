@@ -322,6 +322,49 @@ describe("cloud document lifecycle", () => {
     expect(cloud.getState().locked).toBe(false);
     expect(api.update).toHaveBeenCalledTimes(1);
   });
+  it("does not create a version or save queued edits when deleting", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    const deletion = deferred<void>();
+    const remove = vi.fn(() => deletion.promise);
+    const pending = cloud.deleteCurrent(remove);
+    expect(cloud.getState()).toMatchObject({
+      status: "deleting",
+      locked: true,
+      transitioning: true,
+    });
+    expect(api.update).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(remove).toHaveBeenCalledTimes(1);
+    deletion.resolve();
+    await pending;
+    expect(cloud.getState()).toMatchObject({
+      diagram: null,
+      status: "idle",
+      dirty: false,
+      locked: false,
+    });
+    expect(api.update).not.toHaveBeenCalled();
+    expect(api.createVersion).not.toHaveBeenCalled();
+  });
+
+  it("keeps unsaved edits when deleting fails and permits another save", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    await expect(cloud.deleteCurrent(() => Promise.reject(new Error("Delete failed")))).rejects.toThrow(
+      "Delete failed",
+    );
+    expect(cloud.getState()).toMatchObject({
+      status: "pending",
+      dirty: true,
+      locked: false,
+      diagram: { id: "a" },
+    });
+    await cloud.flush();
+    expect(api.update).toHaveBeenCalledTimes(1);
+    expect(cloud.getState().status).toBe("saved");
+  });
+
   it("preserves an existing load when a transition fails", async () => {
     const loading = deferred<ApiDiagram>();
     const action = deferred<void>();

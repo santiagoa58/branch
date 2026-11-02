@@ -53,6 +53,7 @@ const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
   conflict: "Save conflict",
   versioning: "Saving version…",
   restoring: "Restoring…",
+  deleting: "Deleting…",
 };
 
 const SAVE_VERSION_BLOCKED = {

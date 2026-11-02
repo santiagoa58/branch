@@ -77,7 +77,15 @@ function App() {
         {loaded && locked && (
           <div className="fixed inset-0 z-90 flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
             <LoadingState
-              label={cloud.status === "restoring" ? "Restoring version…" : "Saving version…"}
+              label={
+                cloud.status === "deleting"
+                  ? "Deleting diagram…"
+                  : cloud.status === "restoring"
+                    ? "Restoring version…"
+                    : cloud.status === "versioning"
+                      ? "Saving version…"
+                      : "Finishing document operation…"
+              }
               className="rounded-2xl border border-border bg-card px-8 py-8 shadow-sm"
             />
           </div>
