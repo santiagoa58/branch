@@ -1,4 +1,5 @@
 import type { Point, Rect } from "./geometry";
+import { nearestSides, type ConnectionSide } from "./ports";
 
 function orientation(a: Point, b: Point, c: Point): number {
   return Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
@@ -39,19 +40,31 @@ function routeCrossings(first: readonly Point[], second: readonly Point[]): numb
   return crossings;
 }
 
-/**
- * A quick stand-in for the canvas route between two boxes: out of the right side, across to
- * halfway, then into the left side; a straight line when the target is not further right.
- */
-export function sketchRoute(source: Rect, target: Rect): Point[] {
-  const start = { x: source.x + source.width, y: source.y + source.height / 2 };
-  const end = { x: target.x, y: target.y + target.height / 2 };
-  if (end.x <= start.x) {
-    return [
-      { x: source.x + source.width / 2, y: start.y },
-      { x: target.x + target.width / 2, y: end.y },
-    ];
+/** Anchor at the center of the chosen node side for crossing minimization. */
+function sideCenter(rect: Rect, side: ConnectionSide): Point {
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  if (side === "left") {
+    return { x: rect.x, y: centerY };
   }
-  const middle = (start.x + end.x) / 2;
-  return [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end];
+  if (side === "right") {
+    return { x: rect.x + rect.width, y: centerY };
+  }
+  if (side === "top") {
+    return { x: centerX, y: rect.y };
+  }
+  return { x: centerX, y: rect.y + rect.height };
+}
+
+/** Score the same facing sides the rendered connections will choose, not fixed east/west ports. */
+export function sketchRoute(source: Rect, target: Rect): Point[] {
+  const sides = nearestSides(source, target);
+  const start = sideCenter(source, sides.source);
+  const end = sideCenter(target, sides.target);
+  if (sides.source === "left" || sides.source === "right") {
+    const middle = (start.x + end.x) / 2;
+    return [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end];
+  }
+  const middle = (start.y + end.y) / 2;
+  return [start, { x: start.x, y: middle }, { x: end.x, y: middle }, end];
 }
