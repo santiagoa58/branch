@@ -70,7 +70,7 @@ function seedProjectQueries(
 }
 
 function isOpeningEditor(navigation: ReturnType<typeof useNavigation>): boolean {
-  return isOpeningEditor(navigation);
+  return navigation.state !== "idle" && navigation.location.pathname.includes("/diagrams/");
 }
 
 function WorkspaceSkeleton() {
@@ -177,7 +177,7 @@ export function ProjectsPage() {
           </label>
         </div>
 
-        {navigation.state !== "idle" && navigation.location.pathname.includes("/diagrams/") && (
+        {isOpeningEditor(navigation) && (
           <output className="mb-4 block text-sm text-muted-foreground" aria-live="polite">
             Opening diagram…
           </output>
