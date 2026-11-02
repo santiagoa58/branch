@@ -102,7 +102,7 @@ describe.each([
     hydrate(node, null);
     const { unmount } = renderPanel();
     enterEditMode();
-    expect(screen.getByRole("textbox", { name: "Revisit when 1" }).toHaveValue(ASSUMPTION);
+    expect(screen.getByRole("textbox", { name: "Revisit when 1" })).toHaveValue(ASSUMPTION);
     expect(screen.queryByRole("button", { name: /Make this a requirement/ })).toBeNull();
     unmount();
 
