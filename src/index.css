@@ -49,6 +49,12 @@
   --grid-color: #a1a1aa;
   --edge-color: #71717a;
   --edge-selected: #52525b;
+  /* Auto-layout zone bands behind the canvas: subtle, alternating fills. */
+  --zone-band: color-mix(in oklch, var(--muted) 70%, transparent);
+  --zone-band-alt: color-mix(in oklch, var(--muted) 35%, transparent);
+  --zone-border: var(--border);
+  --zone-label: var(--muted-foreground);
+  --zone-divider: var(--ring);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -64,6 +70,11 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Decision gains and costs: 3:1+ against --card, text-safe at 4.5:1+ */
+  --tradeoff-gain: oklch(0.546 0.215 263);
+  --tradeoff-cost: oklch(0.555 0.146 49);
+  /* Things the user should check (AI assumptions, out-of-date marks): a warm amber */
+  --attention: oklch(0.666 0.157 58);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -89,6 +100,9 @@
   --grid-color: #3f3f46;
   --edge-color: #71717a;
   --edge-selected: #a1a1aa;
+  --zone-band: color-mix(in oklch, var(--muted) 45%, transparent);
+  --zone-band-alt: color-mix(in oklch, var(--muted) 22%, transparent);
+  --zone-border: color-mix(in oklch, var(--border) 70%, transparent);
 }
 
 /* Shared loading motion uses opacity only and remains legible without animation. */
@@ -508,6 +522,9 @@ input[type="range"]::-webkit-slider-runnable-track {
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-tradeoff-gain: var(--tradeoff-gain);
+  --color-tradeoff-cost: var(--tradeoff-cost);
+  --color-attention: var(--attention);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -547,6 +564,9 @@ input[type="range"]::-webkit-slider-runnable-track {
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --tradeoff-gain: oklch(0.7 0.15 260);
+  --tradeoff-cost: oklch(0.72 0.15 55);
+  --attention: oklch(0.769 0.165 70);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

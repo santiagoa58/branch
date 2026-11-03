@@ -16,28 +16,25 @@ export async function sendApiRequest(
     return response;
   }
 
+  const failed = (detail: string, cause?: unknown) =>
+    new ApiError(
+      response.status,
+      `${method} ${path} failed (${response.status} ${response.statusText}): ${detail}`,
+      cause,
+      detail,
+    );
+
   const text = await response.text();
   let errorData: unknown;
   try {
     errorData = parseJsonText(text);
   } catch (cause) {
-    throw new ApiError(
-      response.status,
-      `${method} ${path} failed (${response.status} ${response.statusText}): the backend returned malformed JSON.`,
-      cause,
-    );
+    throw failed("the backend returned malformed JSON.", cause);
   }
 
   const errorBody = apiErrorBodySchema.safeParse(errorData);
   if (!errorBody.success) {
-    throw new ApiError(
-      response.status,
-      `${method} ${path} failed (${response.status} ${response.statusText}): the backend returned an invalid error body.`,
-      errorBody.error,
-    );
+    throw failed("the backend returned an invalid error body.", errorBody.error);
   }
-  throw new ApiError(
-    response.status,
-    `${method} ${path} failed (${response.status} ${response.statusText}): ${errorBody.data.message}`,
-  );
+  throw failed(errorBody.data.message);
 }

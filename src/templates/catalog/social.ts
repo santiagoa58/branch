@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const chatMessaging = defineTemplate({
+const chatMessaging = defineTemplate({
   id: "chat-messaging",
   name: "Team chat and messaging",
   category: "social",
@@ -184,7 +184,7 @@ export const chatMessaging = defineTemplate({
   },
 });
 
-export const socialFeed = defineTemplate({
+const socialFeed = defineTemplate({
   id: "social-feed",
   name: "Social feed and timeline",
   category: "social",
@@ -364,7 +364,7 @@ export const socialFeed = defineTemplate({
   },
 });
 
-export const photoSharing = defineTemplate({
+const photoSharing = defineTemplate({
   id: "photo-sharing",
   name: "Photo and story sharing",
   category: "social",

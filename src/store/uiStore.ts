@@ -2,13 +2,16 @@ import { create } from "zustand";
 import type { EdgeProtocol } from "@/types";
 import type { PaletteNodeType } from "@/schemas/ui";
 
+export type DesignTabId = "brief" | "design" | "api" | "dataModel";
+export type RightPanelTab = "inspect" | DesignTabId | "flows";
+
 /**
  * Below Tailwind's lg breakpoint the side panels slide over the canvas instead of sitting beside
  * it; two inline panels on a tablet would leave the canvas too narrow to use.
  */
 export const COMPACT_LAYOUT_QUERY = "(max-width: 1023px)";
 
-export function isCompactLayout(): boolean {
+function isCompactLayout(): boolean {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
@@ -24,11 +27,23 @@ interface UIState {
   toggleRightPanel: () => void;
   closePanels: () => void;
 
+  /** One tab controls the only editor sidebar, regardless of how it was opened. */
+  rightPanelTab: RightPanelTab;
+  /** Open the sidebar at a specific section; on narrow screens hide the palette. */
+  openRightPanel: (tab: RightPanelTab) => void;
+  /** Convenience shortcut used by Design with AI entry points; not a separate panel. */
+  openDesignPanel: () => void;
+
   /** A component chosen in the palette by click or tap, added by the editor at the view center. */
   pendingPaletteAdd: PaletteNodeType | null;
   requestPaletteAdd: (type: PaletteNodeType) => void;
   /** Clears the request; on a compact screen it also closes the palette to reveal the result. */
   completePaletteAdd: () => void;
+  /**
+   * On a compact screen, hides the side panels, which slide over the canvas, so a node just
+   * brought into view is visible. Wide screens keep them beside the canvas.
+   */
+  revealCanvas: () => void;
 
   // Legend filtering — protocols whose edges should render dimmed.
   hiddenProtocols: ReadonlySet<EdgeProtocol>;
@@ -61,6 +76,14 @@ export const useUIStore = create<UIState>((set) => ({
     }),
   closePanels: () => set({ leftPanelVisible: false, rightPanelVisible: false }),
 
+  rightPanelTab: "inspect",
+  openRightPanel: (rightPanelTab) =>
+    set(
+      isCompactLayout()
+        ? { rightPanelTab, rightPanelVisible: true, leftPanelVisible: false }
+        : { rightPanelTab, rightPanelVisible: true },
+    ),
+  openDesignPanel: () => useUIStore.getState().openRightPanel("brief"),
   pendingPaletteAdd: null,
   requestPaletteAdd: (type) => set({ pendingPaletteAdd: type }),
   completePaletteAdd: () =>
@@ -69,6 +92,11 @@ export const useUIStore = create<UIState>((set) => ({
         ? { pendingPaletteAdd: null, leftPanelVisible: false }
         : { pendingPaletteAdd: null },
     ),
+  revealCanvas: () => {
+    if (isCompactLayout()) {
+      set({ leftPanelVisible: false, rightPanelVisible: false });
+    }
+  },
 
   // Legend filtering
   hiddenProtocols: new Set<EdgeProtocol>(),

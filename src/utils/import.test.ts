@@ -4,12 +4,26 @@ import {
   parseJSON,
   mergeDiagramData,
   appendDiagramData,
+  buildImportData,
   parseMarkdown,
   detectFileFormat,
   importDiagram,
   SCHEMA_VERSION,
 } from "@/utils/import";
-import type { DiagramData } from "@/types";
+import type { DiagramData, DiagramNode } from "@/types";
+import type { NamedFlow } from "@/types/simulation";
+import type { DesignBrief } from "@/schemas/aiDesign";
+
+function makeBrief(prompt: string): DesignBrief {
+  return {
+    inputs: { prompt, scope: "fullstack", requirements: [], outOfScope: [], answers: [] },
+    questions: [],
+    requirements: [],
+    assumptions: [],
+    outOfScope: [],
+    ranFrom: {},
+  };
+}
 
 function expectDefined<T>(value: T | undefined, message: string): asserts value is T {
   expect(value).toBeDefined();
@@ -522,6 +536,60 @@ describe("import utilities", () => {
     });
   });
 
+  describe("design brief handling", () => {
+    const currentBrief = makeBrief("current");
+    const fileBrief = makeBrief("file");
+    const current: DiagramData = {
+      nodes: [],
+      edges: [],
+      viewport: { x: 1, y: 2, zoom: 1 },
+      brief: currentBrief,
+    };
+    const imported: DiagramData = {
+      nodes: [],
+      edges: [],
+      viewport: { x: 5, y: 5, zoom: 2 },
+      brief: fileBrief,
+    };
+
+    it("merge and append keep the current brief, not the imported one", () => {
+      expect(mergeDiagramData(current, imported).brief).toEqual(currentBrief);
+      expect(appendDiagramData(current, imported).brief).toEqual(currentBrief);
+    });
+
+    it("merge and append add no brief when the current diagram has none", () => {
+      const bare: DiagramData = { nodes: [], edges: [] };
+      expect(mergeDiagramData(bare, imported)).not.toHaveProperty("brief");
+      expect(appendDiagramData(bare, imported)).not.toHaveProperty("brief");
+    });
+
+    it("replace uses the file's brief, with or without the viewport", () => {
+      for (const includeViewport of [true, false]) {
+        const result = buildImportData(current, imported, { mode: "replace", includeViewport });
+        expect(result.brief).toEqual(fileBrief);
+        expect(result.viewport !== undefined).toBe(includeViewport);
+      }
+    });
+
+    it("replace with a briefless file drops the current brief", () => {
+      const result = buildImportData(
+        current,
+        { nodes: [], edges: [] },
+        { mode: "replace", includeViewport: false },
+      );
+      expect(result).not.toHaveProperty("brief");
+    });
+
+    it("merge and append keep the current brief, with or without the viewport", () => {
+      for (const mode of ["merge", "append"] as const) {
+        for (const includeViewport of [true, false]) {
+          const result = buildImportData(current, imported, { mode, includeViewport });
+          expect(result.brief).toEqual(currentBrief);
+        }
+      }
+    });
+  });
+
   describe("appendDiagramData", () => {
     it("should append imported nodes to current nodes", () => {
       const current: DiagramData = {
@@ -590,6 +658,160 @@ describe("import utilities", () => {
       expectDefined(node, "Expected one appended node");
       expect(node.position.x).toBe(200);
       expect(node.position.y).toBe(200);
+    });
+  });
+
+  describe("merge and append keep flows and group structure", () => {
+    const flow = (id: string, sourceNodeId: string, edgeIds?: string[]): NamedFlow => ({
+      id,
+      name: `Flow ${id}`,
+      sourceNodeId,
+      ...(edgeIds ? { edgeIds } : {}),
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const current: DiagramData = {
+      nodes: [
+        {
+          id: "cur",
+          type: "architecture",
+          position: { x: 0, y: 0 },
+          data: { label: "Current", type: "service" },
+        },
+      ],
+      edges: [],
+      flows: [flow("flow-1", "cur"), flow("flow-cur", "cur")],
+    };
+
+    // Outer group > inner group > child, plus a top-level node. Listed children-first on purpose.
+    const imported: DiagramData = {
+      nodes: [
+        {
+          id: "child",
+          type: "architecture",
+          position: { x: 10, y: 20 },
+          parentId: "inner",
+          extent: "parent",
+          data: { label: "Child", type: "service", parentId: "inner" },
+        },
+        {
+          id: "inner",
+          type: "group",
+          position: { x: 30, y: 40 },
+          parentId: "outer",
+          extent: "parent",
+          data: { label: "Inner", groupType: "vpc", parentId: "outer" },
+        },
+        {
+          id: "outer",
+          type: "group",
+          position: { x: 0, y: 0 },
+          data: { label: "Outer", groupType: "region" },
+        },
+        {
+          id: "top",
+          type: "architecture",
+          position: { x: 500, y: 0 },
+          data: { label: "Top", type: "database" },
+        },
+      ],
+      edges: [{ id: "edge-1", source: "child", target: "top" }],
+      flows: [flow("flow-1", "child", ["edge-1"]), flow("flow-new", "top")],
+    };
+
+    function byLabel(data: DiagramData, label: string): DiagramNode {
+      const node = data.nodes.find((candidate) => candidate.data["label"] === label);
+      expectDefined(node, `Expected a node labelled ${label}`);
+      return node;
+    }
+
+    function expectParentsBeforeChildren(data: DiagramData) {
+      const index = new Map(data.nodes.map((node, position) => [node.id, position]));
+      const misplaced = data.nodes.filter(
+        (node, position) =>
+          node.parentId !== undefined && !((index.get(node.parentId) ?? Infinity) < position),
+      );
+      expect(misplaced.map((node) => `${node.id} -> ${node.parentId}`)).toEqual([]);
+    }
+
+    const combine = { merge: mergeDiagramData, append: appendDiagramData } as const;
+
+    it.each(["merge", "append"] as const)("%s keeps the current flows", (mode) => {
+      expect(combine[mode](current, imported).flows?.slice(0, 2)).toEqual(current.flows);
+      expect(combine[mode](current, { nodes: [], edges: [] }).flows).toEqual(current.flows);
+    });
+
+    it("merge remaps imported flows through the node and edge id mapping", () => {
+      const result = mergeDiagramData(current, imported);
+      const flows = result.flows ?? [];
+      expect(flows).toHaveLength(4);
+      const [, , collided, kept] = flows;
+      expectDefined(collided, "Expected the colliding imported flow");
+      expectDefined(kept, "Expected the non-colliding imported flow");
+
+      // A colliding flow id is freshened the way node ids are; a free one is kept.
+      expect(collided.id).toMatch(/^imported-\d+-flow-1$/);
+      expect(kept.id).toBe("flow-new");
+      expect(new Set(flows.map((candidate) => candidate.id)).size).toBe(flows.length);
+
+      const mergedEdge = result.edges.find((edge) => edge.id.endsWith("-edge-1"));
+      expectDefined(mergedEdge, "Expected the merged edge");
+      expect(collided.sourceNodeId).toBe(byLabel(result, "Child").id);
+      expect(collided.edgeIds).toEqual([mergedEdge.id]);
+      expect(collided.name).toBe("Flow flow-1");
+      expect(collided.createdAt).toBe("2026-01-01T00:00:00.000Z");
+      expect(kept.sourceNodeId).toBe(byLabel(result, "Top").id);
+      expect(kept).not.toHaveProperty("edgeIds");
+    });
+
+    it("append keeps the imported flows as they are", () => {
+      const result = appendDiagramData(current, imported);
+      expect(result.flows).toEqual([...(current.flows ?? []), ...(imported.flows ?? [])]);
+    });
+
+    it("merge and append add no flows when neither diagram has any", () => {
+      const bare: DiagramData = { nodes: [], edges: [] };
+      expect(mergeDiagramData(bare, bare)).not.toHaveProperty("flows");
+      expect(appendDiagramData(bare, bare)).not.toHaveProperty("flows");
+    });
+
+    it.each(["merge", "append"] as const)(
+      "%s points every parentId at a node listed before its child",
+      (mode) => {
+        const result = combine[mode](current, imported);
+        expect(result.nodes).toHaveLength(5);
+        expect(result.nodes[0]?.id).toBe("cur");
+        expectParentsBeforeChildren(result);
+
+        const outer = byLabel(result, "Outer");
+        const inner = byLabel(result, "Inner");
+        const child = byLabel(result, "Child");
+        expect(inner.parentId).toBe(outer.id);
+        expect(inner.data["parentId"]).toBe(outer.id);
+        expect(child.parentId).toBe(inner.id);
+        expect(child.data["parentId"]).toBe(inner.id);
+        expect(inner.extent).toBe("parent");
+        expect(child.extent).toBe("parent");
+      },
+    );
+
+    it.each(["merge", "append"] as const)(
+      "%s offsets only top-level nodes; children keep their relative positions",
+      (mode) => {
+        const result = combine[mode](current, imported, { x: 100, y: 100 });
+        expect(byLabel(result, "Current").position).toEqual({ x: 0, y: 0 });
+        expect(byLabel(result, "Outer").position).toEqual({ x: 100, y: 100 });
+        expect(byLabel(result, "Top").position).toEqual({ x: 600, y: 100 });
+        expect(byLabel(result, "Inner").position).toEqual({ x: 30, y: 40 });
+        expect(byLabel(result, "Child").position).toEqual({ x: 10, y: 20 });
+      },
+    );
+
+    it("merges nested groups into a document the schema accepts", () => {
+      const result = buildImportData(current, imported, { mode: "merge", includeViewport: false });
+      expect(validateDiagramData(result)).toEqual([]);
+      expect(result.flows).toHaveLength(4);
+      expectParentsBeforeChildren(result);
     });
   });
 
@@ -922,7 +1144,7 @@ Some random content without tables or mermaid.
 
       const result = parseMarkdown(markdown);
       expect(result.success).toBe(true);
-      const nodes = result.data?.nodes || [];
+      const nodes = result.data?.nodes ?? [];
       expect(nodes.find((n) => n.data?.label === "API")?.data?.type).toBe("gateway");
       expect(nodes.find((n) => n.data?.label === "Cache")?.data?.type).toBe("cache");
     });

@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const urlShortener = defineTemplate({
+const urlShortener = defineTemplate({
   id: "url-shortener",
   name: "URL shortener",
   category: "web",
@@ -156,7 +156,7 @@ export const urlShortener = defineTemplate({
   },
 });
 
-export const b2bSaas = defineTemplate({
+const b2bSaas = defineTemplate({
   id: "b2b-saas",
   name: "Multi-tenant B2B SaaS",
   category: "web",
@@ -351,7 +351,7 @@ export const b2bSaas = defineTemplate({
   },
 });
 
-export const jamstackSite = defineTemplate({
+const jamstackSite = defineTemplate({
   id: "jamstack-site",
   name: "Content site with headless CMS",
   category: "web",

@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- debt: 506 lines (limit 450); split the module
 import { useState, useEffect, useCallback } from "react";
 import { X, Download, FileImage, FileCode, FileText, CheckCircle2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,7 +14,7 @@ import {
   exportAsPdf,
   exportAsJson,
 } from "@/utils/export";
-import { DiagramData } from "@/types";
+import type { DiagramData } from "@/types";
 import { imageBackgroundSchema, imageScaleSchema, pdfOrientationSchema } from "@/schemas/ui";
 import { applyValidatedInput } from "@/lib/validatedInput";
 import { LoadingIndicator, LoadingState } from "@/components/ui/loading";
@@ -42,6 +43,7 @@ interface PdfOptions {
   orientation: "portrait" | "landscape";
 }
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 21, 468 lines; extract branches and split into smaller units
 export function ExportPreviewDialog({
   isOpen,
   onClose,
@@ -89,7 +91,7 @@ export function ExportPreviewDialog({
           ? data.nodes
           : data.nodes.filter((node) => node.type !== "comment"),
         edges: data.edges,
-        ...(data.flows !== undefined ? { flows: data.flows } : {}),
+        ...(data.flows === undefined ? {} : { flows: data.flows }),
         ...(dataOptions.includeViewport && data.viewport !== undefined
           ? { viewport: data.viewport }
           : {}),

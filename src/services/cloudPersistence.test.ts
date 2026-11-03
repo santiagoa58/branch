@@ -259,7 +259,7 @@ describe("cloud document lifecycle", () => {
     await vi.waitFor(() => expect(cloud.getState().conflict?.remote).toBe(remote));
     hydrate.mockClear();
 
-    cloud.useRemote();
+    cloud.takeRemote();
 
     expect(hydrate).toHaveBeenCalledExactlyOnceWith(remote.data);
     expect(cloud.onDocument).toHaveBeenLastCalledWith(remote);
@@ -297,7 +297,7 @@ describe("cloud document lifecycle", () => {
     expect(hydrate).toHaveBeenLastCalledWith(diagramDataSchema.parse(edited));
     expect(cloud.getState()).toMatchObject({ status: "saved", diagram: { revision: 3 } });
   });
-  it("holds a transition lock through flush and the asynchronous action, even across reset", async () => {
+  it("holds a transition lock through flush, async action and reset", async () => {
     await cloud.load("a");
     cloud.schedule(edited);
     const save = deferred<ApiDiagram>();
@@ -322,6 +322,69 @@ describe("cloud document lifecycle", () => {
     expect(cloud.getState().locked).toBe(false);
     expect(api.update).toHaveBeenCalledTimes(1);
   });
+  it("does not create a version or save queued edits when deleting", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    const deletion = deferred<void>();
+    const remove = vi.fn<() => Promise<void>>(() => deletion.promise);
+    const pending = cloud.deleteCurrent(remove);
+    expect(cloud.getState()).toMatchObject({
+      status: "deleting",
+      locked: true,
+      transitioning: true,
+      activity: "deleting",
+    });
+    expect(api.update).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(remove).toHaveBeenCalledTimes(1);
+    deletion.resolve();
+    await pending;
+    expect(cloud.getState()).toMatchObject({
+      diagram: null,
+      status: "idle",
+      dirty: false,
+      locked: false,
+      activity: undefined,
+    });
+    expect(api.update).not.toHaveBeenCalled();
+    expect(api.createVersion).not.toHaveBeenCalled();
+  });
+
+  it("keeps unsaved edits when deleting fails and permits another save", async () => {
+    await cloud.load("a");
+    cloud.schedule(edited);
+    await expect(
+      cloud.deleteCurrent(() => Promise.reject(new Error("Delete failed"))),
+    ).rejects.toThrow("Delete failed");
+    expect(cloud.getState()).toMatchObject({
+      status: "pending",
+      dirty: true,
+      locked: false,
+      diagram: { id: "a" },
+    });
+    await cloud.flush();
+    expect(api.update).toHaveBeenCalledTimes(1);
+    expect(cloud.getState().status).toBe("saved");
+  });
+
+  it("waits for an in-flight save but never sends another queued write before deletion", async () => {
+    await cloud.load("a");
+    const writing = deferred<ApiDiagram>();
+    api.update.mockReturnValueOnce(writing.promise);
+    cloud.schedule(edited);
+    const flush = cloud.flush();
+    cloud.schedule(empty);
+    const remove = vi.fn<() => Promise<void>>(async () => {});
+    const deleting = cloud.deleteCurrent(remove);
+    expect(remove).not.toHaveBeenCalled();
+    writing.resolve(diagram("a", 2, edited));
+    await flush;
+    await deleting;
+    expect(api.update).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(cloud.getState()).toMatchObject({ status: "idle", diagram: null });
+  });
+
   it("preserves an existing load when a transition fails", async () => {
     const loading = deferred<ApiDiagram>();
     const action = deferred<void>();

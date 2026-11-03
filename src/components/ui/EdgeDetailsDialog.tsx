@@ -5,7 +5,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ArchitectureEdgeData, DataContract } from "@/types";
+import type { ArchitectureEdgeData, DataContract } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
 import { hasDesignDecision } from "@/utils/designDecision";
@@ -27,6 +27,7 @@ const GROUP_LABELS: Record<string, string> = {
   aiml: "AI / ML",
 };
 
+// oxlint-disable-next-line complexity -- debt: complexity 33; extract branches
 export function EdgeDetailsDialog({ open, onClose, edgeId, data }: EdgeDetailsDialogProps) {
   const protocol = data?.protocol ?? "http";
   const config = PROTOCOL_CONFIG[protocol];

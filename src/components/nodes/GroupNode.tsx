@@ -1,9 +1,11 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { NodeProps, NodeResizer, Handle, Position } from "@xyflow/react";
+import { type NodeProps, NodeResizer } from "@xyflow/react";
+import { ConnectionHandles } from "./ConnectionHandles";
 import { cn } from "@/lib/utils";
 import type { GroupNode as GroupFlowNode } from "@/types";
 import { GROUP_TYPES_CONFIG } from "@/constants";
 import { useDiagramStore } from "@/store/diagramStore";
+import { useEditBlocked } from "@/store/editLock";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 
 export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<GroupFlowNode>) => {
@@ -12,6 +14,8 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   const isCollapsed = nodeData.collapsed ?? false;
 
   const toggleGroupCollapse = useDiagramStore((state) => state.toggleGroupCollapse);
+  // Resizing and collapsing are edits; both are off while edits are blocked (an AI run).
+  const editBlocked = useEditBlocked();
   // Subscribe to a derived primitive (childCount) instead of the whole nodes
   // array, so this component is not re-rendered on every drag tick.
   const childCount = useDiagramStore((state) =>
@@ -21,23 +25,17 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   const previousChildCountRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (previousChildCountRef.current === null) {
-      previousChildCountRef.current = childCount;
-      return undefined;
-    }
-
-    if (childCount > previousChildCountRef.current) {
-      setIsDropHighlightActive(true);
-      const timeout = window.setTimeout(() => {
-        setIsDropHighlightActive(false);
-      }, 700);
-
-      previousChildCountRef.current = childCount;
-      return () => window.clearTimeout(timeout);
-    }
-
+    const previousChildCount = previousChildCountRef.current;
     previousChildCountRef.current = childCount;
-    return undefined;
+    if (previousChildCount === null || childCount <= previousChildCount) {
+      return;
+    }
+
+    setIsDropHighlightActive(true);
+    const timeout = window.setTimeout(() => {
+      setIsDropHighlightActive(false);
+    }, 700);
+    return () => window.clearTimeout(timeout);
   }, [childCount]);
 
   // Collapsed view - compact card
@@ -80,6 +78,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
           <button
             type="button"
             onClick={() => toggleGroupCollapse(id)}
+            disabled={editBlocked}
             className="mt-1 p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
             title="Expand group"
           >
@@ -88,32 +87,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         </div>
 
         {/* Connection handles */}
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="top"
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="bottom"
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
-        <Handle
-          type="target"
-          position={Position.Left}
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all"
-        />
+        <ConnectionHandles group />
       </div>
     );
   }
@@ -121,11 +95,11 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
   // Expanded view - container
   return (
     <div data-node-id={id} className="pointer-events-none w-full h-full">
-      {/* Resizer - only when selected */}
+      {/* Resizer - only when selected and editable */}
       <NodeResizer
         minWidth={200}
         minHeight={150}
-        isVisible={selected}
+        isVisible={selected && !editBlocked}
         lineClassName="!border-zinc-500 pointer-events-auto"
         handleClassName="!w-2.5 !h-2.5 !bg-zinc-300 !border-zinc-950 pointer-events-auto"
       />
@@ -149,6 +123,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
           <button
             type="button"
             onClick={() => toggleGroupCollapse(id)}
+            disabled={editBlocked}
             className="ml-1 p-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
             title="Collapse group"
           >
@@ -157,32 +132,7 @@ export const GroupNode = memo(({ id, data: nodeData, selected }: NodeProps<Group
         </div>
 
         {/* Connection handles */}
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="top"
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="bottom"
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
-        <Handle
-          type="target"
-          position={Position.Left}
-          title="Input"
-          className="w-3! h-3! bg-sky-400! dark:bg-sky-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          title="Output"
-          className="w-3! h-3! bg-amber-400! dark:bg-amber-500! border-2! border-white! dark:border-zinc-950! rounded-full! opacity-0 hover:opacity-100 hover:scale-150! transition-all pointer-events-auto"
-        />
+        <ConnectionHandles group />
       </div>
     </div>
   );

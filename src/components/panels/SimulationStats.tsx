@@ -15,6 +15,7 @@ import {
   BoltIcon,
 } from "@heroicons/react/24/outline";
 
+// oxlint-disable-next-line complexity -- debt: complexity 16; extract branches
 export function SimulationStats() {
   const mode = useSimulationStore((s) => s.mode);
   const stats = useSimulationStore((s) => s.stats);

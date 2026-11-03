@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test";
 import { z } from "zod";
-import { diagramDataSchema } from "@/schemas/diagram";
+import { diagramDataSchema, architectureNodeTypeSchema } from "@/schemas/diagram";
 import type { DiagramData } from "@/types";
 import { importDiagram, parseJSON } from "@/utils/import";
-import { architectureNodeTypeSchema } from "@/schemas/diagram";
+import { exportAsMarkdown, exportAsJson, generateShareableLink } from "@/utils/export";
 
 const metadataExportSchema = z
   .object({
@@ -48,12 +48,9 @@ vi.mock("jspdf", () => ({
   })),
 }));
 
-// Import after mocking
-import { exportAsMarkdown, exportAsJson, generateShareableLink } from "@/utils/export";
-
 describe("export utilities", () => {
   let mockLink: HTMLAnchorElement;
-  let createdBlobs: Array<{ content: string; type: string }> = [];
+  let createdBlobs: { content: string; type: string }[] = [];
   const createElementMock = vi.fn<(tagName: string) => HTMLElement>();
   const createObjectURLMock = vi.fn<(blob: Blob | MediaSource) => string>();
   const clickMock = vi.fn<() => void>();
@@ -400,7 +397,7 @@ describe("export utilities", () => {
               data: {
                 label: "API",
                 type: "service",
-                ...(description !== undefined ? { description } : {}),
+                ...(description === undefined ? {} : { description }),
               },
             },
             {

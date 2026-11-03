@@ -38,4 +38,3 @@ export const iconifyCollectionsResponseSchema = z.record(
 
 export type IconifySearchResponse = z.infer<typeof iconifySearchResponseSchema>;
 export type IconifyCollection = z.infer<typeof iconifyCollectionSchema>;
-export type IconifyCollectionsResponse = z.infer<typeof iconifyCollectionsResponseSchema>;

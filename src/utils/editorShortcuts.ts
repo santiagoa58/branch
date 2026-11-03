@@ -119,6 +119,7 @@ const PLAIN_SHORTCUTS = new Map<string, CommandType>([
   ["escape", "escape"],
 ]);
 
+// oxlint-disable-next-line complexity -- debt: complexity 21; extract branches
 export function getEditorShortcut(event: KeyboardEvent): EditorShortcut | null {
   if (
     event.defaultPrevented ||

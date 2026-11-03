@@ -34,7 +34,7 @@ const LEGEND_DOTS: Record<Exclude<DiffStatus, "unchanged">, string> = {
 
 export type DiffView = "before" | "after" | "diff";
 
-export interface DiffLegendLabels {
+interface DiffLegendLabels {
   added: string;
   removed: string;
   modified: string;
@@ -65,7 +65,7 @@ export function DiagramDiffCanvas({ before, after, view, legend }: DiagramDiffCa
     return readOnly(
       diff.nodes.map(({ node, status }) => ({
         ...node,
-        style: { ...(node.style as React.CSSProperties), ...DIFF_NODE_SHADOW[status] },
+        style: { ...node.style, ...DIFF_NODE_SHADOW[status] },
       })),
       diff.edges.map(({ edge, status }) => ({ ...edge, style: { ...DIFF_EDGE_STYLE[status] } })),
     );

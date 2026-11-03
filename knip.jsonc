@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Built-in plugins (vite-plus, vite, vitest, typescript, github-actions) find
+  // index.html -> src/main.tsx, test files, src/test/setup.ts, vite.config.ts and
+  // the package.json scripts (scripts/dev.mjs). Only entries no plugin knows remain.
+  "entry": [
+    // Vercel Functions: every file under api/ is deployed as a route handler.
+    "api/**/*.ts",
+    // Neon config-as-code policy, read by the Neon CLI (`neon checkout`, deploy).
+    "neon.ts",
+  ],
+}

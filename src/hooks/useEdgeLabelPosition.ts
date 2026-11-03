@@ -1,6 +1,8 @@
 import { useLayoutEffect, useMemo, useState } from "react";
 import { useStore, type ReactFlowState, type Rect, type XYPosition } from "@xyflow/react";
-import { placeEdgeLabel } from "@/utils/edgeLabels";
+import { useStore as useZustandStore } from "zustand";
+import { placeEdgeLabel, placeEdgeLabels, type LabelRequest } from "@/utils/edgeLabels";
+import { createCanvasRegistry } from "./canvasRegistry";
 import { COLLAPSED_GROUP_HEIGHT, COLLAPSED_GROUP_WIDTH } from "@/utils/groupRollup";
 import { CONTAINER_HEADER, leafSize } from "@/utils/layout/geometry";
 
@@ -39,7 +41,7 @@ function selectObstacles(state: ReactFlowState): Rect[] {
   return obstacles;
 }
 
-function sameObstacles(a: Rect[], b: Rect[]): boolean {
+export function sameObstacles(a: readonly Rect[], b: readonly Rect[]): boolean {
   return (
     a === b ||
     (a.length === b.length &&
@@ -55,8 +57,33 @@ function sameObstacles(a: Rect[], b: Rect[]): boolean {
   );
 }
 
-/** Label placement is display-only; stored edge geometry and history stay unchanged. */
-export function useEdgeLabelPosition(x: number, y: number, hasDecision = false) {
+const labels = createCanvasRegistry<LabelRequest>();
+let placement: { entries: ReadonlyMap<string, LabelRequest>; obstacles: Rect[] } | null = null;
+let placed = new Map<string, XYPosition>();
+
+/** Every reported label placed together, once per change of labels or nodes. */
+function placedLabels(entries: ReadonlyMap<string, LabelRequest>, obstacles: Rect[]) {
+  if (placement?.entries !== entries || !sameObstacles(placement.obstacles, obstacles)) {
+    placed = placeEdgeLabels([...entries.values()], obstacles);
+    placement = { entries, obstacles };
+  }
+  return placed;
+}
+
+function sameRequest(a: LabelRequest | undefined, b: LabelRequest): boolean {
+  return (
+    a !== undefined &&
+    a.anchor.x === b.anchor.x &&
+    a.anchor.y === b.anchor.y &&
+    sameObstacles([a.box], [b.box])
+  );
+}
+
+/**
+ * Label placement is display-only; stored edge geometry and history stay unchanged. With an
+ * `id`, the label also keeps clear of the other labels on the canvas.
+ */
+export function useEdgeLabelPosition(x: number, y: number, hasDecision = false, id?: string) {
   const [element, labelRef] = useState<HTMLElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -81,19 +108,48 @@ export function useEdgeLabelPosition(x: number, y: number, hasDecision = false) 
   // Compare geometry values, not the mutable nodeLookup identity. This reacts
   // to unrelated node drags without rerunning placement just for pan or zoom.
   const obstacles = useStore(selectObstacles, sameObstacles);
-  const position = useMemo((): XYPosition => {
+  const request = useMemo((): LabelRequest => {
     const top = hasDecision ? Math.min(-size.height / 2, -32) : -size.height / 2;
     const right = hasDecision ? Math.max(size.width / 2, 48) : size.width / 2;
-    return placeEdgeLabel(
-      { x, y },
-      {
+    return {
+      id: id ?? "",
+      anchor: { x, y },
+      box: {
         x: -size.width / 2,
         y: top,
         width: right + size.width / 2,
         height: size.height / 2 - top,
       },
-      obstacles,
-    );
-  }, [x, y, size, hasDecision, obstacles]);
+    };
+  }, [id, x, y, size, hasDecision]);
+
+  useLayoutEffect(() => {
+    if (id !== undefined) {
+      labels.report(id, request);
+    }
+  }, [id, request]);
+  useLayoutEffect(() => {
+    if (id === undefined) {
+      return;
+    }
+    return () => labels.remove(id);
+  }, [id]);
+
+  // A primitive snapshot, so only labels whose placement changed render again.
+  const shared = useZustandStore(labels.store, (state) => {
+    if (id === undefined || !sameRequest(state.entries.get(id), request)) {
+      return null;
+    }
+    const position = placedLabels(state.entries, obstacles).get(id);
+    return position ? `${position.x},${position.y}` : null;
+  });
+  const position = useMemo((): XYPosition => {
+    if (shared !== null) {
+      const [labelX, labelY] = shared.split(",").map(Number);
+      return { x: labelX!, y: labelY! };
+    }
+    // Until the label is reported (or without an id) it avoids the nodes alone.
+    return placeEdgeLabel(request.anchor, request.box, obstacles);
+  }, [shared, request, obstacles]);
   return { labelRef, labelX: position.x, labelY: position.y };
 }

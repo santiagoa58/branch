@@ -89,3 +89,34 @@ export function anchoredPosition(node: Node, position: Point, size: Size): Point
     y: position.y + size.height * (node.origin?.[1] ?? 0),
   };
 }
+
+export interface Rect extends Point, Size {}
+
+/** Top-left canvas rectangles of every node, following parent-relative positions. Pure. */
+export function absoluteRects(nodes: Node[]): Map<string, Rect> {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const rects = new Map<string, Rect>();
+  const resolve = (node: Node, seen: Set<string>): Rect => {
+    const cached = rects.get(node.id);
+    if (cached) {
+      return cached;
+    }
+    const size = isCollapsed(node) ? visibleSize(node, leafSize(node)) : leafSize(node);
+    const parent = node.parentId === undefined ? undefined : byId.get(node.parentId);
+    const offset =
+      parent && !seen.has(parent.id)
+        ? resolve(parent, new Set([...seen, node.id]))
+        : { x: 0, y: 0 };
+    const rect = {
+      x: offset.x + node.position.x - size.width * (node.origin?.[0] ?? 0),
+      y: offset.y + node.position.y - size.height * (node.origin?.[1] ?? 0),
+      ...size,
+    };
+    rects.set(node.id, rect);
+    return rect;
+  };
+  for (const node of nodes) {
+    resolve(node, new Set());
+  }
+  return rects;
+}

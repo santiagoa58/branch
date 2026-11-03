@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Node } from "@xyflow/react";
 import { Icon as IconifyIcon } from "@iconify/react";
-import { TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { NODE_TYPES_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
 import { applyValidatedInput } from "@/lib/validatedInput";
@@ -15,10 +15,10 @@ import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import { getNodeAttributes } from "@/utils/architectureAttributes";
 import { hasDesignDecision } from "@/utils/designDecision";
-import { ArchitectureFactsEditor } from "@/components/ui/ArchitectureFactsEditor";
-import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
+import { DecisionInspector } from "./DecisionInspector";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
+import { InspectorFields } from "./InspectorFields";
 
 const fieldClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -33,8 +33,7 @@ interface Props {
 
 export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  const { nodes, updateNodeData, setSelectedNode, addNodeToGroup, removeNodeFromGroup } =
-    useDiagramStore();
+  const { nodes, updateNodeData, addNodeToGroup, removeNodeFromGroup } = useDiagramStore();
   const requestDelete = useAnimationStore((state) => state.requestDelete);
   const data = architectureNodeDataSchema.parse(node.data);
   const config = NODE_TYPES_CONFIG[data.type];
@@ -42,10 +41,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
   const hasDecision = hasDesignDecision(data.decision);
 
   return (
-    <aside
-      aria-label="Node details"
-      className="z-20 flex w-80 flex-col border-l border-border bg-background xl:w-96"
-    >
+    <div aria-label="Node details" className="flex min-h-0 w-full flex-1 flex-col">
       <div className="flex items-start justify-between gap-3 border-b border-border p-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className={cn("rounded-lg border p-3", config.bgClass, config.borderClass)}>
@@ -60,14 +56,6 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
             <p className="text-xs text-muted-foreground">{config.label}</p>
           </div>
         </div>
-        <button
-          type="button"
-          aria-label="Close node details"
-          onClick={() => setSelectedNode(null)}
-          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <XMarkIcon className="size-4" />
-        </button>
       </div>
       <InspectorTabs
         items={[
@@ -78,19 +66,18 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
         value={activeTab}
         onChange={onTabChange}
       />
-      <div className="flex-1 space-y-6 overflow-y-auto p-4">
+      <InspectorFields className="flex-1 space-y-6 overflow-y-auto p-4">
         {activeTab === "design" && (
-          <>
-            <DesignDecisionEditor
-              value={data.decision}
-              onChange={(decision) => updateNodeData(node.id, { decision })}
-            />
-            <ArchitectureFactsEditor
-              key={node.id}
-              attributes={getNodeAttributes(data)}
-              onChange={(attributes) => updateNodeData(node.id, { attributes, metadata: {} })}
-            />
-          </>
+          <DecisionInspector
+            key={node.id}
+            value={data.decision}
+            onChange={(decision) => updateNodeData(node.id, { decision })}
+            nodeId={node.id}
+            attributes={getNodeAttributes(data)}
+            onAttributesChange={(attributes) =>
+              updateNodeData(node.id, { attributes, metadata: {} })
+            }
+          />
         )}
         {activeTab === "basics" && (
           <div className="space-y-4">
@@ -203,7 +190,7 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
             </button>
           </div>
         )}
-      </div>
+      </InspectorFields>
       <IconPickerDialog
         key={node.id}
         isOpen={iconPickerOpen}
@@ -211,6 +198,6 @@ export function NodePropertiesPanel({ node, activeTab, onTabChange }: Props) {
         onSelect={(iconifyIcon) => updateNodeData(node.id, { iconifyIcon, iconColor: "" })}
         {...(data.iconifyIcon ? { currentIcon: data.iconifyIcon } : {})}
       />
-    </aside>
+    </div>
   );
 }

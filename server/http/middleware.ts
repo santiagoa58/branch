@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import { HttpError } from "../repository";
+import { HttpError } from "./errors";
 import type { HandlerDependencies, WorkspaceEnv } from "../types";
 
 export const privateHeaders: MiddlewareHandler<WorkspaceEnv> = async (c, next) => {

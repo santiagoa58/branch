@@ -1,9 +1,10 @@
 import { memo } from "react";
-import { NodeProps } from "@xyflow/react";
+import type { NodeProps } from "@xyflow/react";
 import type { CommentNode as CommentFlowNode } from "@/types";
 import { COMMENT_CONFIG } from "@/constants";
 import { cn } from "@/lib/utils";
 import { useDiagramStore } from "@/store/diagramStore";
+import { useEditBlocked } from "@/store/editLock";
 import {
   ChatBubbleBottomCenterTextIcon,
   ChevronUpIcon,
@@ -11,8 +12,11 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const CommentNode = memo(
+  // oxlint-disable-next-line complexity -- debt: complexity 17; extract branches
   ({ data: commentData, selected, id }: NodeProps<CommentFlowNode>) => {
     const { updateNodeData } = useDiagramStore();
+    // Minimizing is saved with the document, so it is off while edits are blocked (an AI run).
+    const editBlocked = useEditBlocked();
     const isMinimized = commentData.minimized || false;
     const color = commentData.color || "yellow";
     const colorConfig = COMMENT_CONFIG.colors[color];
@@ -51,6 +55,7 @@ export const CommentNode = memo(
           <button
             type="button"
             onClick={handleToggleMinimize}
+            disabled={editBlocked}
             className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
             title={isMinimized ? "Expand comment" : "Minimize comment"}
           >

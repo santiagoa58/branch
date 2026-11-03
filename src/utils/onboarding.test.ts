@@ -104,10 +104,10 @@ describe("completion helpers", () => {
     expect(completedCount(partial)).toBe(1);
     expect(isAllComplete(partial)).toBe(false);
 
-    const all = ONBOARDING_STEP_IDS.reduce(
-      (acc, id) => ({ ...acc, [id]: true }),
-      {} as Record<OnboardingStepId, boolean>,
-    );
+    const all = emptyCompletedSteps();
+    for (const id of ONBOARDING_STEP_IDS) {
+      all[id] = true;
+    }
     expect(isAllComplete(all)).toBe(true);
     expect(completedCount(all)).toBe(ONBOARDING_STEP_IDS.length);
   });
@@ -121,10 +121,10 @@ describe("completion helpers", () => {
     };
     expect(getActiveStep(partial)).toBe("connect-nodes");
 
-    const all = ONBOARDING_STEP_IDS.reduce(
-      (acc, id) => ({ ...acc, [id]: true }),
-      {} as Record<OnboardingStepId, boolean>,
-    );
+    const all = emptyCompletedSteps();
+    for (const id of ONBOARDING_STEP_IDS) {
+      all[id] = true;
+    }
     expect(getActiveStep(all)).toBeNull();
   });
 });

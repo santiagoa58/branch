@@ -1,13 +1,13 @@
-import pg from "pg";
+import { Pool, type PoolClient } from "pg";
 import { attachDatabasePool } from "@vercel/functions";
 import { serverEnvSchema } from "../src/schemas/server";
 import type { Database, Queryable } from "./repository";
 
-let pool: pg.Pool | undefined;
+let pool: Pool | undefined;
 function getPool() {
   if (!pool) {
     const env = serverEnvSchema.parse(process.env);
-    pool = new pg.Pool({
+    pool = new Pool({
       connectionString: env.DATABASE_URL,
       max: 5,
       idleTimeoutMillis: 5000,
@@ -18,7 +18,7 @@ function getPool() {
   }
   return pool;
 }
-function queries(client: pg.Pool | pg.PoolClient): Queryable {
+function queries(client: Pool | PoolClient): Queryable {
   return {
     query: async (text, values = []) => {
       const result = await client.query(text, [...values]);

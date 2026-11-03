@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const aiAssistant = defineTemplate({
+const aiAssistant = defineTemplate({
   id: "ai-agent-assistant",
   name: "AI assistant with tools",
   category: "ai",
@@ -171,7 +171,7 @@ export const aiAssistant = defineTemplate({
   },
 });
 
-export const documentAi = defineTemplate({
+const documentAi = defineTemplate({
   id: "document-ai-pipeline",
   name: "Document AI extraction",
   category: "ai",

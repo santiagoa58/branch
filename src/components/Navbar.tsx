@@ -19,9 +19,10 @@ import {
   BookmarkIcon,
   EllipsisHorizontalIcon,
 } from "@heroicons/react/24/outline";
-import { useAnimationStore } from "@/store/animationStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAutoFormat } from "@/hooks/useAutoFormat";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason, VERSION_EDIT_CHECKS } from "@/store/editLock";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useUIStore } from "@/store/uiStore";
 
@@ -30,9 +31,10 @@ import { copyShareableLink } from "@/utils/export";
 import { cloudWorkspace, useCloudWorkspace } from "@/services/cloudWorkspace";
 import { AccountControls } from "@/components/CloudAuth";
 import { Brand } from "@/components/Brand";
+import { EditorDiagramMenu } from "@/components/workspace/EditorDiagramMenu";
 import { notify } from "@/services/notify";
-import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { VersionsPanel } from "@/components/panels/VersionsPanel";
+import { AiRunIndicator } from "@/components/panels/design/RunStatus";
 import { SaveVersionDialog } from "@/components/ui/SaveVersionDialog";
 import { ExportPreviewDialog } from "@/components/ui/ExportPreviewDialog";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -51,26 +53,28 @@ const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
   conflict: "Save conflict",
   versioning: "Saving version…",
   restoring: "Restoring…",
+  deleting: "Deleting…",
 };
 
+const SAVE_VERSION_BLOCKED = {
+  "ai-running": "Wait for the AI design run to finish before saving a version.",
+  "deletions-pending": "Wait for deletions to finish before saving a version.",
+} satisfies Record<(typeof VERSION_EDIT_CHECKS)[number], string>;
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 22, 394 lines; extract branches and split into smaller units
 export function Navbar() {
   const cloud = useCloudWorkspace();
   const diagram = cloud.diagram;
   const { projectId, diagramId } = useParams<{ projectId: string; diagramId: string }>();
   const navigate = useNavigate();
-
   const { data: project } = useQuery({
     ...workspaceQuery.project(projectId ?? ""),
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
   });
-
   const { undo, redo, canUndo, canRedo } = useDiagramStore();
-
   const { leftPanelVisible, rightPanelVisible, toggleLeftPanel, toggleRightPanel } = useUIStore();
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [isExporting] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false);
   const [selectedExportFormat, setSelectedExportFormat] = useState<"png" | "svg" | "pdf" | "json">(
     "png",
@@ -82,11 +86,13 @@ export function Navbar() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const { autoFormat, disabled: formatDisabled } = useAutoFormat();
+  const aiRunning = useAiDesignStore((state) => state.running);
 
   const saveVersionMutation = useMutation({
     mutationFn: (label: string) => {
-      if (useAnimationStore.getState().pendingDeletions.size) {
-        throw new Error("Wait for deletions to finish before saving a version.");
+      const blocked = editBlockReason(VERSION_EDIT_CHECKS);
+      if (blocked) {
+        throw new Error(SAVE_VERSION_BLOCKED[blocked]);
       }
       return cloudWorkspace.createVersion(label || undefined);
     },
@@ -159,19 +165,23 @@ export function Navbar() {
               </button>
             </span>
           )}
-          {diagram && (
+          {diagram && diagramId && projectId && diagram.id === diagramId && (
             <>
               <ChevronRightIcon className="w-3 h-3 shrink-0 text-zinc-400" />
-              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400 sm:max-w-40">
-                {diagram.name}
-              </span>
+              <EditorDiagramMenu
+                key={diagramId}
+                projectId={projectId}
+                diagramId={diagramId}
+                diagramName={diagram.name}
+              />
             </>
           )}
         </nav>
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-4">
-        {/* Panel Toggles */}
+        <AiRunIndicator />
+
         <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Components panel">
             <button
@@ -188,11 +198,11 @@ export function Navbar() {
               <Squares2X2Icon className="w-3.5 h-3.5" />
             </button>
           </Tooltip>
-          <Tooltip content="Properties panel">
+          <Tooltip content="Sidebar">
             <button
               type="button"
               onClick={toggleRightPanel}
-              aria-label="Properties panel"
+              aria-label="Sidebar"
               aria-pressed={rightPanelVisible}
               className={`p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors ${
                 rightPanelVisible
@@ -205,7 +215,6 @@ export function Navbar() {
           </Tooltip>
         </div>
 
-        {/* Undo/Redo — inside the More menu on phones */}
         <div className="hidden sm:flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md p-1 gap-1">
           <Tooltip content="Undo (⌘Z)">
             <button
@@ -251,8 +260,9 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setSaveVersionOpen(true)}
+                disabled={aiRunning}
                 aria-label="Save version snapshot"
-                className="flex items-center gap-1 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                className="flex items-center gap-1 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <BookmarkIcon className="w-3.5 h-3.5" />
               </button>
@@ -270,7 +280,6 @@ export function Navbar() {
           </div>
         )}
 
-        {/* Export Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <Tooltip content="Export diagram">
             <button
@@ -342,7 +351,7 @@ export function Navbar() {
             cloud.status === "versioning" ||
             cloud.status === "restoring") && <LoadingIndicator className="size-3" />}
           <span className="sr-only whitespace-nowrap lg:not-sr-only">
-            {SAVE_STATUS_LABELS[cloud.status]}
+            {cloud.activity === "deleting" ? "Deleting…" : SAVE_STATUS_LABELS[cloud.status]}
           </span>
         </output>
         <div className="hidden md:flex items-center gap-2 lg:gap-4">
@@ -350,7 +359,6 @@ export function Navbar() {
           <ThemeToggle />
         </div>
 
-        {/* Share Button */}
         <Tooltip
           className="hidden md:inline-flex"
           align="end"
@@ -375,7 +383,6 @@ export function Navbar() {
             )}
           </button>
         </Tooltip>
-        {/* Everything the row hides on small screens lives here. */}
         <div className="relative md:hidden" ref={moreMenuRef}>
           <button
             type="button"
@@ -396,7 +403,11 @@ export function Navbar() {
                 { label: "Redo", onSelect: redo, disabled: !canRedo(), phoneOnly: true },
                 ...(diagramId
                   ? [
-                      { label: "Save version", onSelect: () => setSaveVersionOpen(true) },
+                      {
+                        label: "Save version",
+                        onSelect: () => setSaveVersionOpen(true),
+                        disabled: aiRunning,
+                      },
                       { label: "Version history", onSelect: () => setVersionsOpen(true) },
                     ]
                   : []),
@@ -430,9 +441,6 @@ export function Navbar() {
           )}
         </div>
       </div>
-
-      {/* Settings Modal */}
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Export Preview Modal */}
       <ExportPreviewDialog

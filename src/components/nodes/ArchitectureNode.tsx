@@ -1,23 +1,29 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Handle, Position, NodeProps } from "@xyflow/react";
+import type { NodeProps } from "@xyflow/react";
+import { ConnectionHandles } from "./ConnectionHandles";
 import { Icon as IconifyIcon } from "@iconify/react";
 import { cn } from "@/lib/utils";
 import { NODE_TYPES_CONFIG } from "@/constants";
 import type { ArchitectureNode as ArchitectureFlowNode } from "@/types";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
+import { useEditBlocked } from "@/store/editLock";
 import { getNodeAttributes, formatArchitectureAttribute } from "@/utils/architectureAttributes";
 import { getDocumentedDecision, hasDesignDecision } from "@/utils/designDecision";
 import { IconPickerDialog } from "@/components/ui/IconPickerDialog";
 
 export const ArchitectureNode = memo(
+  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 32, 248 lines; extract branches and split into smaller units
   ({ data: nodeData, selected, id }: NodeProps<ArchitectureFlowNode>) => {
     const config = NODE_TYPES_CONFIG[nodeData.type];
     const Icon = config.icon;
 
     const updateNodeData = useDiagramStore((state) => state.updateNodeData);
+    // Double-click editing is off while edits are blocked, such as during an AI run.
+    const editBlocked = useEditBlocked();
 
     // Inline editing state
     const [isEditing, setIsEditing] = useState(false);
@@ -30,7 +36,7 @@ export const ArchitectureNode = memo(
     // Tooltip hover state
     const [showTooltip, setShowTooltip] = useState(false);
     const tooltipTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const hasDescription = !!nodeData.description?.trim();
+    const hasDescription = Boolean(nodeData.description?.trim());
 
     // Auto-focus and select text when entering edit mode
     useEffect(() => {
@@ -63,13 +69,16 @@ export const ArchitectureNode = memo(
     const isSource = sourceNodeId === id;
     const isProtected = protectedNodeIds.includes(id) && simulationMode === "chaos";
 
+    // A transient mark from the AI design panel: an update's changes, or an endpoint's components.
+    const isHighlighted = useAiDesignStore((s) => s.highlight.has(id));
+
     // Animation state — hide node during shatter animation
     const isPendingDeletion = useAnimationStore((s) => s.isPendingDeletion(id));
 
     return (
       <div
         data-node-id={id}
-
+        data-highlighted={isHighlighted || undefined}
         className={cn(
           "relative flex flex-col items-center gap-2 p-3 min-w-30 rounded-xl bg-white/90 dark:bg-zinc-900/90 border backdrop-blur-sm cursor-grab active:cursor-grabbing transition-all hover:border-zinc-400 dark:hover:border-zinc-600",
           selected
@@ -83,6 +92,8 @@ export const ArchitectureNode = memo(
             "border-blue-400 dark:border-blue-400 ring-1 ring-blue-400/40",
           isAffected && "opacity-40 grayscale",
           isProtected && "border-cyan-400 dark:border-cyan-400 ring-2 ring-cyan-400/50",
+          isHighlighted &&
+            "ring-2 ring-primary ring-offset-2 ring-offset-background motion-safe:animate-pulse",
           isPendingDeletion && "opacity-0 pointer-events-none",
         )}
         onMouseEnter={() => {
@@ -127,14 +138,7 @@ export const ArchitectureNode = memo(
           </div>
         )}
 
-        {/* Default ports follow the left-to-right layout; top and bottom stay available. */}
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="top"
-          title="Input"
-          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! -top-1! hover:scale-150! transition-transform!"
-        />
+        <ConnectionHandles />
 
         {/* Icon */}
         <div
@@ -147,7 +151,9 @@ export const ArchitectureNode = memo(
 
           onDoubleClick={(e) => {
             e.stopPropagation();
-            setIsIconPickerOpen(true);
+            if (!editBlocked) {
+              setIsIconPickerOpen(true);
+            }
           }}
           title="Double-click to change icon"
         >
@@ -165,7 +171,7 @@ export const ArchitectureNode = memo(
         {/* Label & Type */}
         <div className="flex flex-col items-center text-center">
           <div className="flex items-center gap-1.5">
-            {isEditing ? (
+            {isEditing && !editBlocked ? (
               <input
                 ref={inputRef}
                 type="text"
@@ -190,10 +196,15 @@ export const ArchitectureNode = memo(
               />
             ) : (
               <span
-                className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 cursor-text"
+                className={cn(
+                  "text-xs font-semibold text-zinc-900 dark:text-zinc-200",
+                  !editBlocked && "cursor-text",
+                )}
                 onDoubleClick={() => {
-                  setEditValue(nodeData.label);
-                  setIsEditing(true);
+                  if (!editBlocked) {
+                    setEditValue(nodeData.label);
+                    setIsEditing(true);
+                  }
                 }}
               >
                 {nodeData.label}
@@ -240,30 +251,9 @@ export const ArchitectureNode = memo(
           </div>
         )}
 
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="bottom"
-          title="Output"
-          className="w-2! h-2! rounded-full! bg-zinc-200! dark:bg-zinc-500! border-2! border-white! dark:border-zinc-950! -bottom-1! hover:scale-150! transition-transform!"
-        />
-
-        <Handle
-          type="target"
-          position={Position.Left}
-          title="Input"
-          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
-        />
-
-        <Handle
-          type="source"
-          position={Position.Right}
-          title="Output"
-          className="w-2! h-2! rounded-full! bg-zinc-300! dark:bg-zinc-700! border-2! border-white! dark:border-zinc-950! hover:scale-150! transition-transform!"
-        />
-
         {/* Icon Picker Dialog (via Portal) */}
         {isIconPickerOpen &&
+          !editBlocked &&
           createPortal(
             <IconPickerDialog
               isOpen={isIconPickerOpen}

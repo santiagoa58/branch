@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const videoStreaming = defineTemplate({
+const videoStreaming = defineTemplate({
   id: "video-streaming",
   name: "Video streaming platform",
   category: "media",
@@ -229,7 +229,7 @@ export const videoStreaming = defineTemplate({
   },
 });
 
-export const musicStreaming = defineTemplate({
+const musicStreaming = defineTemplate({
   id: "music-streaming",
   name: "Music streaming",
   category: "media",
@@ -393,7 +393,7 @@ export const musicStreaming = defineTemplate({
   },
 });
 
-export const videoConferencing = defineTemplate({
+const videoConferencing = defineTemplate({
   id: "video-conferencing",
   name: "Video conferencing",
   category: "media",

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { authenticate } from "./auth";
 const { authenticateRequest, createClient } = vi.hoisted(() => ({
   authenticateRequest:
     vi.fn<
@@ -11,7 +12,6 @@ const { authenticateRequest, createClient } = vi.hoisted(() => ({
   createClient: vi.fn<(options: object) => object>(),
 }));
 vi.mock("@clerk/backend", () => ({ createClerkClient: createClient }));
-import { authenticate } from "./auth";
 
 beforeEach(() => {
   vi.stubEnv("DATABASE_URL", "postgresql://db.example/branch");
@@ -53,6 +53,7 @@ describe("Clerk session verification", () => {
     expect(createClient).toHaveBeenCalledWith({
       secretKey: "test-secret",
       publishableKey: "test-public",
+      telemetry: { disabled: true },
     });
     expect(authenticateRequest).toHaveBeenCalledWith(request, {
       authorizedParties: ["https://branch.test", "http://localhost:3000"],

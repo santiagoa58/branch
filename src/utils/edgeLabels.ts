@@ -67,3 +67,37 @@ export function placeEdgeLabel(preferred: XYPosition, label: Rect, obstacles: Re
     { x: Math.max(...blocked.map((rect) => rect.x + rect.width)), y: preferred.y },
   ].sort(compare)[0]!;
 }
+
+export interface LabelRequest {
+  id: string;
+  /** Where the label would sit on its connection. */
+  anchor: XYPosition;
+  /** The label's bounds relative to its anchor. */
+  box: Rect;
+}
+
+/**
+ * Place every label of the canvas: each in turn, by id, avoids the nodes and the labels already
+ * placed, so labels of neighboring connections never stack. Pure and deterministic.
+ */
+export function placeEdgeLabels(
+  requests: readonly LabelRequest[],
+  obstacles: readonly Rect[],
+): Map<string, XYPosition> {
+  const placed = new Map<string, XYPosition>();
+  const taken: Rect[] = [...obstacles];
+  const ordered = [...requests].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const request of ordered) {
+    const position = placeEdgeLabel(request.anchor, request.box, taken);
+    placed.set(request.id, position);
+    if (request.box.width > 0 && request.box.height > 0) {
+      taken.push({
+        x: position.x + request.box.x,
+        y: position.y + request.box.y,
+        width: request.box.width,
+        height: request.box.height,
+      });
+    }
+  }
+  return placed;
+}

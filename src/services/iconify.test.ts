@@ -30,7 +30,7 @@ function respond(data: unknown) {
 function requestedUrl() {
   const input = fetcher.mock.calls[0]?.[0];
   if (typeof input !== "string") {
-    throw new Error("Expected an Iconify URL string");
+    throw new TypeError("Expected an Iconify URL string");
   }
   return new URL(input);
 }

@@ -6,9 +6,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, TrashIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon } from "@heroicons/react/24/solid";
-import { diagramsApi, ApiDiagramSummary } from "@/services/api";
+import type { ApiDiagramSummary } from "@/services/api";
+import { deleteDiagramFromWorkspace } from "@/services/workspaceDeletion";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
+import {
+  WorkspaceDeleteDialog,
+  type WorkspaceDeleteTarget,
+} from "@/components/workspace/WorkspaceDeleteDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function ProjectPage() {
@@ -17,10 +22,11 @@ export function ProjectPage() {
   const queryClient = useQueryClient();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceDeleteTarget | null>(null);
 
   const { data: project, isError: projectError } = useQuery({
     ...workspaceQuery.project(projectId ?? ""),
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
   });
 
   const {
@@ -29,15 +35,12 @@ export function ProjectPage() {
     isError,
   } = useQuery({
     ...workspaceQuery.diagrams(projectId ?? ""),
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: diagramsApi.delete,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] });
-      void queryClient.invalidateQueries({ queryKey: ["projects", "workspace"] });
-    },
+    mutationFn: (id: string) => deleteDiagramFromWorkspace(queryClient, projectId!, id),
+    onSuccess: () => setDeleteTarget(null),
   });
 
   return (
@@ -79,11 +82,6 @@ export function ProjectPage() {
         </div>
       </header>
 
-      {deleteMutation.isError && (
-        <p role="alert" className="px-6 py-2 text-sm text-muted-foreground">
-          Could not delete the diagram. Please try again.
-        </p>
-      )}
       {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
         <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-5">Diagrams</h2>
@@ -162,10 +160,10 @@ export function ProjectPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Delete diagram "${diagram.name}"?`)) {
-                        deleteMutation.mutate(diagram.id);
-                      }
+                      setDeleteTarget({ kind: "diagram", id: diagram.id, name: diagram.name });
                     }}
+                    aria-label={`Delete diagram ${diagram.name}`}
+                    disabled={deleteMutation.isPending}
                     className="p-1.5 rounded-md bg-white/80 dark:bg-zinc-900/80 hover:bg-red-50 dark:hover:bg-red-950 text-zinc-400 hover:text-red-500"
                   >
                     <TrashIcon className="w-3.5 h-3.5" />
@@ -180,6 +178,15 @@ export function ProjectPage() {
       {createOpen && projectId && (
         <CreateDiagramDialog projectId={projectId} onClose={() => setCreateOpen(false)} />
       )}
+      <WorkspaceDeleteDialog
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        onDelete={(item) => deleteMutation.mutate(item.id)}
+        pending={deleteMutation.isPending}
+        errorMessage={
+          deleteMutation.isError ? "Could not delete this diagram. Please retry." : undefined
+        }
+      />
     </div>
   );
 }

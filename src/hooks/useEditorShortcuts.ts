@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason } from "@/store/editLock";
 import { useUIStore } from "@/store/uiStore";
 import {
   getEditorShortcut,
@@ -48,6 +48,7 @@ function clearSelection() {
   );
 }
 
+// oxlint-disable-next-line complexity -- debt: complexity 24; extract branches
 function executeShortcut(command: EditorShortcut, actions: EditorShortcutActions): boolean {
   const state = useDiagramStore.getState();
   const ui = useUIStore.getState();
@@ -181,12 +182,7 @@ export function useEditorShortcuts(actions: EditorShortcutActions) {
       if (isTextEditingEvent(event) || hasBlockingEditorOverlay()) {
         return;
       }
-      const cloud = cloudWorkspace.getState();
-      if (
-        cloud.locked ||
-        cloud.status === "loading" ||
-        useAnimationStore.getState().pendingDeletions.size > 0
-      ) {
+      if (editBlockReason() !== null) {
         return;
       }
       if (command.type === "copy-selection" && window.getSelection()?.toString()) {

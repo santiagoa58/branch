@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import { layoutSiblings } from "./layout/elk";
 import {
   anchoredPosition,
   CONTAINER_HEADER,
@@ -11,26 +12,47 @@ import {
   type Size,
 } from "./layout/geometry";
 import { buildHierarchy } from "./layout/hierarchy";
+import { assignPorts } from "./layout/ports";
 import { projectEdges } from "./layout/projection";
-import { layoutSiblings } from "./layout/rank";
+import { layoutTiers } from "./layout/tiers";
+
+export interface DiagramLayout {
+  nodes: Node[];
+  edges: Edge[];
+}
 
 /**
  * Pure automatic left-to-right layout of a stored diagram (not its display rollups).
- * Children are sized and positioned before their containers participate in layout.
- * Node IDs are expected to be unique, as enforced by the diagram schema.
+ * Every component is placed in its zone (clients, edge, services, async, data), laid out by ELK's
+ * layered algorithm; children are sized and positioned before their containers take part, and
+ * each connection gets the ports that match the flow. Comments are shelved under their
+ * container's content. Node IDs are expected to be unique, as enforced by the diagram schema.
+ * The inputs are never modified, and the same input always gives the same output.
  */
-export function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Node[] {
+export async function autoLayoutDiagram(
+  nodes: Node[],
+  edges: Edge[],
+  quick = false,
+): Promise<DiagramLayout> {
   const hierarchy = buildHierarchy(nodes);
   const projected = projectEdges(edges, hierarchy);
+  const tiers = layoutTiers(hierarchy);
   const expandedSizes = new Map<string, Size>();
   const footprints = new Map<string, Size>();
   const positions = new Map<string, Point>();
 
-  const layoutChildren = (parent: string | undefined): Size => {
+  const layoutChildren = async (parent: string | undefined): Promise<Size> => {
     const children = hierarchy.children.get(parent) ?? [];
-    const layout = layoutSiblings(
-      children.map((child) => ({ id: child.id, ...footprints.get(child.id)! })),
+    const layout = await layoutSiblings(
+      children.map((child) => ({
+        id: child.id,
+        ...footprints.get(child.id)!,
+        // Root-level zones retain their order; inside a deployment boundary the dependency
+        // graph decides placement rather than forcing unrelated zone columns.
+        tier: parent === undefined ? tiers.get(child.id) : child.type === "comment" ? undefined : 0,
+      })),
       projected.get(parent) ?? [],
+      quick,
     );
     for (const [id, position] of layout.positions) {
       positions.set(id, {
@@ -41,23 +63,25 @@ export function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Node[] {
     return { width: layout.width, height: layout.height };
   };
 
-  // Iterative postorder also avoids recursive traversal on deeply nested diagrams.
+  // Postorder without recursion also handles deeply nested diagrams. Containers are laid out
+  // one at a time, bottom-up: each needs its children's final sizes.
   for (const node of [...hierarchy.preorder].reverse()) {
     const container = node.type === "group" || hierarchy.children.has(node.id);
-    const size = container ? containerSize(node, layoutChildren(node.id)) : leafSize(node);
+    // oxlint-disable-next-line no-await-in-loop -- a container needs its children's sizes first
+    const size = container ? containerSize(node, await layoutChildren(node.id)) : leafSize(node);
     if (container) {
       expandedSizes.set(node.id, size);
     }
     footprints.set(node.id, visibleSize(node, size));
   }
-  layoutChildren(undefined);
+  await layoutChildren(undefined);
 
-  return hierarchy.preorder.map((node) => {
+  const laidOut = hierarchy.preorder.map((node) => {
     const expanded = expandedSizes.get(node.id);
     return {
       ...node,
       position: anchoredPosition(node, positions.get(node.id)!, footprints.get(node.id)!),
-      ...(node.parentId !== undefined ? { extent: "parent" as const } : {}),
+      ...(node.parentId === undefined ? {} : { extent: "parent" as const }),
       ...(expanded
         ? {
             style: { ...node.style, ...expanded },
@@ -72,4 +96,5 @@ export function autoLayoutDiagram(nodes: Node[], edges: Edge[]): Node[] {
         : {}),
     };
   });
+  return { nodes: laidOut, edges: assignPorts(laidOut, edges) };
 }
