@@ -132,6 +132,44 @@ function press(key: string, init: KeyboardEventInit = {}) {
   fireEvent.keyDown(screen.getByTestId("canvas"), { key, ...init });
 }
 
+describe("connection focus on the canvas", () => {
+  it("highlights selection without saving or changing the real graph, and clears on a canvas click", () => {
+    render(<DiagramEditor />);
+    const storedEdges = useDiagramStore.getState().edges;
+    selectNode("api");
+    expect(flow.props.edges?.[0]?.data?.["connectionFocus"]).toBe("highlighted");
+    expect(useDiagramStore.getState().edges).toBe(storedEdges);
+    expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
+
+    act(() => {
+      flow.props.onNodesChange?.([{ id: "api", type: "select", selected: false }]);
+      flow.props.onPaneClick?.({} as React.MouseEvent);
+    });
+    expect(flow.props.edges?.[0]?.data).not.toHaveProperty("connectionFocus");
+  });
+
+  it.each(["flow", "traffic", "failure", "chaos"] as const)(
+    "lets %s simulation own highlighting and restores selection focus on exit",
+    (mode) => {
+      render(<DiagramEditor />);
+      selectNode("api");
+      act(() => useSimulationStore.getState().setMode(mode));
+      expect(flow.props.edges?.[0]?.data).not.toHaveProperty("connectionFocus");
+      act(() => useSimulationStore.getState().setMode("idle"));
+      expect(flow.props.edges?.[0]?.data?.["connectionFocus"]).toBe("highlighted");
+    },
+  );
+
+  it("clears node focus when inspecting a connection", () => {
+    render(<DiagramEditor />);
+    selectNode("api");
+    act(() =>
+      flow.props.onEdgeClick?.({} as React.MouseEvent, useDiagramStore.getState().edges[0]!),
+    );
+    expect(flow.props.edges?.[0]?.data).not.toHaveProperty("connectionFocus");
+  });
+});
+
 describe("the canvas during an AI design run", () => {
   it("stays viewable: pan, zoom and selection work, and nothing is inert", () => {
     render(<DiagramEditor />);

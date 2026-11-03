@@ -16,6 +16,7 @@ import { paletteNodeTypeSchema, type PaletteNodeType } from "@/schemas/ui";
 import type { ArchitectureNode, GroupNodeData } from "@/types";
 import { traceFlowPath } from "@/utils/graphTraversal";
 import { applyGroupCollapse } from "@/utils/groupRollup";
+import { focusConnections } from "@/utils/connectionFocus";
 import { cn } from "@/lib/utils";
 import { Squares2X2Icon } from "@heroicons/react/24/outline";
 import { exportSelectedAsSvg, exportSelectedAsPng } from "@/utils/export";
@@ -140,6 +141,8 @@ export function DiagramEditor() {
   const {
     nodes,
     edges,
+    selectedNodeId,
+    selectedEdgeId,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -169,6 +172,13 @@ export function DiagramEditor() {
   const { displayNodes, displayEdges } = useMemo(
     () => applyGroupCollapse(nodes, edges),
     [nodes, edges],
+  );
+  const focusedEdges = useMemo(
+    () =>
+      simulationMode === "idle" && selectedEdgeId === null
+        ? focusConnections(displayNodes, displayEdges, selectedNodeId)
+        : displayEdges,
+    [displayNodes, displayEdges, selectedNodeId, selectedEdgeId, simulationMode],
   );
 
   // Prevent default context menu on the diagram.
@@ -677,7 +687,7 @@ export function DiagramEditor() {
           <LaserPointer active={laserMode} containerRef={reactFlowWrapper} />
           <ReactFlow
             nodes={displayNodes}
-            edges={displayEdges}
+            edges={focusedEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}

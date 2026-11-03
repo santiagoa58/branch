@@ -1,8 +1,9 @@
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, type Edge } from "@xyflow/react";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import type { RollupEdgeData, EdgeProtocol } from "@/types";
 import { PROTOCOL_CONFIG } from "@/constants";
+import type { ConnectionFocusData } from "@/utils/connectionFocus";
 
 import { useDiagramStore } from "@/store/diagramStore";
 import { useEditBlocked } from "@/store/editLock";
@@ -23,8 +24,16 @@ export function RollupEdge({
   sourcePosition,
   targetPosition,
   data,
-}: EdgeProps) {
-  const edgeData = data as RollupEdgeData | undefined;
+}: EdgeProps<Edge<Partial<RollupEdgeData> & ConnectionFocusData>>) {
+  const {
+    connectionFocus,
+    count = 0,
+    protocols = [],
+    bidirectional = false,
+    collapsedGroupIds = [],
+  } = data ?? {};
+  const highlighted = connectionFocus === "highlighted";
+  const dimmed = connectionFocus === "dimmed";
 
   const toggleGroupCollapse = useDiagramStore((s) => s.toggleGroupCollapse);
   // Expanding the groups is an edit, so it is off while edits are blocked (an AI run).
@@ -46,20 +55,21 @@ export function RollupEdge({
   const handleExpand = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      edgeData?.collapsedGroupIds.forEach((groupId) => toggleGroupCollapse(groupId));
+      collapsedGroupIds.forEach((groupId) => toggleGroupCollapse(groupId));
     },
-    [edgeData, toggleGroupCollapse],
+    [collapsedGroupIds, toggleGroupCollapse],
   );
 
-  const count = edgeData?.count ?? 0;
-  const protocols = edgeData?.protocols ?? [];
-  const bidirectional = edgeData?.bidirectional ?? false;
-  const stroke = "var(--edge-color)";
+  const stroke = highlighted ? "var(--edge-focus)" : "var(--edge-color)";
   // Thicker line the more edges it stands in for (capped).
-  const strokeWidth = Math.min(2 + (count - 1) * 0.5, 4);
+  const strokeWidth = Math.max(highlighted ? 3 : 2, Math.min(2 + (count - 1) * 0.5, 4));
 
   return (
-    <g data-edge-id={id}>
+    <g
+      data-edge-id={id}
+      data-connection-focus={connectionFocus}
+      style={{ opacity: dimmed ? 0.18 : 1, transition: "opacity 200ms ease" }}
+    >
       <defs>
         <marker
           id={`rollup-arrow-${id}-end`}
@@ -73,6 +83,18 @@ export function RollupEdge({
           <path d="M 0 0 L 10 5 L 0 10 z" fill={stroke} />
         </marker>
       </defs>
+      {highlighted && (
+        <path
+          className="connection-focus-glow"
+          d={edgePath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={9}
+          strokeLinecap="round"
+          opacity={0.16}
+          pointerEvents="none"
+        />
+      )}
       <BaseEdge
         path={edgePath}
         style={{ stroke, strokeWidth, strokeDasharray: "7 4" }}
@@ -82,6 +104,7 @@ export function RollupEdge({
       <EdgeLabelRenderer>
         <button
           ref={labelRef}
+          data-connection-focus={connectionFocus}
           type="button"
           onClick={handleExpand}
           disabled={editBlocked}
@@ -89,9 +112,10 @@ export function RollupEdge({
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             pointerEvents: "all",
+            opacity: dimmed ? 0.2 : 1,
           }}
           className={cn(
-            "nodrag nopan flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-pointer transition-colors disabled:cursor-default",
+            "connection-label nodrag nopan flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-pointer transition-colors disabled:cursor-default",
             "bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm",
             "border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300",
             "hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400",

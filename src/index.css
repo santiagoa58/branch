@@ -49,6 +49,7 @@
   --grid-color: #a1a1aa;
   --edge-color: #71717a;
   --edge-selected: #52525b;
+  --edge-focus: oklch(0.546 0.215 263);
   /* Auto-layout zone bands behind the canvas: subtle, alternating fills. */
   --zone-band: color-mix(in oklch, var(--muted) 70%, transparent);
   --zone-band-alt: color-mix(in oklch, var(--muted) 35%, transparent);
@@ -100,6 +101,7 @@
   --grid-color: #3f3f46;
   --edge-color: #71717a;
   --edge-selected: #a1a1aa;
+  --edge-focus: oklch(0.746 0.16 254);
   --zone-band: color-mix(in oklch, var(--muted) 45%, transparent);
   --zone-band-alt: color-mix(in oklch, var(--muted) 22%, transparent);
   --zone-border: color-mix(in oklch, var(--border) 70%, transparent);
@@ -329,6 +331,14 @@ input[type="range"]::-webkit-slider-runnable-track {
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--edge-selected);
   stroke-width: 2;
+}
+
+/* Labels live in a separate portal, outside their SVG connection. */
+.connection-label[data-connection-focus="highlighted"] {
+  color: var(--edge-focus);
+  border-color: var(--edge-focus);
+  background: var(--card);
+  z-index: 1;
 }
 
 /* Remove default node styling */
