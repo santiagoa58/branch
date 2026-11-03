@@ -53,6 +53,7 @@ describe("Clerk session verification", () => {
     expect(createClient).toHaveBeenCalledWith({
       secretKey: "test-secret",
       publishableKey: "test-public",
+      telemetry: { disabled: true },
     });
     expect(authenticateRequest).toHaveBeenCalledWith(request, {
       authorizedParties: ["https://branch.test", "http://localhost:3000"],

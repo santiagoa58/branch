@@ -135,6 +135,8 @@ pnpm dev
 
 Open **http://localhost:3000**. This single command runs the complete app: the Vite+ frontend and the same-repository API functions through the Vercel runtime. It loads `.env.local` into the API process and fetches the current Vercel CLI on demand rather than adding its deployment-tool dependency tree to the application. Vercel runs locally without linking an account and starts Vite internally; do not open Vite's internal port directly, because it does not serve the API. There is no standalone NestJS service or local document fallback.
 
+The Vercel warning about running in local mode without a project setup is expected: `scripts/dev.mjs` deliberately uses `--local` and forwards validated settings from `.env.local` to the function workers. Remote Vercel settings and environment variables are not pulled. Vite's dependency re-optimization after a lockfile change and Vercel's local resource URLs are normal startup messages. Clerk SDK telemetry is disabled in both the browser provider and server client.
+
 If an older frontend-only server is still running on port 5173, stop it and restart with `pnpm dev`. The former `dev:cloud` command has been replaced by `pnpm dev`.
 
 Configure Clerk development origins for `http://localhost:3000`, and set `CLERK_AUTHORIZED_PARTIES=http://localhost:3000`. If testing a frontend at another origin, authorize that exact origin and supply a same-origin API; no cross-origin API URL is built into the app.
