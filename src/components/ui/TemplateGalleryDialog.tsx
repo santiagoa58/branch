@@ -123,12 +123,13 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
 
   // Layout is asynchronous; a template must not land after the gallery closed or the user left.
   const open = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // StrictMode replays setup after cleanup while retaining this ref.
+    open.current = true;
+    return () => {
       open.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
     if (loadingRef.current || editBlockReason() !== null) {

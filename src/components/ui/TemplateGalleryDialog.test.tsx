@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -8,9 +9,11 @@ import { notify } from "@/services/notify";
 
 function mount(onClose = vi.fn<() => void>()) {
   render(
-    <ReactFlowProvider>
-      <TemplateGalleryDialog isOpen onClose={onClose} />
-    </ReactFlowProvider>,
+    <StrictMode>
+      <ReactFlowProvider>
+        <TemplateGalleryDialog isOpen onClose={onClose} />
+      </ReactFlowProvider>
+    </StrictMode>,
   );
   return onClose;
 }
