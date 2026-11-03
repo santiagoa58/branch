@@ -168,7 +168,7 @@ function IconPickerSession({ onClose, onSelect, currentIcon }: IconPickerDialogP
       <span aria-hidden="true" className="flex size-8 items-center justify-center">
         <Icon icon={iconId} className="size-8" />
       </span>
-      <span className="w-full break-words text-center text-pretty">{name}</span>
+      <span className="w-full wrap-break-word text-center text-pretty">{name}</span>
     </button>
   );
 
