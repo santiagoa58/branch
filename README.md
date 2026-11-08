@@ -42,14 +42,15 @@ Built with React 19, React Flow, GSAP, Clerk authentication, and managed Postgre
 
 - **Traffic** — Live requests flow continuously from each saved flow's start (or every user, app, device and third party that calls in). Click a component to take it down; click it again to bring it back.
   - Synchronous calls get a response after their downstream work; a call to a down component fails there and a red error travels back to the caller
-  - Asynchronous hand-offs (queues, streams, async connections) never block the caller; while their receiver, or anything it depends on, is down, messages wait at the component holding them and are delivered when it recovers
+  - Queues and streams acknowledge acceptance separately from consumer processing. A down broker fails the enqueue; an accepted message waits at its queue/stream while its consumer is down and is delivered after recovery
+  - One-way notifications and other async connections do not invent durable buffering or replay
   - A request log shows each request's outcome in plain language, plus sent, success rate, failed, waiting and delivered counts
-  - Timing follows each connection's illustrative latency; speed and pause apply to requests already in flight
+  - Timing uses explicit connection latency or illustrative node-role defaults (cache, database, service, storage). Playback speed is separate from reported latency; see [simulation semantics and limits](docs/simulation.md)
 - **Trace** — Animated packet traces one request's path from a source node through the architecture
   - BFS/DFS path tracing with branching support (parallel packets at fork points)
-  - Latency-proportional animation speed per edge
+  - Independent branches progress and respond at their own pace; fast Redis calls can return while slower database calls remain in flight
   - Step-by-step debugger mode (forward/backward)
-  - Round-trip animation (request → response)
+  - Causal round-trip animation (request → its own response), using the same planner as Traffic
   - Real-time stats: total hops, protocols used, path length, total latency, bottleneck detection
   - **Sequence-diagram export** — generate a Mermaid `sequenceDiagram` from the traced path (sync vs. async arrows, protocol/method/schema/latency labels); copy, download as Markdown, or open in mermaid.live
 - **Blast radius** — Mark nodes as failed and see everything that depends on them

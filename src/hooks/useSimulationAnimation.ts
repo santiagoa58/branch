@@ -1,4 +1,4 @@
-// oxlint-disable max-lines -- debt: 1218 lines (limit 450); split the module
+// oxlint-disable max-lines -- debt: shared step and failure effects; split into dedicated hooks
 /**
  * useSimulationAnimation — GSAP orchestration hook for simulation visual effects.
  *
@@ -10,24 +10,24 @@
  *               level-by-level via BFS depth, instead of instant marking.
  */
 import { useEffect, useRef } from "react";
+import type { Edge } from "@xyflow/react";
 import { gsap, MotionPathPlugin } from "@/lib/gsap";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useDiagramStore } from "@/store/diagramStore";
+import { planSimulation } from "@/services/simulationPlanning";
 import { PROTOCOL_CONFIG } from "@/constants";
+import { edgeProtocolSchema } from "@/schemas/catalogEnums";
+import { planRequest, type TrafficHop } from "@/utils/trafficSimulation";
 import type { EdgeProtocol } from "@/types";
 import type { SimulationStats, BranchLevel } from "@/types/simulation";
 
 // ── Constants for latency-proportional timing ──────────────────────────────
 
 const DEFAULT_LATENCY = 100; // ms — edges without latencyMs use this
-const BASE_DURATION = 0.8; // seconds — animation duration at DEFAULT_LATENCY
-const MIN_DURATION = 0.3; // seconds — minimum per-step animation duration
-const MAX_DURATION = 3.0; // seconds — maximum per-step animation duration
-
-/** Compute GSAP animation duration proportional to edge latency. */
+/** Readable visual time; logarithmic compression preserves fast/slow ordering. Not a metric. */
 export function computeStepDuration(latencyMs?: number): number {
-  const latency = latencyMs ?? DEFAULT_LATENCY;
-  const duration = (BASE_DURATION * latency) / DEFAULT_LATENCY;
-  return Math.max(MIN_DURATION, Math.min(MAX_DURATION, duration));
+  const latency = Math.max(0, latencyMs ?? DEFAULT_LATENCY);
+  return 0.15 + 0.22 * Math.log2(1 + latency / 2);
 }
 
 /**
@@ -181,6 +181,61 @@ function createResponsePacketDots(
   return { inner, outer };
 }
 
+interface FlowHopAnimation {
+  tl: gsap.core.Timeline;
+  hop: TrafficHop;
+  layer: SVGSVGElement;
+  edgesById: ReadonlyMap<string, Edge>;
+  bottleneck: boolean;
+}
+
+/** Render one already-timed hop; animation never decides when a response is due. */
+function animateFlowHop({ tl, hop, layer, edgesById, bottleneck }: FlowHopAnimation) {
+  const path = getEdgePath(hop.edgeId);
+  if (!path) {
+    return { dots: [], wrappers: [] };
+  }
+  const parsed = edgeProtocolSchema.safeParse(edgesById.get(hop.edgeId)?.data?.["protocol"]);
+  const color = PROTOCOL_CONFIG[parsed.success ? parsed.data : "http"].color.primary;
+  const { inner, outer } = hop.reverse
+    ? createResponsePacketDots(layer, color)
+    : createPacketDots(layer, color);
+  if (hop.reverse) {
+    positionAtPathEnd(path, inner, outer);
+  } else {
+    positionAtPathStart(path, inner, outer);
+  }
+  const dots = [inner, outer];
+  gsap.set(dots, { opacity: 0 });
+  const at = hop.startMs / 1000;
+  const duration = hop.durationMs / 1000;
+  const wrapper = bottleneck
+    ? document.querySelector<HTMLElement>(`.react-flow__edge[data-id="${hop.edgeId}"]`)
+    : null;
+  if (wrapper) {
+    tl.to(wrapper, { boxShadow: `0 0 15px ${color}`, duration: 0.1 }, at);
+    tl.set(wrapper, { clearProps: "boxShadow" }, at + duration);
+  }
+  tl.set(dots, { opacity: hop.reverse ? 0.6 : 1 }, at);
+  tl.to(
+    dots,
+    {
+      motionPath: {
+        path,
+        align: path,
+        alignOrigin: [0.5, 0.5],
+        start: hop.reverse ? 1 : 0,
+        end: hop.reverse ? 0 : 1,
+      },
+      duration,
+      ease: "none",
+    },
+    at,
+  );
+  tl.set(dots, { opacity: 0 }, at + duration);
+  return { dots, wrappers: wrapper ? [wrapper] : [] };
+}
+
 // ── Stat computation helpers ───────────────────────────────────────────────
 
 function computeFlowStats(
@@ -234,8 +289,10 @@ function computeFlowStats(
   };
 }
 
-// oxlint-disable-next-line max-lines-per-function -- debt: 1044 lines; split into smaller units
+// oxlint-disable-next-line max-lines-per-function -- debt: shared step and failure effects; split into dedicated hooks
 export function useSimulationAnimation() {
+  const nodes = useDiagramStore((s) => s.nodes);
+  const edges = useDiagramStore((s) => s.edges);
   const mode = useSimulationStore((s) => s.mode);
   const isRunning = useSimulationStore((s) => s.isRunning);
   const speed = useSimulationStore((s) => s.speed);
@@ -331,582 +388,93 @@ export function useSimulationAnimation() {
     bottleneckWrapperRef.current = [];
   }
 
-  // ── Flow Simulation Animation — Continuous Mode (Packet + Highlights) ────
-  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 64, 472 lines; extract branches and split into smaller units
+  // Trace and Traffic use the same causal planner. Each response starts when its own
+  // dependency returns, rather than waiting for a graph-wide BFS/reverse sweep.
   useEffect(() => {
-    // Only run continuous flow animation when NOT in stepping mode
     if (mode !== "flow" || !isRunning || !flowPath || !sourceNodeId || steppingMode) {
-      // Kill flow timeline if we stop
-      if (flowTimelineRef.current) {
-        flowTimelineRef.current.kill();
-        flowTimelineRef.current = null;
-      }
-      // Clear inline styles using tracked IDs (store may already be reset)
-      if (!steppingMode) {
-        for (const nodeId of animatedFlowNodeIdsRef.current) {
-          const el = getNodeElement(nodeId);
-          if (el) {
-            gsap.set(el, { clearProps: "boxShadow,opacity,filter" });
-          }
-        }
-        animatedFlowNodeIdsRef.current = [];
-        cleanupPacketDots();
-        cleanupBottleneckGlow();
-      }
       return;
     }
-
-    const svgLayer = getEdgeSvgLayer();
-    if (!svgLayer) {
+    const layer = getEdgeSvgLayer();
+    if (!layer) {
       return;
     }
-
-    // Track which nodes we're animating for later cleanup
+    const byId = new Map(edges.map((edge) => [edge.id, edge]));
+    const tracedEdges = flowPath.steps.flatMap((step) => {
+      const edge = byId.get(step.edgeId);
+      return edge ? [{ ...edge, source: step.fromNodeId, target: step.toNodeId }] : [];
+    });
+    const options = { nodes };
+    const planned = planSimulation(() => ({
+      plan: planRequest(tracedEdges, sourceNodeId, new Set(), "trace", options),
+      visual: planRequest(tracedEdges, sourceNodeId, new Set(), "trace", {
+        ...options,
+        durationOf: (latencyMs: number) => computeStepDuration(latencyMs) * 1000,
+      }),
+    }));
+    if (!planned?.plan || !planned.visual) {
+      return;
+    }
+    const { plan, visual } = planned;
     animatedFlowNodeIdsRef.current = [...flowPath.nodeIds];
-
-    const levels = flowPath.levels ?? [];
-    const hasBranching = levels.some((l) => l.steps.length > 1);
-
-    // ── Compute bottleneck edge ──
-    let maxLatency = 0;
-    let bottleneckEdgeId: string | null = null;
-    for (const step of flowPath.steps) {
-      const lat = step.latencyMs ?? DEFAULT_LATENCY;
-      if (lat > maxLatency) {
-        maxLatency = lat;
-        bottleneckEdgeId = step.edgeId;
-      }
-    }
-
+    const stats = computeFlowStats(flowPath.steps, flowPath.nodeIds.length, flowPath.levels);
     const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.8 });
     flowTimelineRef.current = tl;
-
-    // Highlight source node with green glow
-    const sourceEl = getNodeElement(sourceNodeId);
-    if (sourceEl) {
-      tl.to(
-        sourceEl,
-        {
-          boxShadow: "0 0 25px rgba(16,185,129,0.6)",
-          duration: 0.4,
-          ease: "power2.out",
-        },
-        0,
-      );
-    }
-
-    let timeOffset = 0.5;
-    let forwardLatencyMs = 0;
-
-    /**
-     * Helper: add bottleneck amber glow for a step to the timeline.
-     */
-    const addBottleneckGlow = (edgeId: string, at: number, dur: number) => {
-      if (edgeId !== bottleneckEdgeId) {
-        return;
-      }
-      const wrapper = document.querySelector<HTMLElement>(`.react-flow__edge[data-id="${edgeId}"]`);
-      if (!wrapper) {
-        return;
-      }
-      bottleneckWrapperRef.current.push(wrapper);
-      tl.to(
-        wrapper,
-        {
-          boxShadow: "0 0 15px rgba(245,158,11,0.7)",
-          duration: 0.2,
-          ease: "power2.out",
-        },
-        at,
-      );
-      tl.to(
-        wrapper,
-        {
-          clearProps: "boxShadow",
-          duration: 0.3,
-        },
-        at + dur + 0.1,
-      );
-    };
-
-    if (hasBranching && levels.length > 0) {
-      // ── Branching Mode: Per-level parallel packets ─────────────────
-
-      // Detect merge points: toNodeIds that appear from different branchIds
-      const nodeAppearances = new Map<string, Set<string>>();
-      for (const level of levels) {
-        for (const step of level.steps) {
-          if (!nodeAppearances.has(step.toNodeId)) {
-            nodeAppearances.set(step.toNodeId, new Set());
-          }
-          nodeAppearances.get(step.toNodeId)!.add(step.branchId);
-        }
-      }
-      const mergeNodeIds = new Set<string>();
-      for (const [nodeId, branches] of nodeAppearances) {
-        if (branches.size > 1) {
-          mergeNodeIds.add(nodeId);
-        }
-      }
-
-      for (const level of levels) {
-        const levelDurations = level.steps.map((s) => computeStepDuration(s.latencyMs));
-        const levelMaxDuration = Math.max(...levelDurations, MIN_DURATION);
-        const levelMaxLatency = Math.max(...level.steps.map((s) => s.latencyMs ?? DEFAULT_LATENCY));
-        forwardLatencyMs += levelMaxLatency;
-
-        for (let si = 0; si < level.steps.length; si++) {
-          const step = level.steps[si];
-          const duration = levelDurations[si];
-          if (!step || duration === undefined) {
-            continue;
-          }
-          const protocol = (step.protocol || "http") as EdgeProtocol;
-          const config = PROTOCOL_CONFIG[protocol];
-          const color = config?.color?.primary || "#3b82f6";
-          const pathEl = getEdgePath(step.edgeId);
-
-          // Branch packets get slightly decreasing opacity
-          const branchOpacity = level.steps.length > 1 ? Math.max(0.5, 1 - si * 0.15) : 1;
-          const { inner, outer } = createPacketDots(svgLayer, color);
-          packetDotsRef.current.push(inner, outer);
-
-          // Position at start of edge so dots don't flash at SVG origin
-          if (pathEl) {
-            positionAtPathStart(pathEl, inner, outer);
-          }
-
-          gsap.set([inner, outer], { opacity: 0 });
-
-          // Fade in
-          tl.to(inner, { opacity: branchOpacity, duration: 0.12 }, timeOffset);
-          tl.to(outer, { opacity: branchOpacity * 0.3, duration: 0.12 }, timeOffset);
-
-          // Update color
-          tl.call(
-            () => {
-              inner.setAttribute("fill", color);
-              inner.style.filter = `drop-shadow(0 0 4px ${color})`;
-              outer.setAttribute("fill", color);
-            },
-            [],
-            timeOffset,
-          );
-
-          // Animate along path
-          if (pathEl) {
-            const rawPath = MotionPathPlugin.getRawPath(pathEl);
-            MotionPathPlugin.cacheRawPathMeasurements(rawPath);
-            tl.to(
-              inner,
-              {
-                motionPath: {
-                  path: pathEl,
-                  align: pathEl,
-                  alignOrigin: [0.5, 0.5],
-                },
-                duration,
-                ease: "power1.inOut",
-              },
-              timeOffset,
-            );
-            tl.to(
-              outer,
-              {
-                motionPath: {
-                  path: pathEl,
-                  align: pathEl,
-                  alignOrigin: [0.5, 0.5],
-                },
-                duration,
-                ease: "power1.inOut",
-              },
-              timeOffset,
-            );
-          }
-
-          // Pulse on arrival
-          tl.to(
-            inner,
-            {
-              attr: { r: 8 },
-              duration: 0.15,
-              yoyo: true,
-              repeat: 1,
-              ease: "power2.out",
-            },
-            timeOffset + duration,
-          );
-          tl.to(
-            outer,
-            {
-              attr: { r: 14 },
-              duration: 0.15,
-              yoyo: true,
-              repeat: 1,
-              ease: "power2.out",
-            },
-            timeOffset + duration,
-          );
-
-          // Flash destination node
-          const toEl = getNodeElement(step.toNodeId);
-          if (toEl) {
-            tl.to(
-              toEl,
-              {
-                boxShadow: `0 0 20px ${color}80`,
-                duration: 0.3,
-                ease: "power2.out",
-              },
-              timeOffset + duration - 0.1,
-            );
-            tl.to(
-              toEl,
-              {
-                boxShadow: "0 0 0px transparent",
-                duration: 0.4,
-                ease: "power2.in",
-              },
-              timeOffset + duration + 0.3,
-            );
-            // Merge pulse (white flash) if this is a merge point
-            // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
-            if (mergeNodeIds.has(step.toNodeId)) {
-              tl.to(
-                toEl,
-                {
-                  boxShadow: "0 0 25px rgba(255,255,255,0.8)",
-                  duration: 0.15,
-                  yoyo: true,
-                  repeat: 1,
-                  ease: "power2.out",
-                },
-                timeOffset + duration + 0.1,
-              );
-            }
-          }
-
-          // Bottleneck glow
-          addBottleneckGlow(step.edgeId, timeOffset, duration);
-
-          // Fade out after level
-          tl.to(
-            [inner, outer],
-            { opacity: 0, duration: 0.12 },
-            timeOffset + levelMaxDuration + 0.25,
-          );
-        }
-
-        timeOffset += levelMaxDuration + 0.4;
-      }
-    } else {
-      // ── Single-Path Mode: One persistent packet ───────────────────
-
-      const firstProtocol = (flowPath.steps[0]?.protocol || "http") as EdgeProtocol;
-      const firstConfig = PROTOCOL_CONFIG[firstProtocol];
-      const firstColor = firstConfig?.color?.primary || "#3b82f6";
-
-      const { inner, outer } = createPacketDots(svgLayer, firstColor);
-      packetDotsRef.current = [inner, outer];
-
-      // Position at start of first edge so dots don't flash at SVG origin
-      const firstEdgeId = flowPath.steps[0]?.edgeId;
-      const firstPathEl = firstEdgeId ? getEdgePath(firstEdgeId) : null;
-      if (firstPathEl) {
-        positionAtPathStart(firstPathEl, inner, outer);
-      }
-
-      gsap.set([inner, outer], { opacity: 0 });
-
-      // Fade in
-      tl.to([inner, outer], { opacity: 1, duration: 0.2 }, 0.2);
-
-      for (const step of flowPath.steps) {
-        const protocol = (step.protocol || "http") as EdgeProtocol;
-        const config = PROTOCOL_CONFIG[protocol];
-        const color = config?.color?.primary || "#3b82f6";
-        const duration = computeStepDuration(step.latencyMs);
-        const stepLatency = step.latencyMs ?? DEFAULT_LATENCY;
-        forwardLatencyMs += stepLatency;
-
-        const pathEl = getEdgePath(step.edgeId);
-
-        // Update packet color if protocol changes
-        tl.call(
-          () => {
-            inner.setAttribute("fill", color);
-            inner.style.filter = `drop-shadow(0 0 4px ${color})`;
-            outer.setAttribute("fill", color);
-          },
-          [],
-          timeOffset,
-        );
-
-        // Animate packet along the edge path
-        if (pathEl) {
-          const rawPath = MotionPathPlugin.getRawPath(pathEl);
-          MotionPathPlugin.cacheRawPathMeasurements(rawPath);
-
-          tl.to(
-            inner,
-            {
-              motionPath: {
-                path: pathEl,
-                align: pathEl,
-                alignOrigin: [0.5, 0.5],
-              },
-              duration,
-              ease: "power1.inOut",
-            },
-            timeOffset,
-          );
-          tl.to(
-            outer,
-            {
-              motionPath: {
-                path: pathEl,
-                align: pathEl,
-                alignOrigin: [0.5, 0.5],
-              },
-              duration,
-              ease: "power1.inOut",
-            },
-            timeOffset,
-          );
-        }
-
-        // Pulse packet on arrival
-        tl.to(
-          inner,
-          {
-            attr: { r: 8 },
-            duration: 0.15,
-            yoyo: true,
-            repeat: 1,
-            ease: "power2.out",
-          },
-          timeOffset + duration,
-        );
-        tl.to(
-          outer,
-          {
-            attr: { r: 14 },
-            duration: 0.15,
-            yoyo: true,
-            repeat: 1,
-            ease: "power2.out",
-          },
-          timeOffset + duration,
-        );
-
-        // Flash-highlight the destination node
-        const toEl = getNodeElement(step.toNodeId);
-        if (toEl) {
-          tl.to(
-            toEl,
-            {
-              boxShadow: `0 0 20px ${color}80`,
-              duration: 0.3,
-              ease: "power2.out",
-            },
-            timeOffset + duration - 0.1,
-          );
-          tl.to(
-            toEl,
-            {
-              boxShadow: "0 0 0px transparent",
-              duration: 0.4,
-              ease: "power2.in",
-            },
-            timeOffset + duration + 0.3,
-          );
-        }
-
-        // Bottleneck glow
-        addBottleneckGlow(step.edgeId, timeOffset, duration);
-
-        timeOffset += duration + 0.4;
-      }
-
-      // Fade out packet at the end before repeat
-      tl.to([inner, outer], { opacity: 0, duration: 0.3 }, timeOffset);
-    }
-
-    // ── Round-Trip Return Journey ──────────────────────────────────────
-    let roundTripLatencyMs: number | null = null;
-    if (roundTripEnabled && flowPath.steps.length > 0) {
-      // Build return steps: reverse of forward path, filtering out non-request/response protocols
-      const returnSteps = [...flowPath.steps]
-        .filter((step) => {
-          const protocol = (step.protocol || "http") as EdgeProtocol;
-          const config = PROTOCOL_CONFIG[protocol];
-          return config?.requestResponse;
-        })
-        .reverse()
-        .map((step) => ({
-          ...step,
-          fromNodeId: step.toNodeId,
-          toNodeId: step.fromNodeId,
-        }));
-
-      if (returnSteps.length > 0) {
-        timeOffset += 0.5; // gap between forward and return
-
-        // Signal round-trip phase
-        tl.call(
-          () => {
-            useSimulationStore.getState().setRoundTripPhase("response");
-          },
-          [],
-          timeOffset,
-        );
-
-        let returnLatencyMs = 0;
-
-        for (const step of returnSteps) {
-          const protocol = (step.protocol || "http") as EdgeProtocol;
-          const config = PROTOCOL_CONFIG[protocol];
-          const color = config?.color?.secondary || "#60a5fa";
-          const duration = computeStepDuration(step.latencyMs);
-          const stepLatency = step.latencyMs ?? DEFAULT_LATENCY;
-          returnLatencyMs += stepLatency;
-
-          const pathEl = getEdgePath(step.edgeId);
-
-          // Create response packet dots (muted visual)
-          const { inner: rInner, outer: rOuter } = createResponsePacketDots(svgLayer, color);
-          packetDotsRef.current.push(rInner, rOuter);
-
-          // Position at end of path (response travels in reverse)
-          if (pathEl) {
-            positionAtPathEnd(pathEl, rInner, rOuter);
-          }
-
-          gsap.set([rInner, rOuter], { opacity: 0 });
-
-          // Fade in
-          tl.to(rInner, { opacity: 0.6, duration: 0.12 }, timeOffset);
-          tl.to(rOuter, { opacity: 0.4, duration: 0.12 }, timeOffset);
-
-          // Animate along path in REVERSE direction (start:1 → end:0)
-          if (pathEl) {
-            const rawPath = MotionPathPlugin.getRawPath(pathEl);
-            MotionPathPlugin.cacheRawPathMeasurements(rawPath);
-
-            tl.to(
-              rInner,
-              {
-                motionPath: {
-                  path: pathEl,
-                  align: pathEl,
-                  alignOrigin: [0.5, 0.5],
-                  start: 1,
-                  end: 0,
-                },
-                duration,
-                ease: "power1.inOut",
-              },
-              timeOffset,
-            );
-            tl.to(
-              rOuter,
-              {
-                motionPath: {
-                  path: pathEl,
-                  align: pathEl,
-                  alignOrigin: [0.5, 0.5],
-                  start: 1,
-                  end: 0,
-                },
-                duration,
-                ease: "power1.inOut",
-              },
-              timeOffset,
-            );
-          }
-
-          // Pulse on arrival
-          tl.to(
-            rInner,
-            {
-              attr: { r: 6 },
-              duration: 0.12,
-              yoyo: true,
-              repeat: 1,
-              ease: "power2.out",
-            },
-            timeOffset + duration,
-          );
-
-          // Flash destination node (muted)
-          const toEl = getNodeElement(step.toNodeId);
-          if (toEl) {
-            tl.to(
-              toEl,
-              {
-                boxShadow: `0 0 15px ${color}60`,
-                duration: 0.25,
-                ease: "power2.out",
-              },
-              timeOffset + duration - 0.1,
-            );
-            tl.to(
-              toEl,
-              {
-                boxShadow: "0 0 0px transparent",
-                duration: 0.3,
-                ease: "power2.in",
-              },
-              timeOffset + duration + 0.2,
-            );
-          }
-
-          // Fade out response packet
-          tl.to([rInner, rOuter], { opacity: 0, duration: 0.12 }, timeOffset + duration + 0.15);
-
-          timeOffset += duration + 0.3;
-        }
-
-        // End round-trip phase
-        tl.call(
-          () => {
-            useSimulationStore.getState().setRoundTripPhase(null);
-          },
-          [],
-          timeOffset,
-        );
-
-        roundTripLatencyMs = forwardLatencyMs + returnLatencyMs;
-      }
-    }
-
-    tl.timeScale(speed);
-
-    // Compute and set stats
-    const stats = computeFlowStats(
-      flowPath.steps,
-      flowPath.nodeIds.length,
-      flowPath.levels,
-      roundTripLatencyMs,
+    const visibleHops = visual.hops.filter((hop) => roundTripEnabled || !hop.reverse);
+    const firstResponseMs = visibleHops.reduce(
+      (first, hop) => (hop.reverse ? Math.min(first, hop.startMs) : first),
+      Infinity,
     );
-    useSimulationStore.getState().setStats(stats);
-
+    const visualEndMs = visibleHops.reduce(
+      (end, hop) => Math.max(end, hop.startMs + hop.durationMs),
+      0,
+    );
+    for (const hop of visibleHops) {
+      const rendered = animateFlowHop({
+        tl,
+        hop,
+        layer,
+        edgesById: byId,
+        bottleneck: hop.edgeId === stats.bottleneckEdgeId,
+      });
+      packetDotsRef.current.push(...rendered.dots);
+      bottleneckWrapperRef.current.push(...rendered.wrappers);
+    }
+    tl.call(() => useSimulationStore.getState().setRoundTripPhase("request"), [], 0);
+    if (Number.isFinite(firstResponseMs)) {
+      tl.call(
+        () => useSimulationStore.getState().setRoundTripPhase("response"),
+        [],
+        firstResponseMs / 1000,
+      );
+    }
+    tl.set({}, {}, visualEndMs / 1000);
+    tl.call(() => useSimulationStore.getState().setRoundTripPhase(null), [], visualEndMs / 1000);
+    tl.timeScale(speed);
+    const forwards = plan.hops.filter((hop) => !hop.reverse);
+    useSimulationStore.getState().setStats({
+      ...stats,
+      totalLatencyMs: forwards.reduce((end, hop) => Math.max(end, hop.startMs + hop.durationMs), 0),
+      roundTripLatencyMs: roundTripEnabled ? plan.responseMs : null,
+    });
     return () => {
       tl.kill();
       flowTimelineRef.current = null;
-      for (const nodeId of animatedFlowNodeIdsRef.current) {
-        const el = getNodeElement(nodeId);
-        if (el) {
-          gsap.set(el, { clearProps: "boxShadow,opacity,filter" });
-        }
-      }
-      animatedFlowNodeIdsRef.current = [];
       cleanupPacketDots();
       cleanupBottleneckGlow();
+      animatedFlowNodeIdsRef.current = [];
       useSimulationStore.getState().setRoundTripPhase(null);
     };
-  }, [mode, isRunning, flowPath, sourceNodeId, steppingMode, roundTripEnabled, speed]);
+  }, [
+    mode,
+    isRunning,
+    flowPath,
+    sourceNodeId,
+    steppingMode,
+    roundTripEnabled,
+    speed,
+    nodes,
+    edges,
+  ]);
 
   // ── Flow Simulation — Step-by-Step Debugger Mode ─────────────────────────
   // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 58, 237 lines; extract branches and split into smaller units

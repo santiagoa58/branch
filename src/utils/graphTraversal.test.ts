@@ -70,11 +70,11 @@ describe("traceFlowPath", () => {
     expect(path.edgeIds).toEqual(["a-b", "a-c", "b-d", "c-d", "x-c", "d-a"]);
     expect(path.steps).toEqual([
       { edgeId: "a-b", fromNodeId: "a", toNodeId: "b", protocol: "http", latencyMs: 10 },
-      { edgeId: "a-c", fromNodeId: "a", toNodeId: "c" },
+      { edgeId: "a-c", fromNodeId: "a", toNodeId: "c", latencyMs: 100 },
       { edgeId: "b-d", fromNodeId: "b", toNodeId: "d", protocol: "grpc", latencyMs: 80 },
       { edgeId: "c-d", fromNodeId: "c", toNodeId: "d", protocol: "websocket", latencyMs: 30 },
       { edgeId: "x-c", fromNodeId: "c", toNodeId: "x", protocol: "sql", latencyMs: 50 },
-      { edgeId: "d-a", fromNodeId: "d", toNodeId: "a" },
+      { edgeId: "d-a", fromNodeId: "d", toNodeId: "a", latencyMs: 100 },
     ]);
     expect(
       path.levels?.map((level) => ({
@@ -125,8 +125,8 @@ describe("traceFlowPath", () => {
     );
 
     expect(path.steps).toHaveLength(3);
-    expect(totalLatencyMs).toBe(102);
-    expect(bottleneck?.edgeId).toBe("slow");
+    expect(totalLatencyMs).toBe(202);
+    expect(bottleneck?.edgeId).toBe("invalid");
     expect(protocols).toEqual(["http", "grpc"]);
     expect(branchIds.size).toBe(3);
   });
