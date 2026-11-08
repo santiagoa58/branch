@@ -76,24 +76,13 @@ export function getEdgeSvgLayer(): SVGSVGElement | null {
 }
 
 /**
- * Find the first <path> element inside an edge group that has a `d` attribute
- * (skip markers). Prefer the BaseEdge path which is the direct child with the
- * edge path data.
+ * Follow React Flow's BaseEdge path, never arrowhead definitions, hit areas or glow overlays.
+ * Marker paths also have `d` attributes and use coordinates near (0, 0).
  */
 export function getEdgePath(edgeId: string): SVGPathElement | null {
-  const edgeGroup = getEdgeElement(edgeId);
-  if (!edgeGroup) {
-    return null;
-  }
-  // Look for paths with a d attribute — the first one with stroke is usually the base edge
-  const paths = edgeGroup.querySelectorAll("path[d]");
-  for (const p of paths) {
-    const d = p.getAttribute("d");
-    if (d && d.length > 10) {
-      return p as SVGPathElement;
-    } // skip trivial marker paths
-  }
-  return null;
+  return (
+    getEdgeElement(edgeId)?.querySelector<SVGPathElement>("path.react-flow__edge-path") ?? null
+  );
 }
 
 /**
