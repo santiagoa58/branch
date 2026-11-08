@@ -135,6 +135,63 @@ describe("causal trace animation", () => {
   });
 });
 
+describe("step trace cleanup", () => {
+  it.each(["stop", "idle", "traffic", "failure", "chaos", "continuous", "unmount"] as const)(
+    "removes node highlights and pending tweens when leaving through %s",
+    (exit) => {
+      const nodes = ["source", "visited"].map((id) => ({
+        id,
+        type: "architecture",
+        position: { x: 0, y: 0 },
+        data: { type: "service", label: id },
+      }));
+      const edges = [
+        { id: "call", source: "source", target: "visited", data: { protocol: "http" } },
+      ];
+      useDiagramStore.setState({ nodes, edges });
+      useSimulationStore.getState().setMode("flow");
+      useSimulationStore.getState().setSteppingMode(true);
+      useSimulationStore
+        .getState()
+        .startFlowSimulation("source", traceFlowPath(nodes, edges, "source"));
+      const { container } = render(
+        <div>
+          <div data-node-id="source" />
+          <div data-node-id="visited" />
+        </div>,
+      );
+      const hook = renderHook(() => useSimulationAnimation());
+      const elements = [...container.querySelectorAll<HTMLElement>("[data-node-id]")];
+      // Leave while the actual GSAP highlight tweens are still in progress.
+      for (const tween of gsap.getTweensOf(elements)) {
+        tween.progress(0.5);
+      }
+      expect(elements.every((element) => element.style.boxShadow !== "")).toBe(true);
+      act(() => {
+        if (exit === "unmount") {
+          hook.unmount();
+        } else if (exit === "continuous") {
+          useSimulationStore.getState().setSteppingMode(false);
+        } else if (exit === "stop") {
+          useSimulationStore.getState().stop();
+        } else {
+          useSimulationStore.getState().setMode(exit);
+        }
+      });
+      for (const tween of gsap.getTweensOf(elements)) {
+        tween.progress(1);
+      }
+      for (const element of elements) {
+        expect(element.style.boxShadow).toBe("");
+        expect(element.style.opacity).toBe("");
+        expect(element.style.filter).toBe("");
+      }
+      expect(container.querySelector(".simulation-step-badge")).toBeNull();
+      expect(gsap.getTweensOf(elements)).toHaveLength(0);
+    },
+  );
+});
+
 describe("simulation connection path lookup", () => {
   it.each([false, true])(
     "follows the real connection instead of its arrowhead or glow (bidirectional: %s)",

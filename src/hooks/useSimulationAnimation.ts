@@ -477,7 +477,7 @@ export function useSimulationAnimation() {
   ]);
 
   // ── Flow Simulation — Step-by-Step Debugger Mode ─────────────────────────
-  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 58, 237 lines; extract branches and split into smaller units
+  // oxlint-disable-next-line max-lines-per-function -- debt: existing step renderer; extract branches and split into smaller units
   useEffect(() => {
     if (mode !== "flow" || !steppingMode || !flowPath || !sourceNodeId || currentStepIndex < 0) {
       // Cleanup stepping visuals — only clean what stepping mode owns
@@ -489,59 +489,184 @@ export function useSimulationAnimation() {
       return;
     }
 
-    // Clear previous step visuals
-    cleanupStepBadges();
-    for (const nodeId of animatedFlowNodeIdsRef.current) {
-      const el = getNodeElement(nodeId);
-      if (el) {
-        gsap.set(el, { clearProps: "boxShadow,opacity,filter" });
-      }
-    }
-    if (steppingOwnedDotsRef.current) {
-      cleanupPacketDots();
-    }
-
-    animatedFlowNodeIdsRef.current = [...flowPath.nodeIds];
-
-    // Highlight source node
-    const sourceEl = getNodeElement(sourceNodeId);
-    if (sourceEl) {
-      gsap.to(sourceEl, {
-        boxShadow: "0 0 20px rgba(16,185,129,0.5)",
-        duration: 0.3,
-        ease: "power2.out",
-      });
-      const sourceBadge = createStepBadge(sourceNodeId, 0);
-      if (sourceBadge) {
-        sourceBadge.style.background = "#10b981";
-        sourceBadge.textContent = "S";
-        stepBadgesRef.current.push(sourceBadge);
-      }
-    }
-
-    const levels = flowPath.levels;
-
-    if (levels && levels.length > 0) {
-      // ── Level-based stepping (branch-aware) ──
-      const clampedIndex = Math.min(currentStepIndex, levels.length - 1);
-
-      for (let li = 0; li <= clampedIndex; li++) {
-        const level = levels[li];
-        if (!level) {
-          continue;
+    // Scope every step tween and style write to this effect. Reverting kills
+    // in-flight highlights before restoring their original inline styles.
+    // oxlint-disable-next-line complexity, max-lines-per-function -- debt: existing step renderer; extract branches and split into smaller units
+    const stepContext = gsap.context(() => {
+      // Clear previous step visuals
+      cleanupStepBadges();
+      for (const nodeId of animatedFlowNodeIdsRef.current) {
+        const el = getNodeElement(nodeId);
+        if (el) {
+          gsap.set(el, { clearProps: "boxShadow,opacity,filter" });
         }
-        const isCurrentLevel = li === clampedIndex;
+      }
+      if (steppingOwnedDotsRef.current) {
+        cleanupPacketDots();
+      }
 
-        for (const step of level.steps) {
+      animatedFlowNodeIdsRef.current = [...flowPath.nodeIds];
+
+      // Highlight source node
+      const sourceEl = getNodeElement(sourceNodeId);
+      if (sourceEl) {
+        gsap.to(sourceEl, {
+          boxShadow: "0 0 20px rgba(16,185,129,0.5)",
+          duration: 0.3,
+          ease: "power2.out",
+        });
+        const sourceBadge = createStepBadge(sourceNodeId, 0);
+        if (sourceBadge) {
+          sourceBadge.style.background = "#10b981";
+          sourceBadge.textContent = "S";
+          stepBadgesRef.current.push(sourceBadge);
+        }
+      }
+
+      const levels = flowPath.levels;
+
+      if (levels && levels.length > 0) {
+        // ── Level-based stepping (branch-aware) ──
+        const clampedIndex = Math.min(currentStepIndex, levels.length - 1);
+
+        for (let li = 0; li <= clampedIndex; li++) {
+          const level = levels[li];
+          if (!level) {
+            continue;
+          }
+          const isCurrentLevel = li === clampedIndex;
+
+          for (const step of level.steps) {
+            const protocol = (step.protocol || "http") as EdgeProtocol;
+            const config = PROTOCOL_CONFIG[protocol];
+            const color = config?.color?.primary || "#3b82f6";
+
+            // Highlight destination node
+            const toEl = getNodeElement(step.toNodeId);
+            if (toEl) {
+              // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
+              if (isCurrentLevel) {
+                gsap.to(toEl, {
+                  boxShadow: `0 0 30px ${color}`,
+                  duration: 0.4,
+                  ease: "power2.out",
+                });
+              } else {
+                gsap.set(toEl, {
+                  boxShadow: `0 0 12px ${color}60`,
+                });
+              }
+            }
+
+            // Add depth badge
+            const badge = createStepBadge(step.toNodeId, li + 1);
+            if (badge) {
+              // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
+              if (isCurrentLevel) {
+                badge.style.background = color;
+                badge.style.boxShadow = `0 0 12px ${color}`;
+                badge.style.transform = "scale(1.2)";
+              }
+              stepBadgesRef.current.push(badge);
+            }
+
+            // Edge highlight
+            const edgeEl = getEdgeElement(step.edgeId);
+            if (edgeEl && isCurrentLevel) {
+              gsap.to(edgeEl, { opacity: 1, duration: 0.3 });
+            }
+          }
+        }
+
+        // Animate packets for current level
+        const svgLayer = getEdgeSvgLayer();
+        if (svgLayer) {
+          const currentLevel = levels[clampedIndex];
+          if (!currentLevel) {
+            return;
+          }
+          for (const step of currentLevel.steps) {
+            const protocol = (step.protocol || "http") as EdgeProtocol;
+            const config = PROTOCOL_CONFIG[protocol];
+            const color = config?.color?.primary || "#3b82f6";
+            const pathEl = getEdgePath(step.edgeId);
+            const duration = Math.min(computeStepDuration(step.latencyMs), 0.5);
+
+            if (pathEl) {
+              const { inner, outer } = createPacketDots(svgLayer, color);
+              packetDotsRef.current.push(inner, outer);
+              steppingOwnedDotsRef.current = true;
+
+              positionAtPathStart(pathEl, inner, outer);
+
+              const rawPath = MotionPathPlugin.getRawPath(pathEl);
+              MotionPathPlugin.cacheRawPathMeasurements(rawPath);
+
+              gsap.fromTo([inner, outer], { opacity: 0 }, { opacity: 1, duration: 0.15 });
+              gsap.to(inner, {
+                motionPath: {
+                  path: pathEl,
+                  align: pathEl,
+                  alignOrigin: [0.5, 0.5],
+                },
+                duration,
+                ease: "power1.inOut",
+              });
+              gsap.to(outer, {
+                motionPath: {
+                  path: pathEl,
+                  align: pathEl,
+                  alignOrigin: [0.5, 0.5],
+                },
+                duration,
+                ease: "power1.inOut",
+              });
+              gsap.to(inner, {
+                attr: { r: 8 },
+                duration: 0.15,
+                yoyo: true,
+                repeat: 1,
+                delay: duration,
+                ease: "power2.out",
+              });
+            }
+          }
+        }
+
+        // Update stats for level-based stepping
+        const stepsUpToLevel: typeof flowPath.steps = [];
+        for (let li = 0; li <= clampedIndex; li++) {
+          const level = levels[li];
+          if (!level) {
+            continue;
+          }
+          for (const step of level.steps) {
+            stepsUpToLevel.push(step);
+          }
+        }
+        const visitedNodeIds = new Set<string>([sourceNodeId]);
+        for (const s of stepsUpToLevel) {
+          visitedNodeIds.add(s.toNodeId);
+        }
+        const stats = computeFlowStats(stepsUpToLevel, visitedNodeIds.size, levels);
+        useSimulationStore.getState().setStats(stats);
+      } else {
+        // ── Flat stepping (backward compat) ──
+        for (let i = 0; i <= currentStepIndex; i++) {
+          const step = flowPath.steps[i];
+          if (!step) {
+            continue;
+          }
           const protocol = (step.protocol || "http") as EdgeProtocol;
           const config = PROTOCOL_CONFIG[protocol];
           const color = config?.color?.primary || "#3b82f6";
 
+          const isCurrentStep = i === currentStepIndex;
+
           // Highlight destination node
           const toEl = getNodeElement(step.toNodeId);
           if (toEl) {
-            // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
-            if (isCurrentLevel) {
+            if (isCurrentStep) {
               gsap.to(toEl, {
                 boxShadow: `0 0 30px ${color}`,
                 duration: 0.4,
@@ -554,11 +679,10 @@ export function useSimulationAnimation() {
             }
           }
 
-          // Add depth badge
-          const badge = createStepBadge(step.toNodeId, li + 1);
+          // Add step number badge
+          const badge = createStepBadge(step.toNodeId, i + 1);
           if (badge) {
-            // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
-            if (isCurrentLevel) {
+            if (isCurrentStep) {
               badge.style.background = color;
               badge.style.boxShadow = `0 0 12px ${color}`;
               badge.style.transform = "scale(1.2)";
@@ -566,31 +690,28 @@ export function useSimulationAnimation() {
             stepBadgesRef.current.push(badge);
           }
 
-          // Edge highlight
+          // Show edge highlight for visited edges
           const edgeEl = getEdgeElement(step.edgeId);
-          if (edgeEl && isCurrentLevel) {
+          if (edgeEl && isCurrentStep) {
             gsap.to(edgeEl, { opacity: 1, duration: 0.3 });
           }
         }
-      }
 
-      // Animate packets for current level
-      const svgLayer = getEdgeSvgLayer();
-      if (svgLayer) {
-        const currentLevel = levels[clampedIndex];
-        if (!currentLevel) {
-          return;
-        }
-        for (const step of currentLevel.steps) {
-          const protocol = (step.protocol || "http") as EdgeProtocol;
+        // Animate packet to current step position
+        const svgLayer = getEdgeSvgLayer();
+        if (svgLayer) {
+          const currentStep = flowPath.steps[currentStepIndex];
+          if (!currentStep) {
+            return;
+          }
+          const protocol = (currentStep.protocol || "http") as EdgeProtocol;
           const config = PROTOCOL_CONFIG[protocol];
           const color = config?.color?.primary || "#3b82f6";
-          const pathEl = getEdgePath(step.edgeId);
-          const duration = Math.min(computeStepDuration(step.latencyMs), 0.5);
+          const pathEl = getEdgePath(currentStep.edgeId);
 
           if (pathEl) {
             const { inner, outer } = createPacketDots(svgLayer, color);
-            packetDotsRef.current.push(inner, outer);
+            packetDotsRef.current = [inner, outer];
             steppingOwnedDotsRef.current = true;
 
             positionAtPathStart(pathEl, inner, outer);
@@ -605,7 +726,7 @@ export function useSimulationAnimation() {
                 align: pathEl,
                 alignOrigin: [0.5, 0.5],
               },
-              duration,
+              duration: 0.5,
               ease: "power1.inOut",
             });
             gsap.to(outer, {
@@ -614,146 +735,32 @@ export function useSimulationAnimation() {
                 align: pathEl,
                 alignOrigin: [0.5, 0.5],
               },
-              duration,
+              duration: 0.5,
               ease: "power1.inOut",
             });
+
             gsap.to(inner, {
               attr: { r: 8 },
               duration: 0.15,
               yoyo: true,
               repeat: 1,
-              delay: duration,
+              delay: 0.5,
               ease: "power2.out",
             });
           }
         }
+
+        // Update stats for flat stepping
+        const stepsSlice = flowPath.steps.slice(0, currentStepIndex + 1);
+        const stats = computeFlowStats(stepsSlice, currentStepIndex + 2);
+        useSimulationStore.getState().setStats(stats);
       }
-
-      // Update stats for level-based stepping
-      const stepsUpToLevel: typeof flowPath.steps = [];
-      for (let li = 0; li <= clampedIndex; li++) {
-        const level = levels[li];
-        if (!level) {
-          continue;
-        }
-        for (const step of level.steps) {
-          stepsUpToLevel.push(step);
-        }
-      }
-      const visitedNodeIds = new Set<string>([sourceNodeId]);
-      for (const s of stepsUpToLevel) {
-        visitedNodeIds.add(s.toNodeId);
-      }
-      const stats = computeFlowStats(stepsUpToLevel, visitedNodeIds.size, levels);
-      useSimulationStore.getState().setStats(stats);
-    } else {
-      // ── Flat stepping (backward compat) ──
-      for (let i = 0; i <= currentStepIndex; i++) {
-        const step = flowPath.steps[i];
-        if (!step) {
-          continue;
-        }
-        const protocol = (step.protocol || "http") as EdgeProtocol;
-        const config = PROTOCOL_CONFIG[protocol];
-        const color = config?.color?.primary || "#3b82f6";
-
-        const isCurrentStep = i === currentStepIndex;
-
-        // Highlight destination node
-        const toEl = getNodeElement(step.toNodeId);
-        if (toEl) {
-          if (isCurrentStep) {
-            gsap.to(toEl, {
-              boxShadow: `0 0 30px ${color}`,
-              duration: 0.4,
-              ease: "power2.out",
-            });
-          } else {
-            gsap.set(toEl, {
-              boxShadow: `0 0 12px ${color}60`,
-            });
-          }
-        }
-
-        // Add step number badge
-        const badge = createStepBadge(step.toNodeId, i + 1);
-        if (badge) {
-          if (isCurrentStep) {
-            badge.style.background = color;
-            badge.style.boxShadow = `0 0 12px ${color}`;
-            badge.style.transform = "scale(1.2)";
-          }
-          stepBadgesRef.current.push(badge);
-        }
-
-        // Show edge highlight for visited edges
-        const edgeEl = getEdgeElement(step.edgeId);
-        if (edgeEl && isCurrentStep) {
-          gsap.to(edgeEl, { opacity: 1, duration: 0.3 });
-        }
-      }
-
-      // Animate packet to current step position
-      const svgLayer = getEdgeSvgLayer();
-      if (svgLayer) {
-        const currentStep = flowPath.steps[currentStepIndex];
-        if (!currentStep) {
-          return;
-        }
-        const protocol = (currentStep.protocol || "http") as EdgeProtocol;
-        const config = PROTOCOL_CONFIG[protocol];
-        const color = config?.color?.primary || "#3b82f6";
-        const pathEl = getEdgePath(currentStep.edgeId);
-
-        if (pathEl) {
-          const { inner, outer } = createPacketDots(svgLayer, color);
-          packetDotsRef.current = [inner, outer];
-          steppingOwnedDotsRef.current = true;
-
-          positionAtPathStart(pathEl, inner, outer);
-
-          const rawPath = MotionPathPlugin.getRawPath(pathEl);
-          MotionPathPlugin.cacheRawPathMeasurements(rawPath);
-
-          gsap.fromTo([inner, outer], { opacity: 0 }, { opacity: 1, duration: 0.15 });
-          gsap.to(inner, {
-            motionPath: {
-              path: pathEl,
-              align: pathEl,
-              alignOrigin: [0.5, 0.5],
-            },
-            duration: 0.5,
-            ease: "power1.inOut",
-          });
-          gsap.to(outer, {
-            motionPath: {
-              path: pathEl,
-              align: pathEl,
-              alignOrigin: [0.5, 0.5],
-            },
-            duration: 0.5,
-            ease: "power1.inOut",
-          });
-
-          gsap.to(inner, {
-            attr: { r: 8 },
-            duration: 0.15,
-            yoyo: true,
-            repeat: 1,
-            delay: 0.5,
-            ease: "power2.out",
-          });
-        }
-      }
-
-      // Update stats for flat stepping
-      const stepsSlice = flowPath.steps.slice(0, currentStepIndex + 1);
-      const stats = computeFlowStats(stepsSlice, currentStepIndex + 2);
-      useSimulationStore.getState().setStats(stats);
-    }
+    });
 
     return () => {
+      stepContext.revert();
       cleanupStepBadges();
+      animatedFlowNodeIdsRef.current = [];
       if (steppingOwnedDotsRef.current) {
         cleanupPacketDots();
         steppingOwnedDotsRef.current = false;
