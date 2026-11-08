@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 export type InspectorTab = "basics" | "design" | "advanced" | "contract";
 
-export interface InspectorTabItem {
+interface InspectorTabItem {
   id: InspectorTab;
   label: string;
   /** Indicates a section already contains user-authored content. */

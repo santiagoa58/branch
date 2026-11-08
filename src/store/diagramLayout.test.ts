@@ -3,6 +3,7 @@ import { MAX_HISTORY_LENGTH } from "@/constants";
 import { diagramDataSchema } from "@/schemas/diagram";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import type { CloudState } from "@/services/cloudPersistence";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
 import * as layout from "@/utils/layout";
@@ -89,6 +90,7 @@ let cloud: CloudState;
 beforeEach(() => {
   useDiagramStore.setState(useDiagramStore.getInitialState());
   useAnimationStore.setState({ pendingDeletions: new Set() });
+  useAiDesignStore.setState(useAiDesignStore.getInitialState());
   cloud = {
     diagram: null,
     status: "saved",
@@ -107,13 +109,14 @@ afterEach(() => {
   vi.restoreAllMocks();
   useDiagramStore.setState(useDiagramStore.getInitialState());
   useAnimationStore.setState({ pendingDeletions: new Set() });
+  useAiDesignStore.setState(useAiDesignStore.getInitialState());
 });
 
 describe("diagram store auto-format integration", () => {
-  it("applies the real layout, preserves edges, flows and selection, and saves once after the edit", () => {
+  it("applies the real layout and ports, preserves flows and selection, and saves once after the edit", async () => {
     const before = useDiagramStore.getState();
     const original = graphSnapshot();
-    const expectedNodes = layout.autoLayoutDiagram(before.nodes, before.edges);
+    const expected = await layout.autoLayoutDiagram(before.nodes, before.edges);
     const saves: ReturnType<typeof graphSnapshot>[] = [];
     vi.mocked(cloudWorkspace.schedule).mockImplementation(() => {
       saves.push(graphSnapshot());
@@ -121,13 +124,20 @@ describe("diagram store auto-format integration", () => {
     const saveHistory = vi.spyOn(before, "saveToHistory");
     const saveDiagram = vi.spyOn(before, "saveDiagram");
 
-    expect(before.applyAutoLayout()).toBe(true);
+    expect(await before.applyAutoLayout()).toBe(true);
 
     const after = useDiagramStore.getState();
-    expect(after.nodes).toEqual(expectedNodes);
+    expect(after.nodes).toEqual(expected.nodes);
+    expect(after.edges).toEqual(expected.edges);
     expect(after.nodes).not.toEqual(original.nodes);
     expect(before.nodes).toEqual(original.nodes);
-    expect(after.edges).toBe(before.edges);
+    expect(before.edges).toEqual(original.edges);
+    // Format re-picks ports: the gateway now sits left of the API, so the request leaves the
+    // gateway's right side instead of the stacked bottom port it was drawn with.
+    expect(after.edges.find((edge) => edge.id === "request")).not.toHaveProperty("sourceHandle");
+    expect(after.edges.find((edge) => edge.id === "query")).toBe(
+      before.edges.find((edge) => edge.id === "query"),
+    );
     expect(after.flows).toBe(before.flows);
     expect(after.selectedNodeId).toBe("api");
     expect(after.selectedEdgeId).toBe("request");
@@ -145,15 +155,18 @@ describe("diagram store auto-format integration", () => {
     expect(after.historyIndex).toBe(1);
   });
 
-  it("persists measured leaf sizes and resized group dimensions through the diagram schema", () => {
+  it("persists measured leaf sizes and resized group dimensions through the diagram schema", async () => {
     const original = graphSnapshot();
-    useDiagramStore.getState().applyAutoLayout();
+    await useDiagramStore.getState().applyAutoLayout();
     const formatted = useDiagramStore.getState();
     const savedInput = vi.mocked(cloudWorkspace.schedule).mock.calls[0]?.[0];
     const saved = diagramDataSchema.parse(savedInput);
     expect(saved).toEqual(formatted.exportDiagram());
     expect(saved.nodes).toEqual(formatted.nodes);
-    expect(saved.edges).toEqual(original.edges);
+    expect(saved.edges).toEqual(formatted.edges);
+    expect(
+      saved.edges.map(({ id, source, target, data }) => ({ id, source, target, data })),
+    ).toEqual(original.edges.map(({ id, source, target, data }) => ({ id, source, target, data })));
     expect(saved.flows).toEqual(formatted.flows);
 
     for (const id of ["api", "database", "gateway"]) {
@@ -179,14 +192,14 @@ describe("diagram store auto-format integration", () => {
     expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
   });
 
-  it("does not add history or save again when the real layout is already formatted", () => {
-    useDiagramStore.getState().applyAutoLayout();
+  it("does not add history or save again when the real layout is already formatted", async () => {
+    await useDiagramStore.getState().applyAutoLayout();
     const before = useDiagramStore.getState();
     vi.mocked(cloudWorkspace.schedule).mockClear();
     const saveHistory = vi.spyOn(before, "saveToHistory");
     const snapshot = useDiagramStore.getState();
 
-    expect(snapshot.applyAutoLayout()).toBe(false);
+    expect(await snapshot.applyAutoLayout()).toBe(false);
 
     expect(useDiagramStore.getState()).toBe(snapshot);
     expect(saveHistory).not.toHaveBeenCalled();
@@ -195,7 +208,7 @@ describe("diagram store auto-format integration", () => {
 
   it.each(["empty", "hydrated", "stale measurements"])(
     "undoes to the exact original and redoes to the exact format with %s history",
-    (historyKind) => {
+    async (historyKind) => {
       if (historyKind === "empty") {
         useDiagramStore.setState({ history: [], historyIndex: -1 });
       }
@@ -211,7 +224,7 @@ describe("diagram store auto-format integration", () => {
       }
       const original = graphSnapshot();
       const { flows, selectedNodeId, selectedEdgeId } = useDiagramStore.getState();
-      expect(useDiagramStore.getState().applyAutoLayout()).toBe(true);
+      expect(await useDiagramStore.getState().applyAutoLayout()).toBe(true);
       const formatted = graphSnapshot();
       expect(formatted).not.toEqual(original);
       expect(useDiagramStore.getState().canUndo()).toBe(true);
@@ -232,7 +245,7 @@ describe("diagram store auto-format integration", () => {
     },
   );
 
-  it("discards a redo branch without losing older history or the current measured baseline", () => {
+  it("discards a redo branch without losing older history or the current measured baseline", async () => {
     const original = graphSnapshot();
     const older = {
       nodes: original.nodes.map((node) => ({ ...node, position: { x: -901, y: -503 } })),
@@ -245,7 +258,7 @@ describe("diagram store auto-format integration", () => {
     useDiagramStore.setState({ history: [older, original, abandoned], historyIndex: 1 });
     expect(useDiagramStore.getState().canRedo()).toBe(true);
 
-    useDiagramStore.getState().applyAutoLayout();
+    await useDiagramStore.getState().applyAutoLayout();
     const formatted = graphSnapshot();
     expect(useDiagramStore.getState().history).toEqual([older, original, formatted]);
     expect(useDiagramStore.getState().canRedo()).toBe(false);
@@ -258,8 +271,8 @@ describe("diagram store auto-format integration", () => {
     expect(graphSnapshot()).toEqual(formatted);
   });
 
-  it("keeps a redo branch intact for a no-op", () => {
-    useDiagramStore.getState().applyAutoLayout();
+  it("keeps a redo branch intact for a no-op", async () => {
+    await useDiagramStore.getState().applyAutoLayout();
     const formatted = graphSnapshot();
     const future = {
       nodes: formatted.nodes.map((node) => ({ ...node, position: { x: 999, y: 999 } })),
@@ -269,13 +282,13 @@ describe("diagram store auto-format integration", () => {
     const before = useDiagramStore.getState();
     vi.mocked(cloudWorkspace.schedule).mockClear();
 
-    expect(before.applyAutoLayout()).toBe(false);
+    expect(await before.applyAutoLayout()).toBe(false);
     expect(useDiagramStore.getState()).toBe(before);
     expect(useDiagramStore.getState().canRedo()).toBe(true);
     expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
   });
 
-  it("caps history while retaining exact pre-format and post-format snapshots", () => {
+  it("caps history while retaining exact pre-format and post-format snapshots", async () => {
     const original = graphSnapshot();
     const history = Array.from({ length: MAX_HISTORY_LENGTH }, (_, index) => ({
       nodes: original.nodes.map((node) => ({ ...node, position: { x: index, y: index } })),
@@ -283,7 +296,7 @@ describe("diagram store auto-format integration", () => {
     }));
     useDiagramStore.setState({ history, historyIndex: history.length - 1 });
 
-    useDiagramStore.getState().applyAutoLayout();
+    await useDiagramStore.getState().applyAutoLayout();
     const formatted = graphSnapshot();
     const after = useDiagramStore.getState();
     expect(after.history).toHaveLength(MAX_HISTORY_LENGTH);
@@ -296,10 +309,12 @@ describe("diagram store auto-format integration", () => {
     expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(3);
   });
 
-  it.each(["empty", "locked", "loading", "pending deletion"])(
+  it.each(["empty", "locked", "loading", "pending deletion", "an AI run is active"])(
     "does not run layout, mutate history or save when %s",
-    (reason) => {
-      if (reason === "empty") {
+    async (reason) => {
+      if (reason === "an AI run is active") {
+        useAiDesignStore.getState().start("d1");
+      } else if (reason === "empty") {
         useDiagramStore.setState({ nodes: [], edges: [], flows: [] });
       } else if (reason === "locked") {
         cloud = { ...cloud, locked: true };
@@ -310,17 +325,31 @@ describe("diagram store auto-format integration", () => {
       }
       const runLayout = vi.spyOn(layout, "autoLayoutDiagram");
       const saveHistory = vi.spyOn(useDiagramStore.getState(), "saveToHistory");
+      const saveDiagram = vi.spyOn(useDiagramStore.getState(), "saveDiagram");
       const before = useDiagramStore.getState();
+      const original = graphSnapshot();
 
-      expect(before.applyAutoLayout()).toBe(false);
+      expect(await before.applyAutoLayout()).toBe(false);
       expect(useDiagramStore.getState()).toBe(before);
+      expect(graphSnapshot()).toEqual(original);
+      expect(useDiagramStore.getState().history).toBe(before.history);
       expect(runLayout).not.toHaveBeenCalled();
       expect(saveHistory).not.toHaveBeenCalled();
+      expect(saveDiagram).not.toHaveBeenCalled();
       expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
     },
   );
 
-  it("propagates an algorithm error before any history mutation or save", () => {
+  it("formats again once the AI run has finished", async () => {
+    useAiDesignStore.getState().start("d1");
+    useAiDesignStore.getState().finish();
+
+    expect(await useDiagramStore.getState().applyAutoLayout()).toBe(true);
+    expect(useDiagramStore.getState().historyIndex).toBe(1);
+    expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates an algorithm error before any history mutation or save", async () => {
     const failure = new Error("Layout could not be computed");
     vi.spyOn(layout, "autoLayoutDiagram").mockImplementationOnce(() => {
       throw failure;
@@ -329,10 +358,96 @@ describe("diagram store auto-format integration", () => {
     const before = useDiagramStore.getState();
     const original = graphSnapshot();
 
-    expect(() => before.applyAutoLayout()).toThrow(failure);
+    await expect(before.applyAutoLayout()).rejects.toThrow(failure);
     expect(useDiagramStore.getState()).toBe(before);
     expect(graphSnapshot()).toEqual(original);
     expect(saveHistory).not.toHaveBeenCalled();
     expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
+  });
+
+  describe("while the asynchronous layout runs", () => {
+    function pendingLayout() {
+      let finish: (value: layout.DiagramLayout) => void = () => {};
+      const run = vi.spyOn(layout, "autoLayoutDiagram").mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      return { run, finish: (value: layout.DiagramLayout) => finish(value) };
+    }
+
+    function openDiagram(id: string): CloudState["diagram"] {
+      return {
+        id,
+        projectId: "project",
+        name: id,
+        description: null,
+        thumbnail: null,
+        data: createDiagram(),
+        revision: 1,
+        version: 0,
+        createdAt: "2026-10-30T12:00:00.000Z",
+        updatedAt: "2026-10-30T12:00:00.000Z",
+      };
+    }
+
+    const moved = (nodes: ReturnType<typeof graphSnapshot>["nodes"]) =>
+      nodes.map((node) => ({ ...node, position: { x: 5, y: 5 } }));
+
+    it.each(["switches diagram", "closes the diagram", "is locked", "starts an AI run"])(
+      "drops the result when the editor %s before it lands",
+      async (change) => {
+        cloud = { ...cloud, diagram: openDiagram("first") };
+        const original = graphSnapshot();
+        const history = useDiagramStore.getState().history;
+        const pending = pendingLayout();
+        const result = useDiagramStore.getState().applyAutoLayout();
+        if (change === "switches diagram") {
+          cloud = { ...cloud, diagram: openDiagram("second") };
+        } else if (change === "closes the diagram") {
+          cloud = { ...cloud, diagram: null };
+        } else if (change === "is locked") {
+          cloud = { ...cloud, locked: true };
+        } else {
+          useAiDesignStore.getState().start("first");
+        }
+        pending.finish({ nodes: moved(original.nodes), edges: original.edges });
+
+        expect(await result).toBe(false);
+        expect(graphSnapshot()).toEqual(original);
+        expect(useDiagramStore.getState().history).toBe(history);
+        expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
+      },
+    );
+
+    it("lays out the latest graph again when it changed meanwhile, as one undo step", async () => {
+      const pending = pendingLayout();
+      const result = useDiagramStore.getState().applyAutoLayout();
+      // React Flow reports a new measurement while the first layout is still running.
+      useDiagramStore.setState((state) => ({
+        nodes: state.nodes.map((node) =>
+          node.id === "gateway" ? { ...node, measured: { width: 260, height: 170 } } : node,
+        ),
+      }));
+      const measured = graphSnapshot();
+      pending.finish({ nodes: moved(measured.nodes), edges: measured.edges });
+
+      expect(await result).toBe(true);
+      expect(pending.run).toHaveBeenCalledTimes(2);
+      const expected = await layout.autoLayoutDiagram(measured.nodes, measured.edges);
+      expect(useDiagramStore.getState().nodes).toEqual(expected.nodes);
+      expect(useDiagramStore.getState().historyIndex).toBe(1);
+      expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies only the first of two overlapping requests", async () => {
+      const first = useDiagramStore.getState().applyAutoLayout();
+      const second = useDiagramStore.getState().applyAutoLayout();
+      expect(await first).toBe(true);
+      expect(await second).toBe(false);
+      expect(useDiagramStore.getState().historyIndex).toBe(1);
+      expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
+    });
   });
 });

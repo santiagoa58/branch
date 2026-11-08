@@ -14,12 +14,13 @@ export type SaveStatus =
   | "error"
   | "conflict"
   | "versioning"
-  | "restoring";
+  | "restoring"
+  | "deleting";
 /** Why a document could not be opened, which decides what the person can do next. */
 export type LoadFailure = "unreadable" | "missing" | "unavailable";
 
 /** The copy saved elsewhere while this tab still had unsaved edits. */
-export interface SaveConflict {
+interface SaveConflict {
   /** Null while it is being fetched, or when fetching it failed. */
   remote: ApiDiagram | null;
   failed: boolean;
@@ -31,6 +32,8 @@ export interface CloudState {
   dirty: boolean;
   locked: boolean;
   transitioning: boolean;
+  /** Independent operation intent: an in-flight save must not relabel deletion as versioning. */
+  activity?: "deleting" | undefined;
   message: string | null;
   loadFailure?: LoadFailure | undefined;
   conflict?: SaveConflict | undefined;
@@ -70,7 +73,6 @@ interface CloudApi {
   createVersion(id: string, expectedRevision: number, label?: string): Promise<ApiDiagramVersion>;
   restoreVersion(id: string, versionId: string, expectedRevision: number): Promise<ApiDiagram>;
 }
-
 /** One active document, one save in flight, no browser document persistence. */
 export class CloudPersistence {
   onDocument?: (diagram: ApiDiagram) => void;
@@ -151,6 +153,43 @@ export class CloudPersistence {
       this.set({});
     }
   };
+  /** Discard queued writes on delete; preserve drafts if the server rejects it. */
+  deleteCurrent = async (remove: () => Promise<void>) => {
+    if (this.state.locked || !this.state.diagram) {
+      throw new Error("The active diagram is not ready to delete.");
+    }
+    const epoch = this.epoch;
+    const oldStatus = this.state.status;
+    const draft = this.pending;
+    this.transition = true;
+    this.cancelTimer();
+    this.pending = null;
+    this.set({ status: "deleting", activity: "deleting", dirty: false, message: null });
+    try {
+      await this.saving?.catch(() => {});
+      if (epoch !== this.epoch) {
+        throw new Error("The active diagram changed during deletion.");
+      }
+      this.set({ status: "deleting", message: null });
+      await remove();
+      if (epoch === this.epoch) {
+        this.reset();
+      }
+    } catch (error) {
+      if (epoch === this.epoch) {
+        this.pending = draft;
+        const status = draft ? "pending" : oldStatus === "saving" ? "saved" : oldStatus;
+        this.set({ status, dirty: draft !== null, activity: undefined, message: null });
+        if (draft) {
+          this.timer = setTimeout(() => void this.flush().catch(() => {}), this.delay);
+        }
+      }
+      throw error;
+    } finally {
+      this.transition = false;
+      this.set({ activity: undefined });
+    }
+  };
   reset = () => {
     this.cancelTimer();
     this.epoch++;
@@ -167,6 +206,7 @@ export class CloudPersistence {
       message: null,
       loadFailure: undefined,
       conflict: undefined,
+      activity: undefined,
     });
   };
   cancelLoad = () => {
@@ -272,6 +312,7 @@ export class CloudPersistence {
       const { id, revision } = this.state.diagram;
       this.set({ status: "saving", message: null });
       try {
+        // oxlint-disable-next-line no-await-in-loop -- the save queue is serialized: each save needs the previous revision
         const saved = await this.api.update(id, { data: snapshot, expectedRevision: revision });
         if (epoch !== this.epoch) {
           return;
@@ -341,7 +382,7 @@ export class CloudPersistence {
       return Promise.reject(new Error("The other copy hasn't loaded yet."));
     }
     if (!this.pending) {
-      this.useRemote();
+      this.takeRemote();
       return Promise.resolve();
     }
     // Save on top of the newest revision, which is what the person chose to overwrite.
@@ -349,7 +390,7 @@ export class CloudPersistence {
     return this.flush();
   };
   /** Drop this tab's unsaved edits and continue from the other copy. */
-  useRemote = () => {
+  takeRemote = () => {
     const remote = this.state.conflict?.remote;
     if (this.state.status !== "conflict" || !remote) {
       return;

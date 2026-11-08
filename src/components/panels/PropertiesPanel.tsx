@@ -1,9 +1,11 @@
+// oxlint-disable max-lines -- debt: 850 lines (limit 450); split the module
 import { useState } from "react";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useAnimationStore } from "@/store/animationStore";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import { useEditBlocked } from "@/store/editLock";
 import { GROUP_TYPES_CONFIG, DATA_FORMATS, COMMENT_CONFIG, PROTOCOL_CONFIG } from "@/constants";
-import type { GroupNodeType, DataFormat } from "@/types";
+import type { GroupNodeType, DataFormat, EdgeProtocol } from "@/types";
 import { cn } from "@/lib/utils";
 import { hasDesignDecision } from "@/utils/designDecision";
 import { applyValidatedInput } from "@/lib/validatedInput";
@@ -16,26 +18,39 @@ import {
   groupNodeDataSchema,
   architectureEdgeDataSchema,
 } from "@/schemas/diagram";
-import {
-  XMarkIcon,
-  TrashIcon,
-  CursorArrowRippleIcon,
-  ChevronDownIcon,
-} from "@heroicons/react/24/outline";
+import { TrashIcon, CursorArrowRippleIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 import { CodeEditor } from "@/components/ui/CodeEditor";
 import { NodePropertiesPanel } from "./NodePropertiesPanel";
+import { ConnectionPortsEditor } from "./ConnectionPortsEditor";
 import { InspectorTabs, type InspectorTab } from "./InspectorTabs";
-import { DesignDecisionEditor } from "@/components/ui/DesignDecisionEditor";
+import { InspectorFields } from "./InspectorFields";
+import { DecisionInspector } from "./DecisionInspector";
 
+type ProtocolGroup = (typeof PROTOCOL_CONFIG)[EdgeProtocol]["group"];
+
+const PROTOCOL_GROUP_LABELS: Record<ProtocolGroup, string> = {
+  standard: "Standard",
+  messaging: "Messaging",
+  data: "Data",
+  auth: "Auth & DNS",
+  aiml: "AI/ML",
+};
+
+/** Every protocol under its config group; groups and protocols keep the enum's order. */
+const PROTOCOL_OPTION_GROUPS = new Map<ProtocolGroup, EdgeProtocol[]>();
+for (const protocol of edgeProtocolSchema.options) {
+  const { group } = PROTOCOL_CONFIG[protocol];
+  PROTOCOL_OPTION_GROUPS.set(group, [...(PROTOCOL_OPTION_GROUPS.get(group) ?? []), protocol]);
+}
+
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 47, 773 lines; extract branches and split into smaller units
 export function PropertiesPanel() {
   const {
     nodes,
     edges,
     selectedNodeId,
     selectedEdgeId,
-    setSelectedNode,
-    setSelectedEdge,
     updateNodeData,
     updateGroupData,
     toggleGroupCollapse,
@@ -45,6 +60,8 @@ export function PropertiesPanel() {
 
   const requestDelete = useAnimationStore((s) => s.requestDelete);
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
+  // The contract editor is not a form control, so the inspector's fieldset cannot disable it.
+  const editBlocked = useEditBlocked();
 
   // Associate the selected contract side with its edge so changing selection
   // naturally falls back to the request side without an effect-driven reset.
@@ -76,7 +93,7 @@ export function PropertiesPanel() {
 
   if (!selectedNode && !selectedEdge) {
     return (
-      <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Properties</span>
         </div>
@@ -86,7 +103,7 @@ export function PropertiesPanel() {
             <p className="text-xs text-muted-foreground">Select a node to view properties</p>
           </div>
         </div>
-      </aside>
+      </div>
     );
   }
 
@@ -99,23 +116,16 @@ export function PropertiesPanel() {
       const colorConfig = COMMENT_CONFIG.colors[color];
 
       return (
-        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <div className="flex min-h-0 w-full flex-1 flex-col">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Comment Properties
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedNode(null)}
-              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
+          <InspectorFields className="flex-1 overflow-y-auto p-5 space-y-8 animate-slide-in">
             {/* Header Section */}
             <div className="flex items-start gap-4">
               <div className={cn("p-3 rounded-lg border", colorConfig.border, colorConfig.bg)}>
@@ -236,8 +246,8 @@ export function PropertiesPanel() {
               <TrashIcon className="w-3 h-3" />
               Delete Comment
             </button>
-          </div>
-        </aside>
+          </InspectorFields>
+        </div>
       );
     }
 
@@ -248,19 +258,12 @@ export function PropertiesPanel() {
       const Icon = config.icon;
 
       return (
-        <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+        <div className="flex min-h-0 w-full flex-1 flex-col">
           {/* Header */}
           <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Group Properties
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedNode(null)}
-              className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
           </div>
 
           <InspectorTabs
@@ -277,7 +280,7 @@ export function PropertiesPanel() {
             onChange={chooseInspectorTab}
           />
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
+          <InspectorFields className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
             {/* Header Section */}
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/30 dark:bg-zinc-900/30">
@@ -366,10 +369,11 @@ export function PropertiesPanel() {
             </div>
 
             <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
-              <DesignDecisionEditor
+              <DecisionInspector
                 key={`decision-${selectedNode.id}`}
                 value={groupData.decision}
                 onChange={(decision) => updateGroupData(selectedNode.id, { decision })}
+                nodeId={selectedNode.id}
               />
             </div>
             <div className={activeInspectorTab === "advanced" ? "space-y-4" : "hidden"}>
@@ -417,8 +421,8 @@ export function PropertiesPanel() {
                 Delete Group
               </button>
             </div>
-          </div>
-        </aside>
+          </InspectorFields>
+        </div>
       );
     }
 
@@ -436,17 +440,10 @@ export function PropertiesPanel() {
     const edgeData = architectureEdgeDataSchema.parse(selectedEdge.data ?? {});
 
     return (
-      <aside className="w-80 xl:w-96 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         {/* Header */}
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Connection</span>
-          <button
-            type="button"
-            onClick={() => setSelectedEdge(null)}
-            className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
         </div>
 
         <InspectorTabs
@@ -455,7 +452,7 @@ export function PropertiesPanel() {
             {
               id: "contract",
               label: "API",
-              populated: !!(edgeData.dataContract || edgeData.responseContract),
+              populated: Boolean(edgeData.dataContract ?? edgeData.responseContract),
             },
             {
               id: "design",
@@ -468,7 +465,7 @@ export function PropertiesPanel() {
           onChange={chooseInspectorTab}
         />
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
+        <InspectorFields className="flex-1 overflow-y-auto p-4 space-y-4 animate-slide-in">
           {/* Fields */}
           <div className="space-y-4">
             <div className={activeInspectorTab === "basics" ? "space-y-4" : "hidden"}>
@@ -504,38 +501,24 @@ export function PropertiesPanel() {
                     onKeyDown={(e) => e.stopPropagation()}
                     className="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-200 focus:border-zinc-400 dark:focus:border-zinc-600 focus:outline-none transition-colors"
                   >
-                    <optgroup label="Standard">
-                      <option value="http">HTTP/REST</option>
-                      <option value="grpc">gRPC</option>
-                      <option value="graphql">GraphQL</option>
-                      <option value="websocket">WebSocket</option>
-                      <option value="tcp">TCP</option>
-                    </optgroup>
-                    <optgroup label="Messaging">
-                      <option value="amqp">AMQP</option>
-                      <option value="rabbitmq">RabbitMQ</option>
-                      <option value="kafka">Kafka</option>
-                      <option value="eventbridge">EventBridge</option>
-                      <option value="sns">SNS/Push</option>
-                    </optgroup>
-                    <optgroup label="Data">
-                      <option value="sql">SQL/Database</option>
-                      <option value="redis">Redis</option>
-                      <option value="s3">S3/Blob</option>
-                      <option value="vector">Vector Search</option>
-                      <option value="search">Search</option>
-                    </optgroup>
-                    <optgroup label="Auth &amp; DNS">
-                      <option value="oauth">OAuth/OIDC</option>
-                      <option value="dns">DNS</option>
-                    </optgroup>
-                    <optgroup label="AI/ML">
-                      <option value="inference">AI Inference</option>
-                    </optgroup>
+                    {[...PROTOCOL_OPTION_GROUPS].map(([group, protocols]) => (
+                      <optgroup key={group} label={PROTOCOL_GROUP_LABELS[group]}>
+                        {protocols.map((protocol) => (
+                          <option key={protocol} value={protocol}>
+                            {PROTOCOL_CONFIG[protocol].label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                   <ChevronDownIcon className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none" />
                 </div>
               </div>
+
+              <ConnectionPortsEditor
+                data={edgeData}
+                onChange={(patch) => updateEdgeData(selectedEdge.id, patch)}
+              />
 
               {/* HTTP Method */}
               {(edgeData.protocol === "http" || !edgeData.protocol) && (
@@ -650,7 +633,7 @@ export function PropertiesPanel() {
               </div>
             </div>
             <div className={activeInspectorTab === "design" ? "space-y-4" : "hidden"}>
-              <DesignDecisionEditor
+              <DecisionInspector
                 key={selectedEdge.id}
                 value={edgeData.decision}
                 onChange={(decision) => updateEdgeData(selectedEdge.id, { decision })}
@@ -662,6 +645,7 @@ export function PropertiesPanel() {
             <hr className="border-zinc-200 dark:border-zinc-800" />
 
             {/* Data Contract Section — segmented Request | Response for request/response protocols. */}
+            {/* oxlint-disable-next-line complexity -- debt: complexity 28; extract branches */}
             {(() => {
               const supportsResponse =
                 edgeData.protocol !== null &&
@@ -793,6 +777,7 @@ export function PropertiesPanel() {
                       format={activeContract?.format || "json"}
                       placeholder={DATA_FORMATS[activeContract?.format || "json"].placeholder}
                       height="180px"
+                      readOnly={editBlocked}
                     />
                     <span className="text-[9px] text-muted-foreground">
                       {DATA_FORMATS[activeContract?.format || "json"].description}
@@ -854,8 +839,8 @@ export function PropertiesPanel() {
               Delete Connection
             </button>
           </div>
-        </div>
-      </aside>
+        </InspectorFields>
+      </div>
     );
   }
 

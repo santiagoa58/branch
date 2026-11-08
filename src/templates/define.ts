@@ -9,7 +9,6 @@ import type {
   GroupNodeType,
   HttpMethod,
 } from "@/types";
-import { autoLayoutDiagram } from "@/utils/layout";
 import { archEdge, archNode, groupNode } from "./builders";
 import type { DiagramTemplate, TemplateCategory } from "./types";
 
@@ -93,10 +92,6 @@ function edgeData(spec: EdgeSpec): ArchitectureEdgeData {
 }
 
 /**
- * Author a template as components and connections; the shared auto formatter
- * computes positions and group sizes, so templates stay readable and tidy.
- */
-/**
  * Attach one decision per group and architecture node, failing loudly when a template
  * misses a component or names one that does not exist.
  */
@@ -121,6 +116,10 @@ export function attachDecisions(
   });
 }
 
+/**
+ * Author a template as components and connections. Positions are left to the shared auto
+ * formatter, which runs when the template is first shown or loaded (`layoutTemplate`).
+ */
 export function defineTemplate(spec: TemplateSpec): DiagramTemplate {
   const groups: Node[] = (spec.groups ?? []).map((group) =>
     groupNode(
@@ -146,10 +145,8 @@ export function defineTemplate(spec: TemplateSpec): DiagramTemplate {
   );
 
   const data = diagramDataSchema.parse({
-    nodes: autoLayoutDiagram(
-      attachDecisions(spec.id, [...groups, ...components], spec.decisions),
-      edges,
-    ),
+    // Groups come first, each after the group it sits in, so parents precede children.
+    nodes: attachDecisions(spec.id, [...groups, ...components], spec.decisions),
     edges,
     flows: [
       {

@@ -1,12 +1,12 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { FitView } from "@xyflow/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vite-plus/test";
 import { diagramDataSchema } from "@/schemas/diagram";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import type { CloudState } from "@/services/cloudPersistence";
 import { notify } from "@/services/notify";
 import { useAnimationStore } from "@/store/animationStore";
-import { useDiagramStore } from "@/store/diagramStore";
+import { useDiagramStore, type DiagramStore } from "@/store/diagramStore";
 import * as layout from "@/utils/layout";
 import { useAutoFormat } from "./useAutoFormat";
 
@@ -18,6 +18,14 @@ vi.mock("@xyflow/react", async (importOriginal) => ({
 }));
 
 let cloud: CloudState;
+let applyLayout: MockInstance<DiagramStore["applyAutoLayout"]>;
+
+/** Wait for every auto-format the hook started; the hook's own continuation runs first. */
+async function settle() {
+  await act(async () => {
+    await Promise.allSettled(applyLayout.mock.results.map((result): unknown => result.value));
+  });
+}
 let reducedMotion: boolean;
 let nextFrameId: number;
 let frames: Map<number, FrameRequestCallback>;
@@ -80,6 +88,7 @@ beforeEach(() => {
   vi.spyOn(cloudWorkspace, "schedule").mockImplementation(() => {});
   vi.spyOn(notify, "error").mockReturnValue("format-error");
   useDiagramStore.getState().hydrateDiagram(data);
+  applyLayout = vi.spyOn(useDiagramStore.getState(), "applyAutoLayout");
   fitView.mockReset().mockResolvedValue(true);
 
   reducedMotion = false;
@@ -120,13 +129,14 @@ afterEach(() => {
 });
 
 describe("useAutoFormat", () => {
-  it("formats immediately but waits for two animation frames before fitting the saved layout", () => {
-    const applyLayout = vi.spyOn(useDiagramStore.getState(), "applyAutoLayout");
+  it("formats, then waits for two animation frames before fitting the saved layout", async () => {
     const original = structuredClone(useDiagramStore.getState().nodes);
     const { result } = renderHook(() => useAutoFormat());
     expect(result.current.disabled).toBe(false);
 
     act(() => result.current.autoFormat());
+
+    await settle();
 
     expect(applyLayout).toHaveBeenCalledExactlyOnceWith();
     expect(useDiagramStore.getState().nodes).not.toEqual(original);
@@ -142,13 +152,16 @@ describe("useAutoFormat", () => {
     expect(notify.error).not.toHaveBeenCalled();
   });
 
-  it("fits an already formatted diagram without adding another save or history entry", () => {
-    useDiagramStore.getState().applyAutoLayout();
+  it("fits an already formatted diagram without adding another save or history entry", async () => {
+    await useDiagramStore.getState().applyAutoLayout();
+    applyLayout.mockClear();
     vi.mocked(cloudWorkspace.schedule).mockClear();
     const before = useDiagramStore.getState();
     const { result } = renderHook(() => useAutoFormat());
 
     act(() => result.current.autoFormat());
+
+    await settle();
     stepFrame();
     stepFrame();
 
@@ -157,10 +170,11 @@ describe("useAutoFormat", () => {
     expect(fitView).toHaveBeenCalledExactlyOnceWith({ padding: 0.2, maxZoom: 1, duration: 300 });
   });
 
-  it("honors reduced motion when fitting", () => {
+  it("honors reduced motion when fitting", async () => {
     reducedMotion = true;
     const { result } = renderHook(() => useAutoFormat());
     act(() => result.current.autoFormat());
+    await settle();
     stepFrame();
     stepFrame();
     expect(window.matchMedia).toHaveBeenCalledWith("(prefers-reduced-motion: reduce)");
@@ -169,7 +183,7 @@ describe("useAutoFormat", () => {
 
   it.each(["empty", "locked", "loading", "pending deletion"])(
     "disables the command and blocks direct invocation when %s",
-    (reason) => {
+    async (reason) => {
       if (reason === "empty") {
         useDiagramStore.setState({ nodes: [], edges: [] });
       } else if (reason === "locked") {
@@ -179,12 +193,13 @@ describe("useAutoFormat", () => {
       } else {
         useAnimationStore.setState({ pendingDeletions: new Set(["api"]) });
       }
-      const applyLayout = vi.spyOn(useDiagramStore.getState(), "applyAutoLayout");
       const before = useDiagramStore.getState();
       const { result } = renderHook(() => useAutoFormat());
       expect(result.current.disabled).toBe(true);
 
       act(() => result.current.autoFormat());
+
+      await settle();
       stepFrame();
       stepFrame();
 
@@ -197,7 +212,7 @@ describe("useAutoFormat", () => {
     },
   );
 
-  it("updates disabled as nodes, cloud state and pending deletions change", () => {
+  it("updates disabled as nodes, cloud state and pending deletions change", async () => {
     const { result, rerender } = renderHook(() => useAutoFormat());
     const nodes = useDiagramStore.getState().nodes;
     expect(result.current.disabled).toBe(false);
@@ -220,22 +235,24 @@ describe("useAutoFormat", () => {
     expect(result.current.disabled).toBe(false);
   });
 
-  it("checks current guards even when invoked through a callback captured before the lock", () => {
-    const applyLayout = vi.spyOn(useDiagramStore.getState(), "applyAutoLayout");
+  it("checks current guards even when invoked through a callback captured before the lock", async () => {
     const { result } = renderHook(() => useAutoFormat());
     const command = result.current.autoFormat;
     cloud = { ...cloud, locked: true };
 
     act(() => command());
 
+    await settle();
+
     expect(applyLayout).not.toHaveBeenCalled();
     expect(requestAnimationFrame).not.toHaveBeenCalled();
     expect(cloudWorkspace.schedule).not.toHaveBeenCalled();
   });
 
-  it.each([0, 1])("cancels the pending frame on unmount after %i frames", (elapsedFrames) => {
+  it.each([0, 1])("cancels the pending frame on unmount after %i frames", async (elapsedFrames) => {
     const { result, unmount } = renderHook(() => useAutoFormat());
     act(() => result.current.autoFormat());
+    await settle();
     if (elapsedFrames === 1) {
       stepFrame();
     }
@@ -250,27 +267,68 @@ describe("useAutoFormat", () => {
     expect(fitView).not.toHaveBeenCalled();
   });
 
-  it.each([0, 1])("replaces the pending fit on reinvocation after %i frames", (elapsedFrames) => {
-    const { result } = renderHook(() => useAutoFormat());
-    act(() => result.current.autoFormat());
-    if (elapsedFrames === 1) {
-      stepFrame();
-    }
-    const pendingId = [...frames.keys()][0];
-    act(() => result.current.autoFormat());
+  it.each([0, 1])(
+    "replaces the pending fit on reinvocation after %i frames",
+    async (elapsedFrames) => {
+      const { result } = renderHook(() => useAutoFormat());
+      act(() => result.current.autoFormat());
+      await settle();
+      if (elapsedFrames === 1) {
+        stepFrame();
+      }
+      const pendingId = [...frames.keys()][0];
+      act(() => result.current.autoFormat());
+      await settle();
 
-    expect(cancelAnimationFrame).toHaveBeenCalledExactlyOnceWith(pendingId);
-    expect(frames.size).toBe(1);
+      expect(cancelAnimationFrame).toHaveBeenCalledExactlyOnceWith(pendingId);
+      expect(frames.size).toBe(1);
+      stepFrame();
+      expect(fitView).not.toHaveBeenCalled();
+      stepFrame();
+      expect(fitView).toHaveBeenCalledTimes(1);
+      expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not fit or report anything when the editor unmounts while the layout runs", async () => {
+    vi.spyOn(layout, "autoLayoutDiagram").mockRejectedValueOnce(new Error("Cannot compute layout"));
+    const first = renderHook(() => useAutoFormat());
+    act(() => first.result.current.autoFormat());
+    first.unmount();
+    await settle();
+    expect(notify.error).not.toHaveBeenCalled();
+
+    const second = renderHook(() => useAutoFormat());
+    act(() => second.result.current.autoFormat());
+    second.unmount();
+    await settle();
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+    stepFrame();
     stepFrame();
     expect(fitView).not.toHaveBeenCalled();
-    stepFrame();
-    expect(fitView).toHaveBeenCalledTimes(1);
-    expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
   });
 
-  it("cancels a previous pending fit when a reinvoked layout fails", () => {
+  it("fits once for two quick requests, after the later one finishes", async () => {
+    const { result } = renderHook(() => useAutoFormat());
+    act(() => {
+      result.current.autoFormat();
+      result.current.autoFormat();
+    });
+    await settle();
+
+    expect(applyLayout).toHaveBeenCalledTimes(2);
+    expect(cloudWorkspace.schedule).toHaveBeenCalledTimes(1);
+    expect(useDiagramStore.getState().historyIndex).toBe(1);
+    expect(frames.size).toBe(1);
+    stepFrame();
+    stepFrame();
+    expect(fitView).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a previous pending fit when a reinvoked layout fails", async () => {
     const { result } = renderHook(() => useAutoFormat());
     act(() => result.current.autoFormat());
+    await settle();
     stepFrame();
     const formatted = useDiagramStore.getState();
     vi.spyOn(layout, "autoLayoutDiagram").mockImplementationOnce(() => {
@@ -278,6 +336,8 @@ describe("useAutoFormat", () => {
     });
 
     act(() => result.current.autoFormat());
+
+    await settle();
     stepFrame();
 
     expect(notify.error).toHaveBeenCalledExactlyOnceWith({
@@ -292,9 +352,10 @@ describe("useAutoFormat", () => {
 
   it.each(["switch", "clear", "lock", "loading"])(
     "does not fit when the active document changes before fitting: %s",
-    (change) => {
+    async (change) => {
       const { result } = renderHook(() => useAutoFormat());
       act(() => result.current.autoFormat());
+      await settle();
       stepFrame();
       if (change === "switch") {
         const diagram = cloud.diagram;
@@ -319,9 +380,10 @@ describe("useAutoFormat", () => {
     },
   );
 
-  it("does not suppress a fit just because the same diagram revision changes while saving", () => {
+  it("does not suppress a fit just because the same diagram revision changes while saving", async () => {
     const { result } = renderHook(() => useAutoFormat());
     act(() => result.current.autoFormat());
+    await settle();
     stepFrame();
     const diagram = cloud.diagram;
     if (!diagram) {
@@ -332,7 +394,7 @@ describe("useAutoFormat", () => {
     expect(fitView).toHaveBeenCalledTimes(1);
   });
 
-  it("reports algorithm errors without changing the diagram, history or save queue", () => {
+  it("reports algorithm errors without changing the diagram, history or save queue", async () => {
     vi.spyOn(layout, "autoLayoutDiagram").mockImplementationOnce(() => {
       throw new Error("Cannot compute layout");
     });
@@ -341,6 +403,7 @@ describe("useAutoFormat", () => {
     const { result } = renderHook(() => useAutoFormat());
 
     expect(() => act(() => result.current.autoFormat())).not.toThrow();
+    await settle();
 
     expect(useDiagramStore.getState()).toBe(before);
     expect({ nodes: before.nodes, edges: before.edges }).toEqual(original);
@@ -357,6 +420,7 @@ describe("useAutoFormat", () => {
     fitView.mockRejectedValueOnce(new Error("Viewport unavailable"));
     const { result } = renderHook(() => useAutoFormat());
     act(() => result.current.autoFormat());
+    await settle();
     const formatted = useDiagramStore.getState();
     stepFrame();
     stepFrame();

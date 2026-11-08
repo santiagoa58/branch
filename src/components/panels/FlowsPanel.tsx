@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  XMarkIcon,
   PlayIcon,
   StopIcon,
   PencilSquareIcon,
@@ -11,15 +10,13 @@ import {
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
 import { SaveFlowDialog } from "@/components/ui/SaveFlowDialog";
-import { ArchitectureNodeData } from "@/types";
+import { FlowDeleteDialog } from "./FlowDeleteDialog";
+import type { ArchitectureNodeData } from "@/types";
 import type { NamedFlow } from "@/types/simulation";
 import { cn } from "@/lib/utils";
 
-interface FlowsPanelProps {
-  onClose: () => void;
-}
-
-export function FlowsPanel({ onClose }: FlowsPanelProps) {
+// oxlint-disable-next-line max-lines-per-function -- debt: 216 lines; split into smaller units
+export function FlowsPanel() {
   const flows = useDiagramStore((s) => s.flows);
   const nodes = useDiagramStore((s) => s.nodes);
   const addFlow = useDiagramStore((s) => s.addFlow);
@@ -32,19 +29,10 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
   const sourceNodeId = useSimulationStore((s) => s.sourceNodeId);
   const simIsRunning = useSimulationStore((s) => s.isRunning);
   const stopSim = useSimulationStore((s) => s.stop);
-  const setSimMode = useSimulationStore((s) => s.setMode);
-
-  const handleClose = () => {
-    // Stop any active flow simulation so the diagram doesn't stay highlighted
-    if (simMode !== "idle") {
-      stopSim();
-      setSimMode("idle");
-    }
-    onClose();
-  };
 
   // 'new' = create with the current sim source; or { id } for edit.
   const [dialog, setDialog] = useState<{ kind: "new" } | { kind: "edit"; id: string } | null>(null);
+  const [flowToDelete, setFlowToDelete] = useState<Pick<NamedFlow, "id" | "name"> | null>(null);
 
   const labelFor = (nodeId: string): string | null => {
     const n = nodes.find((x) => x.id === nodeId);
@@ -80,20 +68,12 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
 
   return (
     <>
-      <aside className="w-72 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col z-20">
+      <div className="flex min-h-0 w-full flex-1 flex-col">
         <div className="h-14 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-5 justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Flows</span>
             <span className="text-[10px] font-mono text-muted-foreground">{flows.length}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
-            title="Close"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -150,7 +130,11 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
                     )}
                     <button
                       type="button"
-                      onClick={() => !sourceMissing && setSelectedNode(flow.sourceNodeId)}
+                      onClick={() => {
+                        if (!sourceMissing) {
+                          setSelectedNode(flow.sourceNodeId);
+                        }
+                      }}
                       disabled={sourceMissing}
                       className={cn(
                         "mt-1 text-[10px] font-mono text-muted-foreground truncate hover:underline disabled:no-underline disabled:cursor-not-allowed",
@@ -196,11 +180,8 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm(`Delete flow "${flow.name}"?`)) {
-                        deleteFlow(flow.id);
-                      }
-                    }}
+                    onClick={() => setFlowToDelete({ id: flow.id, name: flow.name })}
+                    aria-label={`Delete flow: ${flow.name}`}
                     className="p-1.5 rounded text-zinc-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                     title="Delete flow"
                   >
@@ -237,7 +218,13 @@ export function FlowsPanel({ onClose }: FlowsPanelProps) {
             </p>
           )}
         </div>
-      </aside>
+      </div>
+
+      <FlowDeleteDialog
+        target={flowToDelete}
+        onCancel={() => setFlowToDelete(null)}
+        onDelete={deleteFlow}
+      />
 
       {dialog !== null && (
         <SaveFlowDialog

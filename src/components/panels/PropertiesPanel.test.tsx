@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { cloudWorkspace } from "@/services/cloudWorkspace";
 import { useDiagramStore } from "@/store/diagramStore";
-import { diagramDataSchema } from "@/schemas/diagram";
+import { diagramDataSchema, edgeProtocolSchema } from "@/schemas/diagram";
+import { PROTOCOL_CONFIG } from "@/constants";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 vi.mock("@/components/ui/CodeEditor", () => ({
@@ -54,15 +55,16 @@ const decision = {
 const decisionInputs = [
   ["Chosen approach", decision.choice],
   ["Why", decision.reason],
-  ["Benefits 1", "Fewer database reads"],
-  ["Drawbacks 1", "Potential stale reads"],
+  ["Gains 1", "Fewer database reads"],
+  ["Costs 1", "Potential stale reads"],
   ["Option 1", "Read replicas"],
   ["Why not option 1", "More operational work"],
   ["Revisit when 1", "Reads must be strongly consistent"],
 ] as const;
-const addButtons = ["Add benefit", "Add drawback", "Add option", "Add revisit trigger"];
+const addButtons = ["Add gain", "Add cost", "Add option", "Add revisit trigger"];
 
 function fillDecision() {
+  enterEditMode();
   for (const name of addButtons) {
     fireEvent.click(screen.getByRole("button", { name }));
   }
@@ -72,6 +74,7 @@ function fillDecision() {
 }
 
 function expectDecisionInputs() {
+  enterEditMode();
   for (const [name, value] of decisionInputs) {
     expect(screen.getByRole("textbox", { name })).toHaveValue(value);
   }
@@ -86,6 +89,13 @@ const legacyFields = {
   accentColor: "#234567",
   backgroundColor: "#345678",
 };
+
+function enterEditMode() {
+  const edit = screen.queryByRole("button", { name: "Edit decision" });
+  if (edit) {
+    fireEvent.click(edit);
+  }
+}
 
 function chooseSection(name: string) {
   fireEvent.click(screen.getByRole("button", { name }));
@@ -149,6 +159,10 @@ describe("node properties", () => {
       "aria-pressed",
       "true",
     );
+    expect(screen.getByText("No decision documented yet.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit decision" })).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
+    enterEditMode();
     for (const name of ["Chosen approach", "Why"]) {
       expect(screen.getByRole("textbox", { name })).toBeVisible();
     }
@@ -160,6 +174,44 @@ describe("node properties", () => {
     }
     expect(screen.queryByLabelText("Component name")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Why" })).not.toBeInTheDocument();
+  });
+
+  it("reads decisions and attributes without a form until Edit is requested", () => {
+    useDiagramStore.setState((state) => ({
+      nodes: state.nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          decision,
+          attributes: [{ name: "Cache TTL", value: "60", unit: "s" }],
+        },
+      })),
+    }));
+    render(<PropertiesPanel />);
+
+    const summary = screen.getByRole("region", { name: "Decision" });
+    expect(within(summary).getByText(decision.choice)).toBeVisible();
+    expect(within(summary).getByText(decision.reason)).toBeVisible();
+    expect(within(summary).getByRole("region", { name: "Gains" })).toBeVisible();
+    expect(within(summary).getByRole("region", { name: "Costs" })).toBeVisible();
+    expect(screen.getByText("60 s")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit decision" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Chosen approach" }), {
+      target: { value: "Write-through cache" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Done editing decision" }));
+
+    expect(screen.getByRole("region", { name: "Decision" })).toHaveTextContent(
+      "Write-through cache",
+    );
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
+    expect(useDiagramStore.getState().nodes[0]?.data["decision"]).toMatchObject({
+      ...decision,
+      choice: "Write-through cache",
+    });
+    expect(cloudWorkspace.schedule).toHaveBeenCalled();
   });
 
   it("keeps valid state when the DOM supplies an unsupported component type", () => {
@@ -211,6 +263,7 @@ describe("node properties", () => {
       ],
     }));
     render(<PropertiesPanel />);
+    enterEditMode();
     fireEvent.change(screen.getByLabelText("Chosen approach"), {
       target: { value: decision.choice },
     });
@@ -221,6 +274,8 @@ describe("node properties", () => {
       "true",
     );
     chooseSection("Decision");
+    expect(screen.getByText(decision.choice)).toBeVisible();
+    enterEditMode();
     expect(screen.getByLabelText("Chosen approach")).toHaveValue(decision.choice);
     chooseSection("Component");
 
@@ -229,7 +284,8 @@ describe("node properties", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByLabelText("Chosen approach")).toHaveValue("Use Postgres");
+    expect(screen.getByText("Use Postgres")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Chosen approach" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Component name")).not.toBeInTheDocument();
     expect(useDiagramStore.getState().nodes[0]?.data).toMatchObject({
       label: "Read API",
@@ -239,6 +295,7 @@ describe("node properties", () => {
 
   it("edits and removes structured attributes with separate values and units", () => {
     render(<PropertiesPanel />);
+    enterEditMode();
     addAttribute("Cache TTL", "60", "s");
     expect(useDiagramStore.getState().nodes[0]?.data).toMatchObject({
       attributes: [{ name: "Cache TTL", value: "60", unit: "s" }],
@@ -263,6 +320,7 @@ describe("node properties", () => {
 
   it("requires units for new numeric attributes and preserves valid state on invalid edits", () => {
     render(<PropertiesPanel />);
+    enterEditMode();
     addAttribute("Replicas", "3");
     expect(screen.getByRole("alert")).toHaveTextContent("Choose an explicit unit");
     expect(useDiagramStore.getState().nodes[0]?.data["attributes"]).toBeUndefined();
@@ -313,6 +371,7 @@ describe("node properties", () => {
 
   it("records chosen-approach edits in undo history", () => {
     render(<PropertiesPanel />);
+    enterEditMode();
     fireEvent.change(screen.getByLabelText("Chosen approach"), { target: { value: "Redis" } });
     fireEvent.change(screen.getByLabelText("Chosen approach"), { target: { value: "Postgres" } });
     act(() => useDiagramStore.getState().undo());
@@ -394,6 +453,43 @@ describe("node properties", () => {
 });
 
 describe("group and connection properties", () => {
+  it("pins connection endpoints and persists manual sides across hydration", () => {
+    selectEdge();
+    useDiagramStore.setState((state) => ({
+      nodes: [
+        ...state.nodes,
+        {
+          id: "target",
+          type: "architecture",
+          position: { x: 300, y: 0 },
+          data: { label: "Target", type: "service" },
+        },
+      ],
+      edges: state.edges.map((edge) => ({ ...edge, target: "target" })),
+    }));
+    render(<PropertiesPanel />);
+    expect(screen.getByRole("combobox", { name: "Source side" })).toHaveValue("auto");
+    expect(screen.getByRole("combobox", { name: "Target side" })).toHaveValue("auto");
+    fireEvent.change(screen.getByRole("combobox", { name: "Source side" }), {
+      target: { value: "top" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Target side" }), {
+      target: { value: "bottom" },
+    });
+    const saved = useDiagramStore.getState().exportDiagram();
+    expect(saved.edges[0]).toMatchObject({
+      sourceHandle: "top",
+      targetHandle: "bottom",
+      data: { sourceSide: "top", targetSide: "bottom" },
+    });
+    act(() => {
+      useDiagramStore.getState().hydrateDiagram(saved);
+      useDiagramStore.getState().setSelectedEdge("edge");
+    });
+    expect(screen.getByRole("combobox", { name: "Source side" })).toHaveValue("top");
+    expect(screen.getByRole("combobox", { name: "Target side" })).toHaveValue("bottom");
+  });
+
   it("defaults groups to Decision and retains reasoning without color controls on any tab", () => {
     useDiagramStore.getState().hydrateDiagram({
       nodes: [
@@ -418,7 +514,8 @@ describe("group and connection properties", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByLabelText("Chosen approach")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit decision" })).toBeVisible();
+    enterEditMode();
     fireEvent.change(screen.getByLabelText("Chosen approach"), {
       target: { value: "Isolate private workloads" },
     });
@@ -450,6 +547,45 @@ describe("group and connection properties", () => {
     for (const hint of ["Show data passing", "Non-blocking call", "Request/Response"]) {
       expect(screen.getByText(hint)).toHaveClass("text-muted-foreground");
     }
+  });
+
+  it("offers every protocol exactly once, labelled and grouped from the protocol config", () => {
+    selectEdge();
+    render(<PropertiesPanel />);
+    const picker = screen.getByRole("combobox", { name: "Protocol" });
+    const options = within(picker).getAllByRole("option");
+    expect(options).toHaveLength(edgeProtocolSchema.options.length);
+    const groupLabels = {
+      standard: "Standard",
+      messaging: "Messaging",
+      data: "Data",
+      auth: "Auth & DNS",
+      aiml: "AI/ML",
+    };
+    for (const protocol of edgeProtocolSchema.options) {
+      const matches = options.filter((option) => option.getAttribute("value") === protocol);
+      expect(matches.map((option) => option.textContent)).toEqual([
+        PROTOCOL_CONFIG[protocol].label,
+      ]);
+      expect(matches[0]?.closest("optgroup")).toHaveAttribute(
+        "label",
+        groupLabels[PROTOCOL_CONFIG[protocol].group],
+      );
+    }
+    expect(
+      within(picker)
+        .getAllByRole("group")
+        .map((group) => group.getAttribute("label")),
+    ).toEqual(Object.values(groupLabels));
+  });
+
+  it("updates the edge when a newly offered protocol is chosen", () => {
+    selectEdge();
+    render(<PropertiesPanel />);
+    const picker = screen.getByRole("combobox", { name: "Protocol" });
+    fireEvent.change(picker, { target: { value: "mqtt" } });
+    expect(picker).toHaveValue("mqtt");
+    expect(useDiagramStore.getState().edges[0]?.data).toMatchObject({ protocol: "mqtt" });
   });
 
   it("retains connection reasoning alongside separate request and response contracts", () => {

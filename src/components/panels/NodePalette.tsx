@@ -5,7 +5,7 @@ import {
   GROUP_SHORTCUTS as EDITOR_GROUP_SHORTCUTS,
   QUICK_ADD_SHORTCUTS,
 } from "@/utils/editorShortcuts";
-import { ArchitectureNodeType, GroupNodeType } from "@/types";
+import type { ArchitectureNodeType, GroupNodeType } from "@/types";
 import { cn } from "@/lib/utils";
 import {
   MagnifyingGlassIcon,
@@ -30,12 +30,13 @@ const GROUP_SHORTCUTS: Partial<Record<string, string>> = Object.fromEntries(
 // Ordered from physical placement (region, network) to logical and frontend structure.
 const GROUP_CATEGORIES = Object.keys(GROUP_TYPES_CONFIG) as GroupNodeType[];
 
+// oxlint-disable-next-line complexity -- debt: complexity 17; extract branches
 export function NodePalette() {
   const [searchQuery, setSearchQuery] = useState("");
   const onboardingActiveStep = useOnboardingStore((s) => s.activeStep);
 
   // Filter regular nodes
-  const filteredCategories = NODE_CATEGORIES.reduce(
+  const filteredCategories = NODE_CATEGORIES.reduce<Record<string, ArchitectureNodeType[]>>(
     (acc, { label: category, types }) => {
       const filtered = types.filter((type) => {
         const config = NODE_TYPES_CONFIG[type];
@@ -49,7 +50,7 @@ export function NodePalette() {
       }
       return acc;
     },
-    {} as Record<string, ArchitectureNodeType[]>,
+    {},
   );
 
   // Filter groups

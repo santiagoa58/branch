@@ -1,4 +1,4 @@
-import { DiagramData } from "@/types";
+import type { DiagramData } from "@/types";
 import { archEdge, archNode, groupNode } from "./builders";
 import { attachDecisions } from "./define";
 import { decide } from "./reasoning";

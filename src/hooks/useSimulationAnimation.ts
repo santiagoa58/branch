@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- debt: 1218 lines (limit 450); split the module
 /**
  * useSimulationAnimation — GSAP orchestration hook for simulation visual effects.
  *
@@ -71,28 +72,17 @@ function getEdgeElement(edgeId: string): Element | null {
  * Get the React Flow SVG edge layer where we can inject packet circles.
  */
 export function getEdgeSvgLayer(): SVGSVGElement | null {
-  return document.querySelector(".react-flow__edges svg") as SVGSVGElement | null;
+  return document.querySelector<SVGSVGElement>(".react-flow__edges svg");
 }
 
 /**
- * Find the first <path> element inside an edge group that has a `d` attribute
- * (skip markers). Prefer the BaseEdge path which is the direct child with the
- * edge path data.
+ * Follow React Flow's BaseEdge path, never arrowhead definitions, hit areas or glow overlays.
+ * Marker paths also have `d` attributes and use coordinates near (0, 0).
  */
 export function getEdgePath(edgeId: string): SVGPathElement | null {
-  const edgeGroup = getEdgeElement(edgeId);
-  if (!edgeGroup) {
-    return null;
-  }
-  // Look for paths with a d attribute — the first one with stroke is usually the base edge
-  const paths = edgeGroup.querySelectorAll("path[d]");
-  for (const p of paths) {
-    const d = p.getAttribute("d");
-    if (d && d.length > 10) {
-      return p as SVGPathElement;
-    } // skip trivial marker paths
-  }
-  return null;
+  return (
+    getEdgeElement(edgeId)?.querySelector<SVGPathElement>("path.react-flow__edge-path") ?? null
+  );
 }
 
 /**
@@ -114,7 +104,7 @@ function createPacketDots(
   inner.setAttribute("r", "5");
   inner.setAttribute("fill", color);
   inner.setAttribute("pointer-events", "none");
-  inner.style.filter = "drop-shadow(0 0 4px " + color + ")";
+  inner.style.filter = `drop-shadow(0 0 4px ${color})`;
 
   svgLayer.appendChild(outer);
   svgLayer.appendChild(inner);
@@ -183,7 +173,7 @@ function createResponsePacketDots(
   inner.setAttribute("fill", color);
   inner.setAttribute("opacity", "0.6");
   inner.setAttribute("pointer-events", "none");
-  inner.style.filter = "drop-shadow(0 0 3px " + color + ")";
+  inner.style.filter = `drop-shadow(0 0 3px ${color})`;
 
   svgLayer.appendChild(outer);
   svgLayer.appendChild(inner);
@@ -244,6 +234,7 @@ function computeFlowStats(
   };
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 1044 lines; split into smaller units
 export function useSimulationAnimation() {
   const mode = useSimulationStore((s) => s.mode);
   const isRunning = useSimulationStore((s) => s.isRunning);
@@ -321,9 +312,7 @@ export function useSimulationAnimation() {
     }
     for (const edgeId of dimmedEdgeIdsRef.current) {
       // Dim the React Flow edge wrapper (contains BaseEdge + overlays)
-      const wrapper = document.querySelector(
-        `.react-flow__edge[data-id="${edgeId}"]`,
-      ) as HTMLElement | null;
+      const wrapper = document.querySelector<HTMLElement>(`.react-flow__edge[data-id="${edgeId}"]`);
       if (wrapper) {
         gsap.set(wrapper, { clearProps: "opacity,filter" });
       }
@@ -343,6 +332,7 @@ export function useSimulationAnimation() {
   }
 
   // ── Flow Simulation Animation — Continuous Mode (Packet + Highlights) ────
+  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 64, 472 lines; extract branches and split into smaller units
   useEffect(() => {
     // Only run continuous flow animation when NOT in stepping mode
     if (mode !== "flow" || !isRunning || !flowPath || !sourceNodeId || steppingMode) {
@@ -415,9 +405,7 @@ export function useSimulationAnimation() {
       if (edgeId !== bottleneckEdgeId) {
         return;
       }
-      const wrapper = document.querySelector(
-        `.react-flow__edge[data-id="${edgeId}"]`,
-      ) as HTMLElement | null;
+      const wrapper = document.querySelector<HTMLElement>(`.react-flow__edge[data-id="${edgeId}"]`);
       if (!wrapper) {
         return;
       }
@@ -498,7 +486,7 @@ export function useSimulationAnimation() {
           tl.call(
             () => {
               inner.setAttribute("fill", color);
-              inner.style.filter = "drop-shadow(0 0 4px " + color + ")";
+              inner.style.filter = `drop-shadow(0 0 4px ${color})`;
               outer.setAttribute("fill", color);
             },
             [],
@@ -583,6 +571,7 @@ export function useSimulationAnimation() {
               timeOffset + duration + 0.3,
             );
             // Merge pulse (white flash) if this is a merge point
+            // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
             if (mergeNodeIds.has(step.toNodeId)) {
               tl.to(
                 toEl,
@@ -647,7 +636,7 @@ export function useSimulationAnimation() {
         tl.call(
           () => {
             inner.setAttribute("fill", color);
-            inner.style.filter = "drop-shadow(0 0 4px " + color + ")";
+            inner.style.filter = `drop-shadow(0 0 4px ${color})`;
             outer.setAttribute("fill", color);
           },
           [],
@@ -920,6 +909,7 @@ export function useSimulationAnimation() {
   }, [mode, isRunning, flowPath, sourceNodeId, steppingMode, roundTripEnabled, speed]);
 
   // ── Flow Simulation — Step-by-Step Debugger Mode ─────────────────────────
+  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 58, 237 lines; extract branches and split into smaller units
   useEffect(() => {
     if (mode !== "flow" || !steppingMode || !flowPath || !sourceNodeId || currentStepIndex < 0) {
       // Cleanup stepping visuals — only clean what stepping mode owns
@@ -982,6 +972,7 @@ export function useSimulationAnimation() {
           // Highlight destination node
           const toEl = getNodeElement(step.toNodeId);
           if (toEl) {
+            // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
             if (isCurrentLevel) {
               gsap.to(toEl, {
                 boxShadow: `0 0 30px ${color}`,
@@ -998,6 +989,7 @@ export function useSimulationAnimation() {
           // Add depth badge
           const badge = createStepBadge(step.toNodeId, li + 1);
           if (badge) {
+            // oxlint-disable-next-line max-depth -- debt: nesting depth 5; extract the inner block
             if (isCurrentLevel) {
               badge.style.background = color;
               badge.style.boxShadow = `0 0 12px ${color}`;
@@ -1262,6 +1254,7 @@ export function useSimulationAnimation() {
   }, [mode, isRunning, activePathNodeIds, activePathEdgeIds]);
 
   // ── Failure Simulation Animation — Cascading Domino Effect ───────────────
+  // oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 26, 218 lines; extract branches and split into smaller units
   useEffect(() => {
     if (mode !== "failure" || !isRunning) {
       // Kill failure tweens & timeline
@@ -1292,9 +1285,9 @@ export function useSimulationAnimation() {
           gsap.set(el, { clearProps: "opacity" });
         }
         // Also clear the wrapper
-        const wrapper = document.querySelector(
+        const wrapper = document.querySelector<HTMLElement>(
           `.react-flow__edge[data-id="${edgeId}"]`,
-        ) as HTMLElement | null;
+        );
         if (wrapper) {
           gsap.set(wrapper, { clearProps: "opacity,filter" });
         }
@@ -1342,9 +1335,9 @@ export function useSimulationAnimation() {
         // Animate edges at this level — snap/pulse then go red
         for (const edgeId of level.edgeIds) {
           const edgeGroup = getEdgeElement(edgeId);
-          const wrapper = document.querySelector(
+          const wrapper = document.querySelector<HTMLElement>(
             `.react-flow__edge[data-id="${edgeId}"]`,
-          ) as HTMLElement | null;
+          );
 
           if (wrapper) {
             // Brief scale pulse ("snap" effect)
@@ -1501,9 +1494,9 @@ export function useSimulationAnimation() {
         if (el) {
           gsap.set(el, { clearProps: "opacity" });
         }
-        const wrapper = document.querySelector(
+        const wrapper = document.querySelector<HTMLElement>(
           `.react-flow__edge[data-id="${edgeId}"]`,
-        ) as HTMLElement | null;
+        );
         if (wrapper) {
           gsap.set(wrapper, { clearProps: "opacity,filter" });
         }

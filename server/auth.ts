@@ -16,6 +16,7 @@ export async function authenticate(request: Request): Promise<string | null> {
   const clerk = createClerkClient({
     secretKey: env.CLERK_SECRET_KEY,
     publishableKey: env.VITE_CLERK_PUBLISHABLE_KEY,
+    telemetry: { disabled: true },
   });
   const state = await clerk.authenticateRequest(request, {
     authorizedParties: env.CLERK_AUTHORIZED_PARTIES,

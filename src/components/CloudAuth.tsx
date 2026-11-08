@@ -11,7 +11,6 @@ import {
 } from "@/services/cloudWorkspace";
 import { useAnimationStore } from "@/store/animationStore";
 import { useDiagramStore } from "@/store/diagramStore";
-import { useAIStore } from "@/store/aiStore";
 import { LoadingState } from "@/components/ui/loading";
 import { BrandMark, BRANCH_MARK_SRC } from "@/components/Brand";
 
@@ -146,7 +145,6 @@ function UserWorkspace({ ownerId }: { ownerId: string }) {
         cloudWorkspace.reset();
         useDiagramStore.getState().resetDiagramState();
       }
-      useAIStore.getState().clearSessionAnalysis();
     },
     [queryClient],
   );
@@ -312,16 +310,7 @@ function WorkspaceRecovery({
             Sign in with original account
           </button>
         )}
-        {!confirmDiscard ? (
-          <button
-            type="button"
-            disabled={busy}
-            className="underline"
-            onClick={() => setConfirmDiscard(true)}
-          >
-            Discard edits and continue
-          </button>
-        ) : (
+        {confirmDiscard ? (
           <>
             <span>Discard these edits permanently?</span>
             <button type="button" disabled={busy} className="underline" onClick={onDiscard}>
@@ -336,6 +325,15 @@ function WorkspaceRecovery({
               Keep edits
             </button>
           </>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            className="underline"
+            onClick={() => setConfirmDiscard(true)}
+          >
+            Discard edits and continue
+          </button>
         )}
       </div>
     </section>

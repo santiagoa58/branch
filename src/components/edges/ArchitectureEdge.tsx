@@ -1,16 +1,20 @@
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, type Edge, getBezierPath } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, type Edge } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { hasDesignDecision } from "@/utils/designDecision";
 import type { ArchitectureEdgeData } from "@/types";
+import type { ConnectionFocusData } from "@/utils/connectionFocus";
 
 import { useSimulationStore } from "@/store/simulationStore";
 import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
 import { useEdgeLabelPosition } from "@/hooks/useEdgeLabelPosition";
+import { useEdgeRoute } from "@/hooks/useEdgeRoute";
+import { edgeLabelText } from "@/utils/edgeLabelText";
 import { useUIStore } from "@/store/uiStore";
 import { useState, useCallback } from "react";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { EdgeDetailsDialog } from "@/components/ui/EdgeDetailsDialog";
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: complexity 56, 278 lines; extract branches and split into smaller units
 export function ArchitectureEdge({
   id,
   sourceX,
@@ -21,13 +25,15 @@ export function ArchitectureEdge({
   targetPosition,
   data,
   selected,
-}: EdgeProps<Edge<ArchitectureEdgeData>>) {
+}: EdgeProps<Edge<ArchitectureEdgeData & ConnectionFocusData>>) {
   const edgeData = data;
+  const connectionFocus = edgeData?.connectionFocus;
+  const isConnectionHighlighted = connectionFocus === "highlighted";
 
   const isProtocolHidden = useUIStore((s) =>
     edgeData?.protocol ? s.hiddenProtocols.has(edgeData.protocol) : false,
   );
-  const isEdgeDimmed = isProtocolHidden;
+  const isEdgeDimmed = isProtocolHidden || connectionFocus === "dimmed";
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -36,14 +42,12 @@ export function ArchitectureEdge({
     setIsDialogOpen(true);
   }, []);
 
-  const [edgePath, preferredLabelX, preferredLabelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
+  // Orthogonal routing that turns clear of nodes and keeps its own lane.
+  const {
+    path: edgePath,
+    labelX: preferredLabelX,
+    labelY: preferredLabelY,
+  } = useEdgeRoute(id, { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
   const isAnimated = edgeData?.animated ?? false;
 
@@ -72,7 +76,13 @@ export function ArchitectureEdge({
   const edgeColors = {
     default: "var(--edge-color)",
     selected: "var(--edge-selected)",
+    focused: "var(--edge-focus)",
   };
+  const strokeColor = isConnectionHighlighted
+    ? edgeColors.focused
+    : selected
+      ? edgeColors.selected
+      : edgeColors.default;
 
   const getProtocolColor = () => {
     const protocol = edgeData?.protocol || "http";
@@ -82,12 +92,14 @@ export function ArchitectureEdge({
       : { primary: "#3b82f6", secondary: "#60a5fa" };
   };
 
-  const protocolColors = getProtocolColor();
+  const protocolColors = isConnectionHighlighted
+    ? { primary: edgeColors.focused, secondary: edgeColors.focused }
+    : getProtocolColor();
 
   const getEdgeStyle = () => {
     const baseStyle: React.CSSProperties = {
-      strokeWidth: 2,
-      stroke: selected ? edgeColors.selected : edgeColors.default,
+      strokeWidth: isConnectionHighlighted ? 3 : 2,
+      stroke: strokeColor,
     };
 
     // If async, use dotted pattern regardless of protocol
@@ -102,28 +114,19 @@ export function ArchitectureEdge({
       return { ...baseStyle, strokeDasharray: config.style.strokeDasharray };
     }
     if (config?.style.strokeWidth) {
-      return { ...baseStyle, strokeWidth: config.style.strokeWidth };
+      return {
+        ...baseStyle,
+        strokeWidth: isConnectionHighlighted
+          ? Math.max(3, config.style.strokeWidth)
+          : config.style.strokeWidth,
+      };
     }
 
     return baseStyle;
   };
 
-  const label =
-    edgeData?.label || (edgeData?.method ? edgeData.method : edgeData?.protocol?.toUpperCase());
-
-  // Build label with async indicator and schema name
-  let fullLabel = label;
-
-  // Add async indicator
-  if (edgeData?.async) {
-    fullLabel = fullLabel ? `${fullLabel} (async)` : "(async)";
-  }
-
-  // Append schema name to label if data contract exists
-  if (edgeData?.dataContract?.schemaName) {
-    const baseLabel = fullLabel || edgeData?.protocol?.toUpperCase() || "DATA";
-    fullLabel = `${baseLabel} • ${edgeData.dataContract.schemaName}`;
-  }
+  // Label, async marker and schema name; auto-layout reserves room for the same text.
+  const fullLabel = edgeLabelText(edgeData);
 
   const hasDecision = hasDesignDecision(edgeData?.decision);
 
@@ -131,39 +134,38 @@ export function ArchitectureEdge({
     preferredLabelX,
     preferredLabelY,
     hasDecision,
+    id,
   );
 
   // Determine marker IDs for bidirectional support
   const isBidirectional = edgeData?.bidirectional ?? false;
-  const markerEnd = isBidirectional ? `url(#arrow-${id}-end)` : "url(#arrow-end)";
+  const markerEnd = `url(#arrow-${id}-end)`;
   const markerStart = isBidirectional ? `url(#arrow-${id}-start)` : undefined;
 
   return (
     <g
       data-edge-id={id}
+      data-connection-focus={connectionFocus}
       style={
         isEdgeDimmed
-          ? { opacity: 0.12, transition: "opacity 200ms ease" }
+          ? { opacity: isProtocolHidden ? 0.12 : 0.18, transition: "opacity 200ms ease" }
           : { transition: "opacity 200ms ease" }
       }
     >
-      {/* Arrow markers for bidirectional edges */}
-      {isBidirectional && (
-        <defs>
-          <marker
-            id={`arrow-${id}-end`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto"
-          >
-            <path
-              d="M 0 0 L 10 5 L 0 10 z"
-              fill={selected ? edgeColors.selected : edgeColors.default}
-            />
-          </marker>
+      {/* Each edge owns markers so direction stays visible when focused. */}
+      <defs>
+        <marker
+          id={`arrow-${id}-end`}
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} />
+        </marker>
+        {isBidirectional && (
           <marker
             id={`arrow-${id}-start`}
             viewBox="0 0 10 10"
@@ -173,12 +175,22 @@ export function ArchitectureEdge({
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path
-              d="M 0 0 L 10 5 L 0 10 z"
-              fill={selected ? edgeColors.selected : edgeColors.default}
-            />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} />
           </marker>
-        </defs>
+        )}
+      </defs>
+
+      {isConnectionHighlighted && (
+        <path
+          className="connection-focus-glow"
+          d={edgePath}
+          fill="none"
+          stroke={edgeColors.focused}
+          strokeWidth={9}
+          strokeLinecap="round"
+          opacity={0.16}
+          pointerEvents="none"
+        />
       )}
 
       {/* Base edge line */}
@@ -268,6 +280,7 @@ export function ArchitectureEdge({
       <EdgeLabelRenderer>
         {hasDecision && (
           <div
+            data-connection-focus={connectionFocus}
             title={
               [edgeData?.decision?.choice, edgeData?.decision?.reason].filter(Boolean).join("\n") ||
               "Design reasoning documented"
@@ -276,8 +289,9 @@ export function ArchitectureEdge({
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX + 26}px, ${labelY - 24}px)`,
               pointerEvents: "none",
+              opacity: isEdgeDimmed ? 0.2 : 1,
             }}
-            className="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1 text-[9px] text-muted-foreground"
+            className="connection-label rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1 text-[9px] text-muted-foreground"
           >
             Why
           </div>
@@ -299,15 +313,16 @@ export function ArchitectureEdge({
         {fullLabel && (
           <div
             ref={labelRef}
+            data-connection-focus={connectionFocus}
             style={{
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-              pointerEvents: isEdgeDimmed ? "none" : "all",
+              pointerEvents: isProtocolHidden ? "none" : "all",
               opacity: isEdgeDimmed ? 0.2 : 1,
               transition: "opacity 200ms ease",
             }}
             className={cn(
-              "px-2 py-0.5 text-[10px] font-medium rounded-full cursor-pointer",
+              "connection-label px-2 py-0.5 text-[10px] font-medium rounded-full cursor-pointer",
               "bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700",
               "text-zinc-600 dark:text-zinc-400",
               "hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors",

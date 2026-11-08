@@ -5,5 +5,3 @@ export const edgeTypes = {
   architecture: ArchitectureEdge,
   rollup: RollupEdge,
 };
-
-export { ArchitectureEdge, RollupEdge };

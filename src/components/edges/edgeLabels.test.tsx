@@ -1,9 +1,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { getBezierPath, Position, ReactFlowProvider, type Node } from "@xyflow/react";
+import { Position, ReactFlowProvider, type Node } from "@xyflow/react";
+import { routeEdge, routePath } from "@/utils/edgeRouting";
 import type { EdgeDetailsDialog } from "@/components/ui/EdgeDetailsDialog";
-import { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
+import type { useEdgeAnimation } from "@/hooks/useEdgeAnimation";
 import { useDiagramStore } from "@/store/diagramStore";
 import { ArchitectureEdge } from "./ArchitectureEdge";
 import { RollupEdge } from "./RollupEdge";
@@ -57,7 +58,7 @@ const props = {
   selectable: true,
   deletable: true,
 };
-const [, midpointX, midpointY] = getBezierPath(geometry);
+const { labelX: midpointX, labelY: midpointY } = routeEdge(geometry, []);
 const obstacle: Node = {
   id: "obstacle",
   position: { x: midpointX + 40, y: midpointY - 30 },
@@ -153,19 +154,26 @@ describe("edge label interactions", () => {
     expect(expand).toHaveBeenNthCalledWith(2, "target-group");
   });
 
-  it("keeps an unlabeled edge's invisible double-click target at the Bezier midpoint", () => {
+  it("keeps an unlabeled edge's invisible double-click target on its routed path", () => {
     const nearObstacle = {
       ...obstacle,
       position: { x: midpointX + 10, y: obstacle.position.y },
     };
+    // The obstacle stands where the path would turn, so the path turns beside it instead.
+    const route = routeEdge(geometry, [{ ...nearObstacle.position, width: 160, height: 100 }]);
+    expect(route.labelX).not.toBe(midpointX);
     const { container, getByRole } = renderEdge(<ArchitectureEdge {...props} />, [nearObstacle]);
     const hitArea = container.querySelector<HTMLElement>("foreignObject > div")!;
 
     expect(hitArea).toHaveStyle({
       width: "24px",
       height: "24px",
-      transform: `translate(-50%, -50%) translate(${midpointX}px, ${midpointY}px)`,
+      transform: `translate(-50%, -50%) translate(${route.labelX}px, ${route.labelY}px)`,
     });
+    expect(container.querySelector(".react-flow__edge-path")).toHaveAttribute(
+      "d",
+      routePath(route.points),
+    );
     fireEvent.doubleClick(hitArea);
     expect(getByRole("dialog", { name: "Edge details" })).toHaveTextContent(props.id);
   });

@@ -5,12 +5,73 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigation } from "react-router-dom";
 import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { DocumentIcon, FolderIcon } from "@heroicons/react/24/solid";
-import { projectsApi, diagramsApi, type ApiProject } from "@/services/api";
+import { projectsApi, type ApiProject, type ApiWorkspaceProject } from "@/services/api";
+import {
+  deleteDiagramFromWorkspace,
+  deleteProjectFromWorkspace,
+} from "@/services/workspaceDeletion";
 import { workspaceQuery } from "@/services/workspaceQuery";
 import { CreateProjectDialog } from "@/components/workspace/CreateProjectDialog";
 import { CreateDiagramDialog } from "@/components/workspace/CreateDiagramDialog";
+import {
+  WorkspaceDeleteDialog,
+  type WorkspaceDeleteTarget,
+} from "@/components/workspace/WorkspaceDeleteDialog";
 import { preloadEditor } from "@/lib/editorRoute";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+function diagramParentId(projects: ApiWorkspaceProject[], diagramId: string): string {
+  const project = projects.find((item) =>
+    item.diagrams.some((diagram) => diagram.id === diagramId),
+  );
+  if (!project) {
+    throw new Error("The diagram is not in the current workspace.");
+  }
+  return project.id;
+}
+
+function filterWorkspaceProjects(
+  projects: ApiWorkspaceProject[],
+  search: string,
+): ApiWorkspaceProject[] {
+  const term = search.trim().toLocaleLowerCase();
+  return projects.flatMap((project) => {
+    if (
+      !term ||
+      `${project.name} ${project.description ?? ""}`.toLocaleLowerCase().includes(term)
+    ) {
+      return [project];
+    }
+    const diagrams = project.diagrams.filter((diagram) =>
+      `${diagram.name} ${diagram.description ?? ""}`.toLocaleLowerCase().includes(term),
+    );
+    return diagrams.length ? [{ ...project, diagrams }] : [];
+  });
+}
+
+/** Seed detailed caches without replacing a more recently fetched project or list. */
+function seedProjectQueries(
+  client: ReturnType<typeof useQueryClient>,
+  projects: ApiWorkspaceProject[] | undefined,
+  updatedAt: number,
+) {
+  for (const { diagrams, ...project } of projects ?? []) {
+    const projectKey = workspaceQuery.project(project.id).queryKey;
+    const diagramsKey = workspaceQuery.diagrams(project.id).queryKey;
+    const projectState = client.getQueryState(projectKey);
+    const diagramsState = client.getQueryState(diagramsKey);
+    if (!projectState || projectState.dataUpdatedAt < updatedAt) {
+      client.setQueryData(projectKey, project, { updatedAt });
+    }
+    if (!diagramsState || diagramsState.dataUpdatedAt < updatedAt) {
+      client.setQueryData(diagramsKey, diagrams, { updatedAt });
+    }
+  }
+}
+
+function isOpeningEditor(navigation: ReturnType<typeof useNavigation>): boolean {
+  return navigation.state !== "idle" && navigation.location.pathname.includes("/diagrams/");
+}
 
 function WorkspaceSkeleton() {
   return (
@@ -35,6 +96,7 @@ function WorkspaceSkeleton() {
   );
 }
 
+// oxlint-disable-next-line max-lines-per-function -- debt: 333 lines; split into smaller units
 export function ProjectsPage() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
@@ -43,34 +105,24 @@ export function ProjectsPage() {
   const [diagramProject, setDiagramProject] = useState<ApiProject | null>(null);
   const [editingProject, setEditingProject] = useState<ApiProject | null>(null);
   const [projectName, setProjectName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceDeleteTarget | null>(null);
   const [search, setSearch] = useState("");
 
   const { data, isLoading, isError, refetch, dataUpdatedAt } = useQuery(workspaceQuery.root());
   const projects = data ?? [];
 
   useEffect(() => {
-    for (const { diagrams, ...project } of data ?? []) {
-      const projectKey = workspaceQuery.project(project.id).queryKey;
-      const diagramsKey = workspaceQuery.diagrams(project.id).queryKey;
-      const projectState = queryClient.getQueryState(projectKey);
-      const diagramsState = queryClient.getQueryState(diagramsKey);
-      // Seeding must not mark old summaries as freshly fetched or overwrite newer queries.
-      if (!projectState || projectState.dataUpdatedAt < dataUpdatedAt) {
-        queryClient.setQueryData(projectKey, project, { updatedAt: dataUpdatedAt });
-      }
-      if (!diagramsState || diagramsState.dataUpdatedAt < dataUpdatedAt) {
-        queryClient.setQueryData(diagramsKey, diagrams, { updatedAt: dataUpdatedAt });
-      }
-    }
+    seedProjectQueries(queryClient, data, dataUpdatedAt);
   }, [data, dataUpdatedAt, queryClient]);
 
   const deleteMutation = useMutation({
-    mutationFn: projectsApi.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    mutationFn: (id: string) => deleteProjectFromWorkspace(queryClient, id),
+    onSuccess: () => setDeleteTarget(null),
   });
   const deleteDiagramMutation = useMutation({
-    mutationFn: diagramsApi.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+    mutationFn: (id: string) =>
+      deleteDiagramFromWorkspace(queryClient, diagramParentId(projects, id), id),
+    onSuccess: () => setDeleteTarget(null),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => projectsApi.update(id, { name }),
@@ -80,19 +132,7 @@ export function ProjectsPage() {
     },
   });
 
-  const term = search.trim().toLocaleLowerCase();
-  const visibleProjects = projects.flatMap((project) => {
-    if (
-      !term ||
-      `${project.name} ${project.description ?? ""}`.toLocaleLowerCase().includes(term)
-    ) {
-      return [project];
-    }
-    const diagrams = project.diagrams.filter((diagram) =>
-      `${diagram.name} ${diagram.description ?? ""}`.toLocaleLowerCase().includes(term),
-    );
-    return diagrams.length ? [{ ...project, diagrams }] : [];
-  });
+  const visibleProjects = filterWorkspaceProjects(projects, search);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -137,12 +177,12 @@ export function ProjectsPage() {
           </label>
         </div>
 
-        {navigation.state !== "idle" && navigation.location.pathname.includes("/diagrams/") && (
+        {isOpeningEditor(navigation) && (
           <output className="mb-4 block text-sm text-muted-foreground" aria-live="polite">
             Opening diagram…
           </output>
         )}
-        {(deleteMutation.isError || updateMutation.isError || deleteDiagramMutation.isError) && (
+        {updateMutation.isError && (
           <p role="alert" className="mb-4 text-sm text-muted-foreground">
             Could not update the workspace. Please try again.
           </p>
@@ -281,11 +321,14 @@ export function ProjectsPage() {
                     <button
                       type="button"
                       disabled={deleteMutation.isPending}
-                      onClick={() => {
-                        if (confirm(`Delete project "${project.name}" and all its diagrams?`)) {
-                          deleteMutation.mutate(project.id);
-                        }
-                      }}
+                      onClick={() =>
+                        setDeleteTarget({
+                          kind: "project",
+                          id: project.id,
+                          name: project.name,
+                          diagramCount: project.diagrams.length,
+                        })
+                      }
                       aria-label={`Delete ${project.name}`}
                       className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
                     >
@@ -350,11 +393,13 @@ export function ProjectsPage() {
                         <button
                           type="button"
                           disabled={deleteDiagramMutation.isPending}
-                          onClick={() => {
-                            if (confirm(`Delete diagram "${diagram.name}"?`)) {
-                              deleteDiagramMutation.mutate(diagram.id);
-                            }
-                          }}
+                          onClick={() =>
+                            setDeleteTarget({
+                              kind: "diagram",
+                              id: diagram.id,
+                              name: diagram.name,
+                            })
+                          }
                           aria-label={`Delete diagram ${diagram.name}`}
                           className="mr-3 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
                         >
@@ -369,6 +414,23 @@ export function ProjectsPage() {
           </div>
         )}
       </main>
+      <WorkspaceDeleteDialog
+        target={deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        pending={deleteMutation.isPending || deleteDiagramMutation.isPending}
+        errorMessage={
+          deleteMutation.isError || deleteDiagramMutation.isError
+            ? "Could not delete this item. Please retry."
+            : undefined
+        }
+        onDelete={(item) => {
+          if (item.kind === "project") {
+            deleteMutation.mutate(item.id);
+          } else {
+            deleteDiagramMutation.mutate(item.id);
+          }
+        }}
+      />
       {createOpen && <CreateProjectDialog onClose={() => setCreateOpen(false)} />}
       {diagramProject && (
         <CreateDiagramDialog

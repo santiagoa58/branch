@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const ciCd = defineTemplate({
+const ciCd = defineTemplate({
   id: "ci-cd-pipeline",
   name: "CI/CD pipeline",
   category: "platform",
@@ -178,7 +178,7 @@ export const ciCd = defineTemplate({
   },
 });
 
-export const observability = defineTemplate({
+const observability = defineTemplate({
   id: "observability-platform",
   name: "Observability platform",
   category: "platform",
@@ -341,7 +341,7 @@ export const observability = defineTemplate({
   },
 });
 
-export const iotTelemetry = defineTemplate({
+const iotTelemetry = defineTemplate({
   id: "iot-smart-home",
   name: "IoT smart home",
   category: "platform",
@@ -498,7 +498,7 @@ export const iotTelemetry = defineTemplate({
   },
 });
 
-export const multiplayerGame = defineTemplate({
+const multiplayerGame = defineTemplate({
   id: "multiplayer-game",
   name: "Online multiplayer game",
   category: "media",

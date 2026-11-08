@@ -6,7 +6,7 @@ import { ChevronDownIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
-import {
+import type {
   ArchitectureEdgeData,
   ArchitectureNodeData,
   ArchitectureNodeType,
@@ -14,11 +14,11 @@ import {
 } from "@/types";
 import { cn } from "@/lib/utils";
 
-const TECH_RULES: Array<{
+const TECH_RULES: {
   label: string;
   types?: ArchitectureNodeType[];
   protocols?: EdgeProtocol[];
-}> = [
+}[] = [
   { label: "PostgreSQL", types: ["database"] },
   { label: "Redis", types: ["cache"] },
   { label: "RabbitMQ", types: ["queue"] },
@@ -42,7 +42,7 @@ export function DiagramInfoCard() {
 
   const { data: project } = useQuery({
     ...workspaceQuery.project(currentProjectId ?? ""),
-    enabled: !!currentProjectId,
+    enabled: Boolean(currentProjectId),
   });
   // The active editor document is already authoritative; do not download it again.
   const diagram = cloud.diagram?.id === currentDiagramId ? cloud.diagram : null;
@@ -59,6 +59,7 @@ export function DiagramInfoCard() {
     }
     const usedProtocols = new Set<string>();
     for (const e of edges) {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- false positive: Edge data is Record<string, unknown>; the cast is what types `protocol`
       const p = (e.data as ArchitectureEdgeData | undefined)?.protocol;
       if (p) {
         usedProtocols.add(p);

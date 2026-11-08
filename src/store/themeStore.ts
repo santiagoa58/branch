@@ -82,18 +82,19 @@ export const useThemeStore = create<ThemeStore>()(
   ),
 );
 
+function syncResolvedTheme() {
+  const { theme } = useThemeStore.getState();
+  const resolvedTheme = resolveTheme(theme);
+  applyTheme(resolvedTheme);
+  if (useThemeStore.getState().resolvedTheme !== resolvedTheme) {
+    useThemeStore.setState({ resolvedTheme });
+  }
+}
+
 /** One application-wide owner for system preference changes, including before auth. */
 export function initializeTheme() {
   const query = window.matchMedia("(prefers-color-scheme: dark)");
-  const update = () => {
-    const { theme } = useThemeStore.getState();
-    const resolvedTheme = resolveTheme(theme);
-    applyTheme(resolvedTheme);
-    if (useThemeStore.getState().resolvedTheme !== resolvedTheme) {
-      useThemeStore.setState({ resolvedTheme });
-    }
-  };
-  update();
-  query.addEventListener("change", update);
-  return () => query.removeEventListener("change", update);
+  syncResolvedTheme();
+  query.addEventListener("change", syncResolvedTheme);
+  return () => query.removeEventListener("change", syncResolvedTheme);
 }

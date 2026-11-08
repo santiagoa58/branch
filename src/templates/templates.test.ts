@@ -107,7 +107,7 @@ describe.each(DIAGRAM_TEMPLATES.map((t) => [t.name, t] as const))(
       for (const node of decided) {
         expectShortCompleteDecision(node.data.decision, `${template.id}/${node.id}`);
       }
-      for (const edge of edges.filter((edge) => edge.data?.decision)) {
+      for (const edge of edges.filter((candidate) => candidate.data?.decision)) {
         expectShortCompleteDecision(edge.data?.decision, `${template.id}/${edge.id}`);
       }
     });
@@ -126,7 +126,7 @@ describe.each(DIAGRAM_TEMPLATES.map((t) => [t.name, t] as const))(
         expect(attribute.name).toMatch(/^Illustrative /);
         expect(attribute.unit?.trim().length).toBeGreaterThan(0);
       }
-      for (const edge of edges.filter((edge) => edge.data?.latencyMs !== undefined)) {
+      for (const edge of edges.filter((candidate) => candidate.data?.latencyMs !== undefined)) {
         expect(edge.data?.description).toMatch(/illustrative.*ms.*not.*production/i);
       }
     });

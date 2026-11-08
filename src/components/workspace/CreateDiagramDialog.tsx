@@ -9,17 +9,21 @@ import { LoadingIndicator } from "@/components/ui/loading";
 interface Props {
   projectId: string;
   onClose: () => void;
+  /** Save the active diagram before creating another from the editor. */
+  beforeCreate?: () => Promise<void>;
 }
 
-export function CreateDiagramDialog({ projectId, onClose }: Props) {
+export function CreateDiagramDialog({ projectId, onClose, beforeCreate }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
   const mutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) =>
-      diagramsApi.create(projectId, data),
+    mutationFn: async (data: { name: string; description?: string }) => {
+      await beforeCreate?.();
+      return diagramsApi.create(projectId, data);
+    },
     onSuccess: (diagram) => {
       queryClient.setQueryData(["diagrams", diagram.id], diagram);
       void queryClient.invalidateQueries({ queryKey: ["projects", projectId, "diagrams"] });

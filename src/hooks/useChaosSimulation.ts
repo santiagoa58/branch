@@ -57,7 +57,7 @@ export function useChaosSimulation() {
     // Get node labels for the event message
     const failedLabels = newFailedIds.map((id) => {
       const node = nodes.find((n) => n.id === id);
-      const label = (node?.data as Record<string, unknown> | undefined)?.["label"];
+      const label = node?.data?.["label"];
       return typeof label === "string" && label ? label : id;
     });
 

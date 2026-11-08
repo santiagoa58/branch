@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const cloudFileStorage = defineTemplate({
+const cloudFileStorage = defineTemplate({
   id: "cloud-file-storage",
   name: "Cloud file storage and sync",
   category: "storage",

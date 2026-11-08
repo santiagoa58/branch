@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useReactFlow } from "@xyflow/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useReactFlow, type FitView } from "@xyflow/react";
 import {
   XMarkIcon,
   PlusIcon,
@@ -13,12 +13,17 @@ import {
   TEMPLATE_CATEGORIES,
   findTemplates,
   instantiateTemplate,
+  layoutTemplate,
   type DiagramTemplate,
   type TemplateCategory,
 } from "@/templates";
 import { appendDiagramData } from "@/utils/import";
+import { absoluteRects } from "@/utils/layout/geometry";
+import type { DiagramData } from "@/types";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
 import { notify } from "@/services/notify";
+import { cloudWorkspace } from "@/services/cloudWorkspace";
+import { editBlockReason, useEditBlocked } from "@/store/editLock";
 import { cn } from "@/lib/utils";
 
 interface TemplateGalleryDialogProps {
@@ -40,6 +45,54 @@ function countFor(category: CategoryFilter) {
     : DIAGRAM_TEMPLATES.filter((template) => template.category === category).length;
 }
 
+/** Place an added template after the current diagram, not on top of existing components. */
+function appendTemplateBeside(current: DiagramData, instance: DiagramData): DiagramData {
+  const existing = [...absoluteRects(current.nodes).values()];
+  const incoming = [...absoluteRects(instance.nodes).values()];
+  const right = Math.max(...existing.map((rect) => rect.x + rect.width));
+  const left = Math.min(...incoming.map((rect) => rect.x));
+  const top = Math.min(...existing.map((rect) => rect.y));
+  const incomingTop = Math.min(...incoming.map((rect) => rect.y));
+  return appendDiagramData(current, instance, {
+    x: right + 160 - left,
+    y: top - incomingTop,
+  });
+}
+
+function applyTemplate(
+  template: DiagramTemplate,
+  mode: LoadMode,
+  onClose: () => void,
+  fitView: FitView,
+) {
+  if (editBlockReason() !== null) {
+    notify.error({
+      title: "Cannot load template",
+      message: "The diagram is busy. Try again after the current operation finishes.",
+    });
+    return;
+  }
+  const { exportDiagram, importDiagram } = useDiagramStore.getState();
+  const instance = instantiateTemplate(template);
+  let finalData = instance;
+  if (mode === "add") {
+    finalData = appendTemplateBeside(exportDiagram(), instance);
+  }
+  importDiagram(finalData);
+  notify.success({
+    title: mode === "add" ? "Template added" : "Template loaded",
+    message: `${template.name}: ${instance.nodes.length} components, ${instance.edges.length} connections`,
+    duration: 3000,
+  });
+  onClose();
+  // The gallery unmounts on close; fit the canvas after React Flow measures the new nodes.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void fitView({ padding: 0.2, maxZoom: 1 });
+    });
+  });
+}
+
 export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialogProps) {
   if (!isOpen) {
     return null;
@@ -47,8 +100,12 @@ export function TemplateGalleryDialog({ isOpen, onClose }: TemplateGalleryDialog
   return <TemplateGallery onClose={onClose} />;
 }
 
+// oxlint-disable-next-line complexity, max-lines-per-function -- debt: gallery load guards; extract smaller components
 function TemplateGallery({ onClose }: { onClose: () => void }) {
   const canvasEmpty = useDiagramStore((s) => s.nodes.length === 0);
+  const editBlocked = useEditBlocked();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const loadingRef = useRef(false);
   const { fitView } = useReactFlow();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
@@ -64,32 +121,56 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
     setConfirmReplace(false);
   };
 
+  // Layout is asynchronous; a template must not land after the gallery closed or the user left.
+  const open = useRef(true);
+  useEffect(() => {
+    // StrictMode replays setup after cleanup while retaining this ref.
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
+
   const loadTemplate = (template: DiagramTemplate, mode: LoadMode) => {
-    const { exportDiagram, importDiagram } = useDiagramStore.getState();
-    const instance = instantiateTemplate(template);
-    let finalData = instance;
-    if (mode === "add") {
-      const current = exportDiagram();
-      finalData = appendDiagramData(current, instance, { x: 120, y: 120 });
-      // appendDiagramData only merges nodes/edges — carry the flows over too.
-      finalData.flows = [...(current.flows ?? []), ...(instance.flows ?? [])];
+    if (loadingRef.current || editBlockReason() !== null) {
+      return;
     }
-    importDiagram(finalData);
-    notify.success({
-      title: mode === "add" ? "Template added" : "Template loaded",
-      message: `${template.name}: ${instance.nodes.length} components, ${instance.edges.length} connections`,
-      duration: 3000,
-    });
-    onClose();
-    // The gallery unmounts on close; fit the canvas after React Flow measures the new nodes.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        void fitView({ padding: 0.2, maxZoom: 1 });
+    loadingRef.current = true;
+    setLoadingId(template.id);
+    setSelectedId(template.id);
+    setConfirmReplace(false);
+    const diagramId = cloudWorkspace.getState().diagram?.id;
+    // First load gets a single fast ELK pass; the explicit Auto-format tool
+    // can run the full multi-pass crossing optimizer when the user needs it.
+    layoutTemplate(template, true)
+      .then((laidOut) => {
+        if (open.current && cloudWorkspace.getState().diagram?.id === diagramId) {
+          applyTemplate(laidOut, mode, onClose, fitView);
+        }
+      })
+      .catch((error: unknown) => {
+        if (open.current) {
+          notify.error({
+            title: "Could not load the template",
+            message:
+              error instanceof Error
+                ? error.message
+                : "The layout engine failed. Your diagram is unchanged. Try again.",
+          });
+        }
+      })
+      .finally(() => {
+        loadingRef.current = false;
+        if (open.current) {
+          setLoadingId(null);
+        }
       });
-    });
   };
 
   const primaryAction = (template: DiagramTemplate) => {
+    if (loadingRef.current || editBlockReason() !== null) {
+      return;
+    }
     if (canvasEmpty) {
       loadTemplate(template, "replace");
     } else {
@@ -132,6 +213,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
             <input
               type="search"
               autoFocus
+              disabled={loadingId !== null}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -158,6 +240,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                 key={id}
                 type="button"
                 aria-pressed={category === id}
+                disabled={loadingId !== null}
                 onClick={() => {
                   setCategory(id);
                   setConfirmReplace(false);
@@ -188,6 +271,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                     <button
                       key={suggestion}
                       type="button"
+                      disabled={loadingId !== null}
                       onClick={() => {
                         setQuery(suggestion);
                         setCategory("all");
@@ -211,6 +295,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                         aria-label={`${template.name}${template.inspiredBy ? `, like ${template.inspiredBy}` : ""}`}
                         onClick={() => select(template)}
                         onDoubleClick={() => primaryAction(template)}
+                        disabled={loadingId !== null || editBlocked}
                         className={cn(
                           "flex w-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]",
                           isSelected
@@ -219,7 +304,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                         )}
                       >
                         <span className="block h-28 border-b border-border bg-background p-2 text-muted-foreground">
-                          <TemplatePreview data={template.data} />
+                          <TemplatePreview template={template} compact />
                         </span>
                         <span className="flex flex-col gap-1 p-3">
                           <span className="flex items-center gap-2">
@@ -250,7 +335,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
               className="flex shrink-0 flex-col border-t border-border bg-muted/40 lg:w-96 lg:border-l lg:border-t-0"
             >
               <div className="hidden h-48 border-b border-border bg-background p-4 text-muted-foreground lg:block">
-                <TemplatePreview data={selected.data} />
+                <TemplatePreview template={selected} />
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <div>
@@ -281,10 +366,20 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               <div className="border-t border-border p-4">
-                {canvasEmpty ? (
+                {loadingId ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-busy="true"
+                    className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground opacity-70"
+                  >
+                    Loading template…
+                  </button>
+                ) : canvasEmpty ? (
                   <button
                     type="button"
                     onClick={() => loadTemplate(selected, "replace")}
+                    disabled={editBlocked || loadingId !== null}
                     className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]"
                   >
                     Use template
@@ -298,6 +393,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                       <button
                         type="button"
                         onClick={() => loadTemplate(selected, "replace")}
+                        disabled={editBlocked || loadingId !== null}
                         className="flex-1 rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-destructive/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         Replace diagram
@@ -316,6 +412,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       onClick={() => loadTemplate(selected, "add")}
+                      disabled={editBlocked || loadingId !== null}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.98]"
                     >
                       <PlusIcon aria-hidden="true" className="size-4" />
@@ -324,6 +421,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       onClick={() => setConfirmReplace(true)}
+                      disabled={editBlocked || loadingId !== null}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold transition-colors duration-300 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.98]"
                     >
                       <ArrowPathIcon aria-hidden="true" className="size-4" />

@@ -9,6 +9,7 @@ export interface ToolbarButtonProps {
   showLabel?: string;
   shortcut?: string;
   active?: boolean;
+  disabled?: boolean;
   className?: string;
   onClick: () => void;
   children: ReactNode;
@@ -19,6 +20,7 @@ export function ToolbarButton({
   showLabel,
   shortcut,
   active = false,
+  disabled = false,
   className,
   onClick,
   children,
@@ -29,10 +31,12 @@ export function ToolbarButton({
         type="button"
         aria-label={label}
         aria-pressed={active}
+        disabled={disabled}
         onClick={onClick}
         className={cn(
           "flex items-center gap-1.5 p-2 rounded-full text-xs font-medium transition-colors",
           showLabel && "@2xl:px-3",
+          "disabled:opacity-40 disabled:pointer-events-none",
           active
             ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
             : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100",

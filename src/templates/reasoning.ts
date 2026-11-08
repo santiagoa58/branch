@@ -4,6 +4,7 @@ import type { ArchitectureAttribute, ArchitectureNodeType, DesignDecision } from
  * Compact authoring helper for template decisions. Each entry is a short phrase so the
  * decision card stays scannable; considered options are [option, why not] pairs.
  */
+// oxlint-disable-next-line max-params -- debt: 6 params; take an options object
 export function decide(
   choice: string,
   reason: string,

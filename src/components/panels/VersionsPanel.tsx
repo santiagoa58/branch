@@ -11,8 +11,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { versionsApi, type ApiDiagramVersion } from "@/services/api";
 import { workspaceQuery } from "@/services/workspaceQuery";
-import { useAnimationStore } from "@/store/animationStore";
+import { useAiDesignStore } from "@/store/aiDesignStore";
 import { useDiagramStore } from "@/store/diagramStore";
+import { editBlockReason, VERSION_EDIT_CHECKS } from "@/store/editLock";
 import { notify } from "@/services/notify";
 import { VersionPreviewModal } from "@/components/ui/VersionPreviewModal";
 import { LoadingIndicator, LoadingState } from "@/components/ui/loading";
@@ -35,17 +36,23 @@ function formatDate(iso: string): string {
   });
 }
 
+const RESTORE_BLOCKED = {
+  "ai-running": "Wait for the AI design run to finish before restoring.",
+  "deletions-pending": "Wait for deletions to finish before restoring.",
+} satisfies Record<(typeof VERSION_EDIT_CHECKS)[number], string>;
+
 export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps) {
   const queryClient = useQueryClient();
   const { nodes: currentNodes, edges: currentEdges } = useDiagramStore();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null);
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
+  const aiRunning = useAiDesignStore((state) => state.running);
 
   // Fetch full version data (with `data` field) only when a preview is requested
   const { data: previewVersion, isLoading: isLoadingPreview } = useQuery({
     ...workspaceQuery.version(diagramId, previewVersionId ?? ""),
-    enabled: isOpen && !!previewVersionId,
+    enabled: isOpen && Boolean(previewVersionId),
   });
 
   const {
@@ -55,7 +62,7 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
     refetch,
   } = useQuery({
     ...workspaceQuery.versions(diagramId),
-    enabled: isOpen && !!diagramId,
+    enabled: isOpen && Boolean(diagramId),
   });
 
   const deleteMutation = useMutation({
@@ -78,8 +85,9 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
 
   const restoreMutation = useMutation({
     mutationFn: (versionId: string) => {
-      if (useAnimationStore.getState().pendingDeletions.size) {
-        throw new Error("Wait for deletions to finish before restoring.");
+      const blocked = editBlockReason(VERSION_EDIT_CHECKS);
+      if (blocked) {
+        throw new Error(RESTORE_BLOCKED[blocked]);
       }
       return cloudWorkspace.restoreVersion(versionId);
     },
@@ -171,6 +179,7 @@ export function VersionsPanel({ isOpen, onClose, diagramId }: VersionsPanelProps
                       isConfirmingDelete={confirmDeleteId === v.id}
                       isConfirmingRestore={confirmRestoreId === v.id}
                       isRestoring={restoreMutation.isPending && confirmRestoreId === v.id}
+                      restoreDisabled={aiRunning}
                       isDeleting={deleteMutation.isPending && confirmDeleteId === v.id}
                       isLoadingPreview={isLoadingPreview && previewVersionId === v.id}
                       onPreviewClick={() => setPreviewVersionId(v.id)}
@@ -212,6 +221,7 @@ interface VersionRowProps {
   isConfirmingDelete: boolean;
   isConfirmingRestore: boolean;
   isRestoring: boolean;
+  restoreDisabled: boolean;
   isDeleting: boolean;
   isLoadingPreview: boolean;
   onPreviewClick: () => void;
@@ -226,6 +236,7 @@ function VersionRow({
   isConfirmingDelete,
   isConfirmingRestore,
   isRestoring,
+  restoreDisabled,
   isDeleting,
   isLoadingPreview,
   onPreviewClick,
@@ -272,7 +283,8 @@ function VersionRow({
             <button
               type="button"
               onClick={onRestoreClick}
-              className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+              disabled={restoreDisabled}
+              className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Restore this version"
             >
               <ArrowUturnLeftIcon className="w-3 h-3" />
@@ -296,7 +308,7 @@ function VersionRow({
             <button
               type="button"
               onClick={onRestoreClick}
-              disabled={isRestoring}
+              disabled={isRestoring || restoreDisabled}
               className="inline-flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-0.5 rounded transition-colors disabled:opacity-50"
             >
               {isRestoring && <LoadingIndicator className="size-3" />}

@@ -1,7 +1,7 @@
 import { defineTemplate } from "../define";
 import { decide } from "../reasoning";
 
-export const webSearch = defineTemplate({
+const webSearch = defineTemplate({
   id: "web-search-engine",
   name: "Web search engine",
   category: "data",
@@ -180,7 +180,7 @@ export const webSearch = defineTemplate({
   },
 });
 
-export const recommendationSystem = defineTemplate({
+const recommendationSystem = defineTemplate({
   id: "recommendation-system",
   name: "Recommendation system",
   category: "data",

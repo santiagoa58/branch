@@ -1,6 +1,20 @@
 import type { DiagramData } from "@/types";
-import { designDecisionSchema } from "@/schemas/diagram";
+import { designDecisionSchema, diagramDataSchema } from "@/schemas/diagram";
+import { autoLayoutDiagram } from "@/utils/layout";
 import type { DiagramTemplate, TemplateCategory } from "./types";
+import { threeTierWeb } from "./threeTierWeb";
+import { microservicesEcommerce } from "./microservicesEcommerce";
+import { dataPipeline } from "./dataPipeline";
+import { ragChatbot } from "./ragChatbot";
+import { STORAGE_TEMPLATES } from "./catalog/storage";
+import { SOCIAL_TEMPLATES } from "./catalog/social";
+import { MEDIA_TEMPLATES } from "./catalog/media";
+import { COMMERCE_TEMPLATES } from "./catalog/commerce";
+import { MARKETPLACE_TEMPLATES } from "./catalog/marketplace";
+import { WEB_TEMPLATES } from "./catalog/web";
+import { DATA_TEMPLATES } from "./catalog/data";
+import { AI_TEMPLATES } from "./catalog/ai";
+import { PLATFORM_TEMPLATES } from "./catalog/platform";
 
 export { TEMPLATE_CATEGORIES } from "./types";
 export type { DiagramTemplate, TemplateCategory } from "./types";
@@ -46,19 +60,32 @@ export function instantiateTemplate(template: DiagramTemplate): DiagramData {
   return { nodes, edges, flows };
 }
 
-import { threeTierWeb } from "./threeTierWeb";
-import { microservicesEcommerce } from "./microservicesEcommerce";
-import { dataPipeline } from "./dataPipeline";
-import { ragChatbot } from "./ragChatbot";
-import { STORAGE_TEMPLATES } from "./catalog/storage";
-import { SOCIAL_TEMPLATES } from "./catalog/social";
-import { MEDIA_TEMPLATES } from "./catalog/media";
-import { COMMERCE_TEMPLATES } from "./catalog/commerce";
-import { MARKETPLACE_TEMPLATES } from "./catalog/marketplace";
-import { WEB_TEMPLATES } from "./catalog/web";
-import { DATA_TEMPLATES } from "./catalog/data";
-import { AI_TEMPLATES } from "./catalog/ai";
-import { PLATFORM_TEMPLATES } from "./catalog/platform";
+// Cache by object identity so a revised template with the same id gets a fresh ELK layout.
+const laidOut = new WeakMap<DiagramTemplate, Promise<DiagramTemplate>>();
+const quickLayouts = new WeakMap<DiagramTemplate, Promise<DiagramTemplate>>();
+
+/**
+ * The template with positions, group sizes and ports from the shared auto formatter. Layout is
+ * asynchronous, so it runs when a template is first shown or loaded, once per template.
+ */
+export function layoutTemplate(template: DiagramTemplate, quick = false): Promise<DiagramTemplate> {
+  const cache = quick ? quickLayouts : laidOut;
+  let layout = cache.get(template);
+  if (!layout) {
+    layout = autoLayoutDiagram(template.data.nodes, template.data.edges, quick).then(
+      ({ nodes, edges }) => ({
+        ...template,
+        data: diagramDataSchema.parse({ ...template.data, nodes, edges }),
+      }),
+      (error: unknown) => {
+        cache.delete(template);
+        throw error;
+      },
+    );
+    cache.set(template, layout);
+  }
+  return layout;
+}
 
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   threeTierWeb,

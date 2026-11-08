@@ -2,8 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon, PlayIcon } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
-import type { NamedFlow } from "@/types/simulation";
-import type { SimulationSpeed } from "@/types/simulation";
+import type { NamedFlow, SimulationSpeed } from "@/types/simulation";
 
 const FLOW_COLORS = [
   "#3b82f6", // blue

@@ -1,6 +1,6 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ConsideredOption, DesignDecision } from "@/types";
@@ -10,6 +10,14 @@ import type { DesignDecisionView } from "@/utils/designDecision";
 interface Props {
   value: DesignDecision | undefined;
   onChange: (value: DesignDecision) => void;
+  /**
+   * For a decision in an AI design: its `revisitWhen` items are the assumptions the choice rests
+   * on, shown as "Assumes", and each non-blank one offers "Make this a requirement", or a
+   * "Required" tag once `isRequirement` says it already is one. Omit both for a plain editor,
+   * which keeps "Revisit when".
+   */
+  onMakeRequirement?: (text: string) => void;
+  isRequirement?: (text: string) => boolean;
 }
 
 // Short limits keep each entry scannable instead of growing into paragraphs.
@@ -22,14 +30,14 @@ const listFields: Record<
   { label: string; item: string; hint: string; placeholder: string }
 > = {
   benefits: {
-    label: "Benefits",
-    item: "benefit",
+    label: "Gains",
+    item: "gain",
     hint: "What this choice gives you.",
     placeholder: "Schema changes ship without client releases",
   },
   drawbacks: {
-    label: "Drawbacks",
-    item: "drawback",
+    label: "Costs",
+    item: "cost",
     hint: "What this choice costs or risks.",
     placeholder: "Adds a network hop to every request",
   },
@@ -39,6 +47,15 @@ const listFields: Record<
     hint: "Changes that would make you reconsider.",
     placeholder: "Writes outgrow a single primary",
   },
+};
+
+// The same `revisitWhen` field in an AI design, where the decisions stage writes the assumptions
+// the choice rests on. Requirements are the user's own lines; assumptions are the AI's.
+const assumptionsField = {
+  label: "Assumes",
+  item: "assumption",
+  hint: "What this choice takes for granted. Make one a requirement to hold the design to it.",
+  placeholder: "Writes fit on a single primary",
 };
 
 const inputClassName =
@@ -141,6 +158,7 @@ function ItemList({
   placeholder,
   items,
   onChange,
+  renderAction,
 }: {
   id: string;
   label: string;
@@ -149,13 +167,15 @@ function ItemList({
   placeholder: string;
   items: string[];
   onChange: (items: string[]) => void;
+  renderAction?: ((value: string) => ReactNode) | undefined;
 }) {
   const { keys, remove } = useRowKeys(items.length);
   const rows = items.map((value, index) => ({ key: keys[index], value }));
   return (
     <ListFieldset id={id} label={label} hint={hint}>
-      {rows.map(({ key, value }, index) => (
-        <div key={key} className="flex min-w-0 items-center gap-1">
+      {rows.map(({ key, value }, index) => {
+        const action = renderAction?.(value);
+        const field = (
           <input
             {...keyboardSafety}
             aria-label={`${label} ${index + 1}`}
@@ -167,15 +187,30 @@ function ItemList({
             }
             className={inputClassName}
           />
-          <RemoveButton
-            label={`Remove ${item} ${index + 1}`}
-            onClick={() => {
-              remove(index);
-              onChange(items.filter((_, i) => i !== index));
-            }}
-          />
-        </div>
-      ))}
+        );
+        return (
+          <div
+            key={key}
+            className={cn("flex min-w-0 gap-1", action ? "items-start" : "items-center")}
+          >
+            {action ? (
+              <div className="grid min-w-0 flex-1 justify-items-start gap-1">
+                {field}
+                {action}
+              </div>
+            ) : (
+              field
+            )}
+            <RemoveButton
+              label={`Remove ${item} ${index + 1}`}
+              onClick={() => {
+                remove(index);
+                onChange(items.filter((_, i) => i !== index));
+              }}
+            />
+          </div>
+        );
+      })}
       <AddButton label={`Add ${item}`} onClick={() => onChange([...items, ""])} />
     </ListFieldset>
   );
@@ -237,17 +272,79 @@ function ConsideredList({
   );
 }
 
-export function DesignDecisionEditor({ value, onChange }: Props) {
+function MakeRequirement({
+  text,
+  required,
+  onMake,
+}: {
+  text: string;
+  required: boolean;
+  onMake: (text: string) => void;
+}) {
+  const tag = useRef<HTMLSpanElement>(null);
+  const requestedHere = useRef(false);
+  // The button is replaced by the tag, so hand focus over instead of dropping it to the page.
+  useEffect(() => {
+    if (required && requestedHere.current) {
+      requestedHere.current = false;
+      tag.current?.focus();
+    }
+  }, [required]);
+  if (required) {
+    return (
+      <span
+        ref={tag}
+        tabIndex={-1}
+        className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <Check aria-hidden="true" className="size-3" />
+        Required
+      </span>
+    );
+  }
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      aria-label={`Make this a requirement: ${text}`}
+      onClick={() => {
+        requestedHere.current = true;
+        onMake(text);
+      }}
+      {...keyboardSafety}
+    >
+      Make this a requirement
+    </Button>
+  );
+}
+
+export function DesignDecisionEditor({ value, onChange, onMakeRequirement, isRequirement }: Props) {
   const id = useId();
   const view = getDesignDecision(value);
   const update = (patch: Partial<DesignDecisionView>) =>
     onChange(toDesignDecision({ ...view, ...patch }));
+  const renderRequirementAction = onMakeRequirement
+    ? (item: string) => {
+        const text = item.trim();
+        return text ? (
+          <MakeRequirement
+            text={text}
+            required={isRequirement?.(text) ?? false}
+            onMake={onMakeRequirement}
+          />
+        ) : null;
+      }
+    : undefined;
+  const fieldsFor = (key: ListKey) =>
+    key === "revisitWhen" && onMakeRequirement ? assumptionsField : listFields[key];
   const renderList = (key: ListKey) => (
     <ItemList
       id={`${id}-${key}`}
-      {...listFields[key]}
+      {...fieldsFor(key)}
       items={view[key]}
       onChange={(items) => update({ [key]: items })}
+      renderAction={key === "revisitWhen" ? renderRequirementAction : undefined}
     />
   );
 

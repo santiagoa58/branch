@@ -133,6 +133,8 @@ describe("applyGroupCollapse", () => {
   it.each([
     ["side by side", { x: 600, y: 60 }, {}],
     ["stacked", { x: 0, y: 600 }, { sourceHandle: "bottom", targetHandle: "top" }],
+    ["westbound", { x: -600, y: 0 }, { sourceHandle: "left", targetHandle: "right" }],
+    ["upward", { x: 0, y: -600 }, { sourceHandle: "top", targetHandle: "bottom" }],
   ])("attaches a rollup to the ports that face each other (%s)", (_case, position, handles) => {
     const nodes = [group("g1", true), archNode("a", "g1"), archNode("x", undefined, position)];
     const { rollup } = onlyRollup(

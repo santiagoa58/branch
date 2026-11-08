@@ -50,6 +50,9 @@ describe("development runtime runner", () => {
     vi.stubEnv("CLERK_SECRET_KEY", "test-secret");
     vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "test-public");
     vi.stubEnv("CLERK_AUTHORIZED_PARTIES", "http://localhost:3000, https://branch.test");
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-gateway-key");
+    vi.stubEnv("AI_MODEL", "provider/default");
+    vi.stubEnv("AI_MODEL_API", "provider/api");
     vi.stubEnv("BRANCH_UNRELATED_SETTING", "do-not-forward");
     child = Object.assign(new EventEmitter(), {
       kill: vi.fn<(signal: NodeJS.Signals) => boolean>().mockReturnValue(true),
@@ -84,6 +87,9 @@ describe("development runtime runner", () => {
           CLERK_SECRET_KEY: "test-secret",
           VITE_CLERK_PUBLISHABLE_KEY: "test-public",
           CLERK_AUTHORIZED_PARTIES: "http://localhost:3000,https://branch.test",
+          AI_GATEWAY_API_KEY: "test-gateway-key",
+          AI_MODEL: "provider/default",
+          AI_MODEL_API: "provider/api",
         },
       }),
       { mode: 0o600 },
@@ -97,6 +103,63 @@ describe("development runtime runner", () => {
     expect(process.exitCode).toBe(0);
     expect(process.listenerCount("SIGINT")).toBe(interruptListeners);
     expect(process.listenerCount("SIGTERM")).toBe(terminateListeners);
+  });
+
+  it.each([undefined, ""])(
+    "starts without AI settings (%j) and forwards none of them",
+    async (value) => {
+      for (const name of [
+        "AI_GATEWAY_API_KEY",
+        "AI_MODEL",
+        "AI_MODEL_REQUIREMENTS",
+        "AI_MODEL_COMPONENTS",
+        "AI_MODEL_DECISIONS",
+        "AI_MODEL_API",
+        "AI_MODEL_DATA_MODEL",
+      ]) {
+        vi.stubEnv(name, value);
+      }
+
+      await runDev();
+
+      expect(writeFile).toHaveBeenCalledWith(
+        configPath,
+        JSON.stringify({
+          ...vercelConfig,
+          env: {
+            DATABASE_URL: "postgresql://db.example/branch-test",
+            CLERK_SECRET_KEY: "test-secret",
+            VITE_CLERK_PUBLISHABLE_KEY: "test-public",
+            CLERK_AUTHORIZED_PARTIES: "http://localhost:3000,https://branch.test",
+          },
+        }),
+        { mode: 0o600 },
+      );
+      expect(spawn).toHaveBeenCalledOnce();
+      expect(process.exitCode).toBe(0);
+    },
+  );
+
+  it("forwards a stage override without a default model", async () => {
+    vi.stubEnv("AI_MODEL", undefined);
+
+    await runDev();
+
+    expect(writeFile).toHaveBeenCalledWith(
+      configPath,
+      JSON.stringify({
+        ...vercelConfig,
+        env: {
+          DATABASE_URL: "postgresql://db.example/branch-test",
+          CLERK_SECRET_KEY: "test-secret",
+          VITE_CLERK_PUBLISHABLE_KEY: "test-public",
+          CLERK_AUTHORIZED_PARTIES: "http://localhost:3000,https://branch.test",
+          AI_GATEWAY_API_KEY: "test-gateway-key",
+          AI_MODEL_API: "provider/api",
+        },
+      }),
+      { mode: 0o600 },
+    );
   });
 
   it.each([
