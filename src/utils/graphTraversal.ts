@@ -3,6 +3,7 @@
  * Pure functions — no side effects, no store dependencies.
  */
 import type { Node, Edge } from "@xyflow/react";
+import { simulationHopMs } from "./simulationSemantics";
 import type {
   FlowPath,
   BlastRadius,
@@ -40,7 +41,7 @@ export function getIncomingEdges(nodeId: string, edges: Edge[]): Edge[] {
  * plus branch-aware BFS levels for parallel path animation.
  */
 // oxlint-disable-next-line complexity -- debt: complexity 20; extract branches
-export function traceFlowPath(_nodes: Node[], edges: Edge[], sourceId: string): FlowPath {
+export function traceFlowPath(nodes: Node[], edges: Edge[], sourceId: string): FlowPath {
   const visitedNodes = new Set<string>();
   const visitedEdges = new Set<string>();
   const orderedNodeIds: string[] = [];
@@ -73,7 +74,7 @@ export function traceFlowPath(_nodes: Node[], edges: Edge[], sourceId: string): 
         const targetId = edge.target;
         const edgeData = edge.data;
         const protocol = edgeData?.["protocol"];
-        const latency = edgeData?.["latencyMs"];
+        const latency = simulationHopMs(edge, nodes);
 
         const step: SimulationStep = {
           edgeId: edge.id,
@@ -113,7 +114,7 @@ export function traceFlowPath(_nodes: Node[], edges: Edge[], sourceId: string): 
 
           const sourceNodeId = edge.source;
           const protocol = edgeData?.["protocol"];
-          const latency = edgeData?.["latencyMs"];
+          const latency = simulationHopMs({ ...edge, target: sourceNodeId }, nodes);
 
           const step: SimulationStep = {
             edgeId: edge.id,

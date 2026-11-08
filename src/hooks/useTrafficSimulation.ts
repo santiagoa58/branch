@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import type { Edge } from "@xyflow/react";
 import { gsap } from "@/lib/gsap";
 import { PROTOCOL_CONFIG } from "@/constants";
+import { planSimulation } from "@/services/simulationPlanning";
 import { edgeProtocolSchema } from "@/schemas/diagram";
 import { useDiagramStore } from "@/store/diagramStore";
 import { useSimulationStore } from "@/store/simulationStore";
@@ -31,9 +32,8 @@ const ERROR_COLOR = "#ef4444";
 const FALLBACK_COLOR = "#3b82f6";
 
 /** On-screen hop time: readable regardless of the diagram's millisecond latencies. */
-function visualHopMs(edge: Edge): number {
-  const latency = edge.data?.["latencyMs"];
-  return computeStepDuration(typeof latency === "number" ? latency : undefined) * 1000;
+function visualHopMs(latencyMs: number): number {
+  return computeStepDuration(latencyMs) * 1000;
 }
 
 function hopColor(kind: HopKind, edge: Edge | undefined): string {
@@ -72,7 +72,7 @@ function requestEntry(plan: TrafficPlan): TrafficLogEntry {
     sourceId: plan.sourceId,
     outcome: plan.outcome === "failed" ? "failed" : plan.waiting.length > 0 ? "waiting" : "ok",
     ...(plan.failedAt ? { failedAt: plan.failedAt } : {}),
-    latencyMs: plan.durationMs,
+    latencyMs: plan.responseMs,
     waitingCount: plan.waiting.length,
   };
 }
@@ -146,11 +146,21 @@ function playPlan(timelines: Set<gsap.core.Timeline>, plan: TrafficPlan, onDone:
  * while a component was down can finish after it recovers, so every addition goes through here.
  */
 function settleWaiting(timelines: Set<gsap.core.Timeline>, messages: WaitingMessage[]): void {
-  const { edges } = useDiagramStore.getState();
+  const { edges, nodes } = useDiagramStore.getState();
   const store = useSimulationStore.getState();
   const down = new Set(store.failedNodeIds);
-  const outcome = releaseWaiting(edges, messages, down);
-  const visual = releaseWaiting(edges, messages, down, visualHopMs);
+  // This may include newly accepted messages from a just-completed request.
+  // Keep them even if an individual recovery plan exceeds the safety limit.
+  store.setWaitingMessages(messages);
+  const options = { nodes, maxDeliveries: Math.max(0, MAX_IN_FLIGHT - timelines.size) };
+  const planned = planSimulation(() => ({
+    outcome: releaseWaiting(edges, messages, down, options),
+    visual: releaseWaiting(edges, messages, down, { ...options, durationOf: visualHopMs }),
+  }));
+  if (!planned) {
+    return;
+  }
+  const { outcome, visual } = planned;
   store.setWaitingMessages(outcome.stillWaiting);
   outcome.plans.forEach((plan, index) => {
     const finish = () => {
@@ -191,8 +201,14 @@ export function useTrafficSimulation() {
           return;
         }
         const id = `r${++requestCount.current}`;
-        const outcome = planRequest(edges, sourceId, down, id);
-        const visual = planRequest(edges, sourceId, down, id, visualHopMs);
+        const planned = planSimulation(() => ({
+          outcome: planRequest(edges, sourceId, down, id, { nodes }),
+          visual: planRequest(edges, sourceId, down, id, { nodes, durationOf: visualHopMs }),
+        }));
+        if (!planned) {
+          return;
+        }
+        const { outcome, visual } = planned;
         if (!outcome || !visual) {
           continue;
         }

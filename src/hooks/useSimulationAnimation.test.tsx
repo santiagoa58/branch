@@ -1,9 +1,13 @@
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { Position, ReactFlowProvider } from "@xyflow/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { ArchitectureEdge } from "@/components/edges/ArchitectureEdge";
 import { RollupEdge } from "@/components/edges/RollupEdge";
-import { getEdgePath } from "./useSimulationAnimation";
+import { gsap } from "@/lib/gsap";
+import { useDiagramStore } from "@/store/diagramStore";
+import { useSimulationStore } from "@/store/simulationStore";
+import { traceFlowPath } from "@/utils/graphTraversal";
+import { computeStepDuration, getEdgePath, useSimulationAnimation } from "./useSimulationAnimation";
 
 vi.mock("@/hooks/useEdgeAnimation", () => ({
   useEdgeAnimation: () => ({
@@ -29,7 +33,107 @@ const props = {
   deletable: true,
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  useSimulationStore.getState().reset();
+  Reflect.deleteProperty(SVGElement.prototype, "getCTM");
+  Reflect.deleteProperty(SVGElement.prototype, "getBBox");
+});
+
+describe("causal trace animation", () => {
+  it("shows a fast Redis response while a slower independent call is still travelling", () => {
+    // jsdom has no SVG geometry API; keep the actual GSAP scheduler and motion
+    // plugin, with a fixed straight-line coordinate system for this fixture.
+    Object.defineProperty(SVGElement.prototype, "getCTM", {
+      configurable: true,
+      value: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+    });
+    Object.defineProperty(SVGElement.prototype, "getBBox", {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, width: 100, height: 1 }),
+    });
+    const nodes = [
+      {
+        id: "collab",
+        type: "architecture",
+        position: { x: 0, y: 0 },
+        data: { type: "service", label: "Collab" },
+      },
+      {
+        id: "redis",
+        type: "architecture",
+        position: { x: 0, y: 0 },
+        data: { type: "cache", label: "Redis" },
+      },
+      {
+        id: "db",
+        type: "architecture",
+        position: { x: 0, y: 0 },
+        data: { type: "database", label: "DB" },
+      },
+    ];
+    const edges = [
+      { id: "fast", source: "collab", target: "redis", data: { protocol: "redis", latencyMs: 2 } },
+      { id: "slow", source: "collab", target: "db", data: { protocol: "sql", latencyMs: 1000 } },
+    ];
+    useDiagramStore.setState({ nodes, edges });
+    useSimulationStore.getState().setMode("flow");
+    useSimulationStore
+      .getState()
+      .startFlowSimulation("collab", traceFlowPath(nodes, edges, "collab"));
+    useSimulationStore.setState({ roundTripEnabled: true });
+    const { container } = render(
+      <div className="react-flow__edges">
+        <svg>
+          {edges.map((edge) => (
+            <g key={edge.id} data-edge-id={edge.id}>
+              <path className="react-flow__edge-path" d="M0 0L100 0" />
+            </g>
+          ))}
+        </svg>
+      </div>,
+    );
+    for (const path of container.querySelectorAll("path")) {
+      path.getTotalLength = () => 100;
+      path.getPointAtLength = (length) => ({ x: length, y: 0 }) as DOMPoint;
+    }
+    renderHook(() => useSimulationAnimation());
+    const timeline = gsap.globalTimeline
+      .getChildren()
+      .find((item) => "repeat" in item && item.repeat() === -1);
+    if (!(timeline instanceof gsap.core.Timeline)) {
+      throw new TypeError("Trace did not create a timeline");
+    }
+    timeline.pause();
+    const returns = timeline.getChildren().filter((item) => {
+      const motion: unknown = item.vars["motionPath"];
+      return (
+        typeof motion === "object" && motion !== null && "start" in motion && motion.start === 1
+      );
+    });
+    // A real response tween must start during the first visual second, while
+    // the slower independent outgoing request takes more than two seconds.
+    expect(Math.min(...returns.map((item) => item.startTime()))).toBeLessThan(1);
+    expect(useSimulationStore.getState().stats?.roundTripLatencyMs).toBe(2000);
+    act(() => useSimulationStore.getState().toggleRoundTrip());
+    const forwardOnly = gsap.globalTimeline
+      .getChildren()
+      .find((item) => "repeat" in item && item.repeat() === -1);
+    if (!(forwardOnly instanceof gsap.core.Timeline)) {
+      throw new TypeError("Trace did not create a forward-only timeline");
+    }
+    const lastForwardArrival = forwardOnly
+      .getChildren()
+      .filter((item) => item.vars["motionPath"] !== undefined)
+      .reduce((end, item) => Math.max(end, item.startTime() + item.duration()), 0);
+    expect(forwardOnly.duration()).toBeCloseTo(lastForwardArrival, 5);
+  });
+
+  it("keeps visually distinct timings for fast cache and service interactions", () => {
+    expect(computeStepDuration(2)).toBeLessThan(computeStepDuration(20));
+    expect(computeStepDuration(0)).toBeLessThan(computeStepDuration(2));
+  });
+});
 
 describe("simulation connection path lookup", () => {
   it.each([false, true])(

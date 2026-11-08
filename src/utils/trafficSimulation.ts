@@ -4,18 +4,35 @@ import { isOutsideActor } from "@/utils/designRules";
 import { PROTOCOL_CONFIG } from "@/constants";
 import { edgeProtocolSchema } from "@/schemas/diagram";
 
-/**
- * Pure planning for the live traffic simulation. A request is a set of timed hops: calls travel
- * along edges, responses and errors travel back. Asynchronous hand-offs (queues, streams, async
- * edges) never block the caller; when the receiver is down they wait until it recovers.
- */
+import { isDurableNode, simulationHopMs, simulationNodeType } from "./simulationSemantics";
 
-/** Illustrative per-hop latency for edges that don't specify one. */
-export const DEFAULT_HOP_MS = 100;
+/** Stop combinatorial branching before it can block the editor or allocate unbounded work. */
+const MAX_PLANNED_HOPS = 4096;
+const MAX_CALL_DEPTH = 128;
 
+export class SimulationLimitError extends Error {
+  constructor() {
+    super(
+      "This diagram creates too many request branches to simulate. Simplify the connections or trace a smaller part of the design.",
+    );
+    this.name = "SimulationLimitError";
+  }
+}
+
+function createHopBudget(): () => void {
+  let count = 0;
+  return () => {
+    if (count >= MAX_PLANNED_HOPS) {
+      throw new SimulationLimitError();
+    }
+    count += 1;
+  };
+}
+
+/** Pure, illustrative call timing shared by traffic and trace playback. */
 export type HopKind = "request" | "response" | "error" | "message";
 
-interface TrafficHop {
+export interface TrafficHop {
   edgeId: string;
   from: string;
   to: string;
@@ -45,16 +62,19 @@ export interface TrafficPlan {
   outcome: "ok" | "failed";
   /** The first down component a synchronous call reached. */
   failedAt?: string;
+  /** Time until the originating caller receives its response; excludes detached work. */
+  responseMs: number;
+  /** Time until all foreground and detached hops finish. */
   durationMs: number;
   waiting: WaitingMessage[];
 }
 
-export type HopDuration = (edge: Edge) => number;
-
-/** The diagram's own illustrative latency for an edge. */
-function hopDuration(edge: Edge): number {
-  const latency = edge.data?.["latencyMs"];
-  return typeof latency === "number" && latency > 0 ? latency : DEFAULT_HOP_MS;
+export interface TrafficOptions {
+  nodes?: readonly Node[];
+  /** Presentation-only timing transform; metrics use the untransformed plan. */
+  durationOf?: (latencyMs: number) => number;
+  /** Recovery batch size; zero leaves all accepted messages waiting for a later batch. */
+  maxDeliveries?: number;
 }
 
 /** Hand-offs the caller doesn't wait for: async edges and fire-and-forget protocols. */
@@ -74,40 +94,56 @@ function outgoingBySource(edges: Edge[]): Map<string, Edge[]> {
   return bySource;
 }
 
+interface VisitResult {
+  endMs: number;
+  failedAt?: string;
+}
+
 interface Planner {
   hops: TrafficHop[];
   waiting: WaitingMessage[];
-  visit: (nodeId: string, startMs: number) => { endMs: number; failedAt?: string };
-  handOff: (edge: Edge, startMs: number) => void;
+  visit: (nodeId: string, startMs: number, ancestry: ReadonlySet<string>) => VisitResult;
+  handOff: (
+    edge: Edge,
+    startMs: number,
+    ancestry: ReadonlySet<string>,
+    deliveryId?: string,
+  ) => VisitResult;
 }
 
-// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
-function createPlanner(
-  edges: Edge[],
-  down: ReadonlySet<string>,
-  requestId: string,
-  entryId?: string,
-  durationOf: HopDuration = hopDuration,
-): Planner {
+interface PlannerContext {
+  edges: Edge[];
+  down: ReadonlySet<string>;
+  requestId: string;
+  options: TrafficOptions;
+  deliveryPrefix?: string;
+}
+
+function createPlanner({
+  edges,
+  down,
+  requestId,
+  options,
+  deliveryPrefix = requestId,
+}: PlannerContext): Planner {
   const outgoing = outgoingBySource(edges);
-  // Each component handles a given request once, which also stops cycles.
-  const visited = new Set<string>(entryId === undefined ? [] : [entryId]);
+  const nodes = options.nodes ?? [];
   const hops: TrafficHop[] = [];
   const waiting: WaitingMessage[] = [];
+  let deliverySequence = 0;
+  const consumeHop = createHopBudget();
+  const addHop = (hop: TrafficHop) => {
+    consumeHop();
+    hops.push(hop);
+  };
+  const durationOf = (edge: Edge) => {
+    const latency = simulationHopMs(edge, nodes);
+    return options.durationOf ? options.durationOf(latency) : latency;
+  };
 
-  const wait = (edge: Edge, blockedBy: string) =>
-    waiting.push({
-      id: `${requestId}:${edge.id}`,
-      requestId,
-      edgeId: edge.id,
-      from: edge.source,
-      to: edge.target,
-      blockedBy,
-    });
-
-  const handOff = (edge: Edge, startMs: number) => {
+  const handOff: Planner["handOff"] = (edge, startMs, ancestry, deliveryId) => {
     const durationMs = durationOf(edge);
-    hops.push({
+    addHop({
       edgeId: edge.id,
       from: edge.source,
       to: edge.target,
@@ -116,33 +152,44 @@ function createPlanner(
       durationMs,
       reverse: false,
     });
-    if (down.has(edge.target)) {
-      wait(edge, edge.target);
-      return;
+    const processed = down.has(edge.target)
+      ? { endMs: startMs + durationMs, failedAt: edge.target }
+      : visit(edge.target, startMs + durationMs, new Set([...ancestry, edge.target]));
+    // Retention belongs to an actual queue/log, never to an arbitrary async caller.
+    if (processed.failedAt && isDurableNode(edge.source, nodes)) {
+      waiting.push({
+        id: deliveryId ?? `${deliveryPrefix}:delivery-${++deliverySequence}`,
+        requestId,
+        edgeId: edge.id,
+        from: edge.source,
+        to: edge.target,
+        blockedBy: processed.failedAt,
+      });
     }
-    visited.add(edge.target);
-    // A message is retried until its whole synchronous processing succeeds.
-    const processed = visit(edge.target, startMs + durationMs);
-    if (processed.failedAt) {
-      wait(edge, processed.failedAt);
-    }
+    return processed;
   };
 
-  const visit = (nodeId: string, startMs: number): { endMs: number; failedAt?: string } => {
+  const visit: Planner["visit"] = (nodeId, startMs, ancestry) => {
+    if (ancestry.size > MAX_CALL_DEPTH) {
+      throw new SimulationLimitError();
+    }
     let endMs = startMs;
     let failedAt: string | undefined;
+    const sourceType = simulationNodeType(nodeId, nodes);
+    const dispatches = isDurableNode(nodeId, nodes) || sourceType === "eventbus";
     for (const edge of outgoing.get(nodeId) ?? []) {
-      if (visited.has(edge.target)) {
+      if (ancestry.has(edge.target)) {
         continue;
       }
-      if (isAsyncEdge(edge)) {
-        handOff(edge, startMs);
+      // A broker's consumers run independently of its enqueue acknowledgment.
+      // A producer must still reach a live queue/log before its message is accepted.
+      if (dispatches || (isAsyncEdge(edge) && !isDurableNode(edge.target, nodes))) {
+        handOff(edge, startMs, ancestry);
         continue;
       }
-      visited.add(edge.target);
       const durationMs = durationOf(edge);
       const call = { edgeId: edge.id, durationMs };
-      hops.push({
+      addHop({
         ...call,
         from: nodeId,
         to: edge.target,
@@ -152,8 +199,8 @@ function createPlanner(
       });
       const child = down.has(edge.target)
         ? { endMs: startMs + durationMs, failedAt: edge.target }
-        : visit(edge.target, startMs + durationMs);
-      hops.push({
+        : visit(edge.target, startMs + durationMs, new Set([...ancestry, edge.target]));
+      addHop({
         ...call,
         from: edge.target,
         to: nodeId,
@@ -170,64 +217,87 @@ function createPlanner(
   return { hops, waiting, visit, handOff };
 }
 
-function toPlan(
-  id: string,
-  sourceId: string,
-  planner: Planner,
-  result: { endMs: number; failedAt?: string },
-): TrafficPlan {
+function toPlan(id: string, sourceId: string, planner: Planner, result: VisitResult): TrafficPlan {
   return {
     id,
     sourceId,
     hops: planner.hops,
     outcome: result.failedAt ? "failed" : "ok",
     ...(result.failedAt ? { failedAt: result.failedAt } : {}),
-    durationMs: Math.max(result.endMs, ...planner.hops.map((hop) => hop.startMs + hop.durationMs)),
+    responseMs: result.endMs,
+    durationMs: planner.hops.reduce(
+      (end, hop) => Math.max(end, hop.startMs + hop.durationMs),
+      result.endMs,
+    ),
     waiting: planner.waiting,
   };
 }
 
 /** Plans one request from an entry component, or null when the entry itself is down. */
-// oxlint-disable-next-line max-params -- debt: 5 params; take an options object
+// oxlint-disable-next-line max-params -- debt: existing positional API; callers share the options object
 export function planRequest(
   edges: Edge[],
   sourceId: string,
   down: ReadonlySet<string>,
   requestId: string,
-  durationOf?: HopDuration,
+  options: TrafficOptions = {},
 ): TrafficPlan | null {
   if (down.has(sourceId)) {
     return null;
   }
-  const planner = createPlanner(edges, down, requestId, sourceId, durationOf);
-  return toPlan(requestId, sourceId, planner, planner.visit(sourceId, 0));
+  const planner = createPlanner({ edges, down, requestId, options });
+  return toPlan(requestId, sourceId, planner, planner.visit(sourceId, 0, new Set([sourceId])));
 }
 
-/**
- * Delivers waiting messages whose blocking component is back. A message that reaches another
- * down component waits again, now blocked by that one.
- */
+/** Retry only accepted deliveries that still belong to a queue/log in this diagram. */
 export function releaseWaiting(
   edges: Edge[],
   waiting: readonly WaitingMessage[],
   down: ReadonlySet<string>,
-  durationOf?: HopDuration,
+  options: TrafficOptions = {},
 ): { plans: TrafficPlan[]; stillWaiting: WaitingMessage[] } {
   const byId = new Map(edges.map((edge) => [edge.id, edge]));
   const plans: TrafficPlan[] = [];
   const stillWaiting: WaitingMessage[] = [];
+  const maxDeliveries = Math.max(0, Math.floor(options.maxDeliveries ?? 24));
+  let batchHops = 0;
+  let batchFull = false;
   for (const message of waiting) {
     const edge = byId.get(message.edgeId);
-    if (!edge) {
+    if (
+      !edge ||
+      edge.source !== message.from ||
+      edge.target !== message.to ||
+      !isDurableNode(message.from, options.nodes ?? [])
+    ) {
       continue;
     }
-    if (down.has(message.blockedBy)) {
+    if (batchFull || plans.length >= maxDeliveries) {
       stillWaiting.push(message);
       continue;
     }
-    const planner = createPlanner(edges, down, message.requestId, undefined, durationOf);
-    planner.handOff(edge, 0);
-    plans.push(toPlan(message.id, message.to, planner, { endMs: 0 }));
+    const blockedBy = down.has(message.from) ? message.from : message.blockedBy;
+    if (down.has(blockedBy)) {
+      stillWaiting.push({ ...message, blockedBy });
+      continue;
+    }
+    const planner = createPlanner({
+      edges,
+      down,
+      requestId: message.requestId,
+      options,
+      deliveryPrefix: message.id,
+    });
+    const result = planner.handOff(edge, 0, new Set([edge.source]), message.id);
+    // Each delivery is valid on its own. Defer the rest if this frame's batch is full.
+    if (plans.length > 0 && batchHops + planner.hops.length > MAX_PLANNED_HOPS) {
+      batchFull = true;
+      stillWaiting.push(message);
+      continue;
+    }
+    batchHops += planner.hops.length;
+    // A failed delivery remains retained by the broker, not a failed new request.
+    plans.push(toPlan(message.id, message.to, planner, { endMs: result.endMs }));
   }
   return { plans, stillWaiting };
 }
