@@ -5,7 +5,7 @@ allowBuilds:
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.4.0
   vitest: 5.0.5
-  vite-plus: 1.4.0
+  vite-plus: 1.5.0
   "@vitest/coverage-v8": 5.0.5
 overrides:
   "@vercel/cli-config>zod": "^4.6.7"
